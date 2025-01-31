@@ -41,14 +41,14 @@ class PacketStream:
         while True:
             if self._have_packet():
                 return self._next_packet()
+            if self._reader.at_eof():
+                raise network.NetworkError("eof")
             try:
                 self._recv_buffer += await self._reader.read(proto.MAX_DATA_SIZE)
             except ConnectionResetError as exc:  # pragma: no cover
                 raise network.NetworkError(str(exc))
             except tlslite.errors.TLSAbruptCloseError as exc:  # pragma: no cover
                 raise network.NetworkError(str(exc))
-            if self._reader.at_eof():
-                raise network.NetworkError("eof")
 
     def _next_packet(self) -> Packet:
         msg, size = encoding.decode(proto.DataPacket, self._recv_buffer)
