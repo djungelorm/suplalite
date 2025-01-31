@@ -5,7 +5,7 @@ import dataclasses
 import importlib
 import typing
 from enum import Enum
-from typing import Any, Protocol, TypeAlias, TypeVar, cast
+from typing import Any, Protocol, TypeVar, cast
 
 
 def c_int8() -> dict[str, Any]:
@@ -281,7 +281,7 @@ class MessageProtocol(Protocol):  # pylint: disable=too-few-public-methods
 
 
 T = TypeVar("T", bound=MessageProtocol)
-Fields: TypeAlias = list[tuple[str | None, type, bool, dict[str, Any]]]
+Fields = list[tuple[str | None, type, bool, dict[str, Any]]]
 
 
 def fields(cls: type[T]) -> Fields:
