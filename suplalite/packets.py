@@ -1,4 +1,5 @@
 import asyncio
+import ssl
 from dataclasses import dataclass
 
 import tlslite  # type: ignore
@@ -125,5 +126,9 @@ class PacketStream:
             self._next_send_rr_id = 1  # pragma: no cover
 
     async def close(self) -> None:
-        self._writer.close()
-        await self._writer.wait_closed()
+        try:
+            self._writer.close()
+            await self._writer.wait_closed()
+        except ssl.SSLError:
+            # ignore ssl errors when closing connection
+            pass

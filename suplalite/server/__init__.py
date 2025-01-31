@@ -291,11 +291,14 @@ class Connection:
         handlers = self._context.server.get_event_handlers(event_context, event_id)
         for handler in handlers:
             self._context.log(f"handle event {event_id}", level=logging.DEBUG)
-            async with self._context.server.state.lock:
-                if payload is None:
-                    await handler.func(self._context)
-                else:
-                    await handler.func(self._context, *payload)
+            try:
+                async with self._context.server.state.lock:
+                    if payload is None:
+                        await handler.func(self._context)
+                    else:
+                        await handler.func(self._context, *payload)
+            except Exception as exc:  # pylint: disable=broad-exception-caught
+                logger.error("event handler failed: %s", exc)
 
 
 class Server:
