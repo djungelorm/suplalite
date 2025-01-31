@@ -33,5 +33,5 @@ jobs:
           --verbose \
           --cov \
           --cov-fail-under=100 \
-          -n auto \
+          -n 1 \
           --runslow
