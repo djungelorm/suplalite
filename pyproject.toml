@@ -1,0 +1,75 @@
+[build-system]
+requires = ["hatchling", "uv-dynamic-versioning"]
+build-backend = "hatchling.build"
+
+[project]
+name = "suplalite"
+dynamic = ['version']
+requires-python = ">=3.7"
+dependencies = [
+    "tlslite-ng",
+]
+
+[tool.hatch.version]
+source = "uv-dynamic-versioning"
+
+[project.optional-dependencies]
+dev = [
+    "build",
+    "mypy",
+    "pre-commit",
+    "pylint",
+    "pylint-pytest",
+    "pytest",
+    "pytest-xdist",
+    "pytest-cov",
+    "pytest-asyncio",
+]
+
+[tool.pytest.ini_options]
+filterwarnings = ["ignore::DeprecationWarning"]
+testpaths = [
+    "tests"
+]
+asyncio_default_fixture_loop_scope = "function"
+log_level = "DEBUG"
+
+[tool.isort]
+profile = "black"
+
+[tool.pylint.MAIN]
+load-plugins = [
+    "pylint.extensions.typing",
+    "pylint_pytest",
+]
+max-module-lines=2000
+
+[tool.pylint."MESSAGES CONTROL"]
+disable = [
+    "fixme",
+    "missing-docstring",
+    "too-many-arguments",
+    "too-few-public-methods",
+    "too-many-instance-attributes",
+    "too-many-public-methods",
+    "too-many-locals",
+    "duplicate-code",
+]
+
+[tool.pylint.FORMAT]
+good-names = "i,j,k,x,y,z,n,it,id,_"
+
+[tool.pylint.REPORTS]
+reports = "no"
+
+[tool.pylint.design]
+max-positional-arguments = 12
+
+[tool.coverage.run]
+branch = true
+omit = [
+    "tests/conftest.py"
+]
+
+[tool.mypy]
+strict = true

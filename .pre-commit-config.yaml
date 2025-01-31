@@ -1,0 +1,72 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-ast
+      - id: check-executables-have-shebangs
+      - id: check-merge-conflict
+      - id: check-shebang-scripts-are-executable
+      - id: check-symlinks
+      - id: check-yaml
+      - id: debug-statements
+      - id: destroyed-symlinks
+      - id: detect-aws-credentials
+        args: ["--allow-missing-credentials"]
+      - id: detect-private-key
+      - id: end-of-file-fixer
+      - id: fix-byte-order-marker
+      - id: mixed-line-ending
+      - id: name-tests-test
+      - id: trailing-whitespace
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        args: ["--profile", "black"]
+        stages: [pre-commit, pre-push, manual]
+  - repo: https://github.com/psf/black
+    rev: 24.10.0
+    hooks:
+      - id: black
+        stages: [pre-commit, pre-push]
+      - id: black
+        stages: [manual]
+        args: ["--check"]
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        entry: env/bin/mypy
+        language: system
+        types: [python]
+        args: ["suplalite", "tests"]
+        files: "\\.py$"
+        pass_filenames: false
+  - repo: local
+    hooks:
+      - id: pylint
+        name: pylint
+        entry: env/bin/pylint
+        language: system
+        types: [python]
+        args: [
+          "-rn", # Only display messages
+          "-sn", # Don't display the score
+        ]
+        files: "(suplalite|tests)/.+\\.py$"
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest
+        entry: env/bin/pytest
+        language: system
+        types: [python]
+        args: [
+          "--cov",
+          "--cov-report=html:htmlcov",
+          "--cov-fail-under=100",
+          "-n", "auto", # Run in parallel
+        ]
+        files: "\\.py$"
+        pass_filenames: false
