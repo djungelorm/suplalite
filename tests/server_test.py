@@ -166,7 +166,6 @@ def setup_server(server: Server) -> None:
 async def open_connection(
     server: Server, secure: bool = True
 ) -> AsyncIterator[PacketStream]:
-    secure = False
     port = server.secure_port if secure else server.port
     ssl_context = None
     if secure:
