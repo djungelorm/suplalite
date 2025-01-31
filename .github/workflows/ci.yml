@@ -18,6 +18,8 @@ jobs:
         python -m pip install --upgrade pip
         pip install -e .[dev]
         pre-commit install
+        mkdir ssl
+        openssl req -new -x509 -days 365 -nodes -subj "/C=/ST=/L=/O=/CN=" -out ssl/server.cert -keyout ssl/server.key
         mkdir -p env/bin
         ln -s `which mypy` env/bin/mypy
         ln -s `which pylint` env/bin/pylint
