@@ -23,6 +23,9 @@ async def echo_server(
     except Exception as exn:  # pragma: no cover
         print(exn)
         raise
+    finally:
+        writer.close()
+        await writer.wait_closed()
 
 
 @pytest_asyncio.fixture
@@ -33,8 +36,7 @@ async def stream() -> AsyncIterator[PacketStream]:
     stream = PacketStream(reader, writer)
     yield stream
 
-    writer.close()
-    await writer.wait_closed()
+    await stream.close()
     server.close()
     await server.wait_closed()
 

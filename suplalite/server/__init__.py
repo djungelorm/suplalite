@@ -216,8 +216,8 @@ class Connection:
             self._context.log("closed")
 
     async def _call(self) -> None:
+        assert self._packets is not None
         try:
-            assert self._packets is not None
             while True:
                 try:
                     packet = await asyncio.wait_for(
@@ -231,17 +231,9 @@ class Connection:
                         f"timed out after {self._context.activity_timeout} seconds; "
                         "closing connection"
                     )
-                    self._writer.write_eof()
-                    await self._writer.drain()
-                    self._writer.close()
-                    await self._writer.wait_closed()
                     break
                 if self._context.error:
                     self._context.log("error; closing connection")
-                    self._writer.write_eof()
-                    await self._writer.drain()
-                    self._writer.close()
-                    await self._writer.wait_closed()
                     break
                 if self._context.should_replace:
                     self._context = self._context.replacement
@@ -251,6 +243,7 @@ class Connection:
             logger.error(str(exc), exc_info=exc)
             raise
         finally:
+            await self._packets.close()
             self._context.log("call task stopped")
 
     async def _event(self) -> None:
@@ -421,6 +414,9 @@ class Server:
     async def stop(self) -> None:
         while await self.has_connections():
             await asyncio.sleep(0.1)
+        assert self._server is not None
+        self._server.close()
+        await self._server.wait_closed()
         for task in self._tasks:
             task.cancel()
         for task in self._tasks:

@@ -177,7 +177,7 @@ async def open_connection(
     try:
         yield stream
     finally:
-        stream.close()
+        await stream.close()
 
 
 @dataclass

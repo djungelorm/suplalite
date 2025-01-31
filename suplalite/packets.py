@@ -124,5 +124,6 @@ class PacketStream:
         else:
             self._next_send_rr_id = 1  # pragma: no cover
 
-    def close(self) -> None:
+    async def close(self) -> None:
         self._writer.close()
+        await self._writer.wait_closed()

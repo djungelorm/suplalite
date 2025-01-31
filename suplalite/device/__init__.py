@@ -159,7 +159,7 @@ class Device:
             except asyncio.exceptions.CancelledError:
                 pass
         assert self._packets is not None
-        self._packets.close()
+        await self._packets.close()
         logger.info("stopped")
 
     async def _register(self) -> None:
