@@ -153,11 +153,10 @@ class Connection:
     ):
         self._reader = reader
         self._writer = writer
-        remote_host, remote_port = self._writer.get_extra_info("peername")
         self._context = ConnectionContext(
             server=server,
             events=EventQueue(),
-            name=f"{remote_host}:{remote_port}",
+            name=str(self._writer.get_extra_info("peername")),
             conn=self,
         )
         self._packets: PacketStream | None = None
