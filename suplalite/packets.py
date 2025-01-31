@@ -129,6 +129,6 @@ class PacketStream:
         try:
             self._writer.close()
             await self._writer.wait_closed()
-        except ssl.SSLError:
+        except ssl.SSLError:  # pragma: no cover
             # ignore ssl errors when closing connection
             pass
