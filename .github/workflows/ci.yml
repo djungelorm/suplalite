@@ -1,0 +1,35 @@
+name: ci
+
+on: [push]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .[dev]
+        pre-commit install
+        mkdir -p env/bin
+        ln -s `which mypy` env/bin/mypy
+        ln -s `which pylint` env/bin/pylint
+        ln -s `which pytest` env/bin/pytest
+    - name: Check
+      run: |
+        SKIP=pytest pre-commit run --all-files --verbose
+    - name: Test
+      run: |
+        env/bin/pytest \
+          --verbose \
+          --cov \
+          --cov-fail-under=100 \
+          -n auto \
+          --runslow
