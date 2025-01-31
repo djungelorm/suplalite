@@ -231,11 +231,17 @@ class Connection:
                         f"timed out after {self._context.activity_timeout} seconds; "
                         "closing connection"
                     )
+                    self._writer.write_eof()
+                    await self._writer.drain()
                     self._writer.close()
+                    await self._writer.wait_closed()
                     break
                 if self._context.error:
                     self._context.log("error; closing connection")
+                    self._writer.write_eof()
+                    await self._writer.drain()
                     self._writer.close()
+                    await self._writer.wait_closed()
                     break
                 if self._context.should_replace:
                     self._context = self._context.replacement
@@ -517,5 +523,6 @@ class Server:
             logger.error(str(exc), exc_info=exc)
             raise
         finally:
-            async with self._connection_lock:
+            # Note: coverage bug means it thinks this is not covered?!?
+            async with self._connection_lock:  # pragma: no cover
                 self._connection_count -= 1

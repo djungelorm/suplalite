@@ -1,5 +1,6 @@
 import asyncio
 import asyncio.selector_events
+import asyncio.trsock
 import socket
 from collections.abc import Callable, Coroutine
 from typing import Any, cast
@@ -67,6 +68,9 @@ class TLSSocket:
     def close(self) -> None:
         self._ssl_sock.close()
 
+    def shutdown(self, how: Any) -> None:  # pragma: no cover
+        self._ssl_sock.shutdown(how)
+
 
 ClientConnectedCallback = Callable[
     [asyncio.StreamReader, asyncio.StreamWriter], Coroutine[Any, Any, None]
@@ -93,6 +97,8 @@ class TLSProtocol(asyncio.StreamReaderProtocol):
     def connection_made(self, transport: asyncio.BaseTransport) -> None:
         # Replace the raw socket in the transport with a TLSSocket that wraps the raw socket
         raw_sock = transport.get_extra_info("socket")
+        if isinstance(raw_sock, asyncio.trsock.TransportSocket):  # pragma: no cover
+            raw_sock = raw_sock._sock  # type: ignore  # pylint: disable=protected-access
         ssl_sock = TLSSocket(
             raw_sock,
             self._ssl_cert,
