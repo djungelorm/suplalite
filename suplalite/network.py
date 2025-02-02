@@ -58,6 +58,8 @@ class TLSSocket:
             raise BlockingIOError
         try:
             return cast(bytes, self._ssl_sock.recv(bufsize))
+        except ConnectionResetError:  # pragma: no cover
+            return b""
         except tlslite.TLSAbruptCloseError:  # pragma: no cover
             return b""
 
