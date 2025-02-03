@@ -41,8 +41,8 @@ async def update_loop(device):
 async def main():
     device = create_supla_device(
         host="127.0.0.1",
-        port=2015,
-        secure=False,
+        port=2016,
+        secure=True,
         email="email@email.com",
         name="Test Device",
         version="1.0.0",
