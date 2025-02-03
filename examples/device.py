@@ -5,7 +5,7 @@ import select
 import signal
 import time
 
-from suplalite import proto
+from suplalite import device, network, proto
 from suplalite.device import channels, create_supla_device
 
 logging.basicConfig(
@@ -75,6 +75,14 @@ async def main():
 
 if __name__ == "__main__":
     try:
-        asyncio.run(main())
+        while True:
+            try:
+                asyncio.run(main())
+            except network.NetworkError as exn:
+                print(exn)
+                time.sleep(3)
+            except device.DeviceError as exn:
+                print(exn)
+                time.sleep(3)
     except KeyboardInterrupt:
         pass
