@@ -4,7 +4,7 @@ import asyncio
 import functools
 import logging
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 import tlslite  # type: ignore
 
@@ -367,11 +367,13 @@ class Server:
 
     @property
     def port(self) -> int:
-        return self._server.sockets[0].getsockname()[1]  # type: ignore
+        assert self._server is not None
+        return cast(int, self._server.sockets[0].getsockname()[1])
 
     @property
     def secure_port(self) -> int:
-        return self._secure_server.sockets[0].getsockname()[1]  # type: ignore
+        assert self._secure_server is not None
+        return cast(int, self._secure_server.sockets[0].getsockname()[1])
 
     @property
     def location_name(self) -> str:
