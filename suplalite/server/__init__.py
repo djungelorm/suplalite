@@ -417,8 +417,11 @@ class Server:
         while await self.has_connections():
             await asyncio.sleep(0.1)
         assert self._server is not None
+        assert self._secure_server is not None
         self._server.close()
+        self._secure_server.close()
         await self._server.wait_closed()
+        await self._secure_server.wait_closed()
         for task in self._tasks:
             task.cancel()
         for task in self._tasks:
