@@ -74,12 +74,7 @@ async def main():
 
 
 if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
-    task = asyncio.ensure_future(main())
     try:
-        shielded_task = asyncio.shield(task)
-        loop.add_signal_handler(signal.SIGINT, lambda: shielded_task.cancel())
-        loop.add_signal_handler(signal.SIGTERM, lambda: shielded_task.cancel())
-        loop.run_until_complete(shielded_task)
-    except asyncio.exceptions.CancelledError:
-        print("device disconnected")
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        pass
