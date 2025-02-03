@@ -169,7 +169,7 @@ class Client:
             and time.time() - self._last_get_next > 3
         ):
             self._last_get_next = time.time()
-            self._get_next()
+            await self._get_next()
             return
 
         if (
@@ -181,7 +181,7 @@ class Client:
             return
 
         packet = await self._stream.recv()
-        self._handle_packet(packet)
+        await self._handle_packet(packet)
 
     async def _register(self):
         logging.debug("registering")
@@ -216,7 +216,7 @@ class Client:
         logging.debug("get next")
         await self._stream.send(packets.Packet(proto.Call.CS_GET_NEXT, b""))
 
-    def _handle_packet(self, packet):
+    async def _handle_packet(self, packet):
         if packet.call_id not in _handlers:
             raise RuntimeError(f"Unhandled call {packet.call_id}")
 
@@ -225,9 +225,9 @@ class Client:
         call_data = bytes(packet.data)
         if call_type is not None:
             call, _ = encoding.decode(call_type, call_data)
-            handler(context, call)
+            await handler(context, call)
         else:
-            handler(context)
+            await handler(context)
 
 
 async def main():
