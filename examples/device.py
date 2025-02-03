@@ -35,7 +35,7 @@ async def update_loop(device):
         logging.error(str(exc), exc_info=exc)
         raise
     finally:
-        logger.debug("update loop stopped")
+        logging.debug("update loop stopped")
 
 
 async def main():
