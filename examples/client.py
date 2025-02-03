@@ -50,51 +50,64 @@ def supla_call(call_id: proto.Call) -> Callable[[Handler], Handler]:
 
 
 @supla_call(proto.Call.SDC_PING_SERVER_RESULT)
-def register_result_b(context: Context):
+async def register_result_b(context: Context):
     logging.debug("pong")
 
 
 @supla_call(proto.Call.SC_REGISTER_CLIENT_RESULT_B)
-def register_result_b(context: Context, msg: proto.TSC_RegisterClientResult_B):
+async def register_result_b(context: Context, msg: proto.TSC_RegisterClientResult_B):
     result_code = proto.ResultCode(msg.result_code)
     if result_code != proto.ResultCode.TRUE:
         raise RuntimeError(f"Register failed: {result_code.name}")
     logging.debug("registered")
     context.client._ping_timeout = msg.activity_timeout / 2
     context.client._state = context.client.State.CONNECTED
+    await oauth_request(context)
 
 
 @supla_call(proto.Call.SC_REGISTER_CLIENT_RESULT_D)
-def register_result_d(context: Context, msg: proto.TSC_RegisterClientResult_D):
+async def register_result_d(context: Context, msg: proto.TSC_RegisterClientResult_D):
     result_code = proto.ResultCode(msg.result_code)
     if result_code != proto.ResultCode.TRUE:
         raise RuntimeError(f"Register failed: {result_code.name}")
     logging.debug("registered")
     context.client._ping_timeout = msg.activity_timeout / 2
     context.client._state = context.client.State.CONNECTED
+    await oauth_request(context)
 
 
 @supla_call(proto.Call.SC_LOCATIONPACK_UPDATE)
-def locationpack_update(context: Context, msg: proto.TSC_LocationPack):
+async def locationpack_update(context: Context, msg: proto.TSC_LocationPack):
     logging.debug("location pack update")
     context.client._got_locations = True
 
 
 @supla_call(proto.Call.SC_CHANNELPACK_UPDATE_D)
-def channelpack_update(context: Context, msg: proto.TSC_ChannelPack_D):
+async def channelpack_update(context: Context, msg: proto.TSC_ChannelPack_D):
     logging.debug("channel pack update")
     context.client._got_channels = True
 
 
 @supla_call(proto.Call.SC_SCENE_PACK_UPDATE)
-def scenepack_update(context: Context, msg: proto.TSC_ScenePack):
+async def scenepack_update(context: Context, msg: proto.TSC_ScenePack):
     logging.debug(f"scene pack update")
     context.client._got_scenes = True
 
 
 @supla_call(proto.Call.SC_CHANNELVALUE_PACK_UPDATE_B)
-def channelvaluepack_update(context: Context, msg: proto.TSC_ChannelValuePack_B):
+async def channelvaluepack_update(context: Context, msg: proto.TSC_ChannelValuePack_B):
     logging.debug(f"channel value pack update")
+
+
+async def oauth_request(context):
+    await context.client._stream.send(
+        packets.Packet(proto.Call.CS_OAUTH_TOKEN_REQUEST, b"")
+    )
+
+
+@supla_call(proto.Call.SC_OAUTH_TOKEN_REQUEST_RESULT)
+async def oauth_result(context: Context, msg: proto.TSC_OAuthTokenRequestResult):
+    logging.debug("oauth result")
 
 
 ##############################################################
