@@ -244,7 +244,7 @@ def _encode_packed_array(value: Any, metadata: dict[str, Any]) -> Any:
     # list of messages -> packed array
     max_size = metadata["max_size"]
     assert isinstance(value, list)
-    assert len(value) < max_size
+    assert len(value) <= max_size
     data = b""
     for x in value:
         data += encode(x)
