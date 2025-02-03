@@ -910,7 +910,7 @@ class OAuthResultCode(Enum):
 
 @dataclass
 class TSC_OAuthTokenRequestResult:
-    result_code: OAuthResultCode = field(metadata=c_int32())
+    result_code: OAuthResultCode = field(metadata=c_uint8())
     token: TSC_OAuthToken
 
 
