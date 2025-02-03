@@ -203,6 +203,7 @@ class Connection:
                     await self._context.server.events.add(
                         EventId.DEVICE_DISCONNECTED, (device_id,)
                     )
+                self._context.log("device removed")
 
             if isinstance(self._context, ClientContext):
                 client_id = self._context.client_id
@@ -211,6 +212,7 @@ class Connection:
                     await self._context.server.events.add(
                         EventId.CLIENT_DISCONNECTED, (client_id,)
                     )
+                self._context.log("client removed")
 
             self._context.log("closed")
 
@@ -231,11 +233,12 @@ class Connection:
                         "closing connection"
                     )
                     break
+                finally:
+                    if self._context.should_replace:
+                        self._context = self._context.replacement
                 if self._context.error:
                     self._context.log("error; closing connection")
                     break
-                if self._context.should_replace:
-                    self._context = self._context.replacement
         except network.NetworkError as exc:
             self._context.log(f"network error: {exc}", logging.ERROR)
         except Exception as exc:  # pragma no cover
