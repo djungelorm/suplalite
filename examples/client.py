@@ -116,7 +116,6 @@ class Client:
         version=None,
         port=2016,
         secure=True,
-        debug=False,
     ):
         self._server = server
         self._port = port
@@ -127,7 +126,6 @@ class Client:
         self._guid = guid
         self._authkey = authkey
         self._channels = []
-        self._debug = debug
 
         self._stream = None
         self._state = self.State.CONNECTING
@@ -241,7 +239,6 @@ async def main():
         "Test Client",
         port=2016,
         secure=True,
-        debug=True,
     )
     await client.connect()
     await client.loop_forever()
