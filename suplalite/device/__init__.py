@@ -8,7 +8,7 @@ from collections.abc import Callable, Coroutine
 from enum import Enum
 from typing import Any
 
-from suplalite import encoding, proto
+from suplalite import encoding, network, proto
 from suplalite.device.channels import Channel
 from suplalite.packets import Packet, PacketStream
 
@@ -91,9 +91,12 @@ class Device:
             ssl_context = ssl.SSLContext()
             ssl_context.check_hostname = False
             ssl_context.verify_mode = ssl.CERT_NONE
-            reader, writer = await asyncio.open_connection(
-                self._host, self._port, ssl=ssl_context
-            )
+            try:
+                reader, writer = await asyncio.open_connection(
+                    self._host, self._port, ssl=ssl_context
+                )
+            except ConnectionRefusedError as exc:
+                raise network.NetworkError("Connection refused") from exc
         else:
             reader, writer = await asyncio.open_connection(self._host, self._port)
         self._packets = PacketStream(reader, writer)
