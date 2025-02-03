@@ -92,7 +92,7 @@ class Device:
             ssl_context.check_hostname = False
             ssl_context.verify_mode = ssl.CERT_NONE
             reader, writer = await asyncio.open_connection(
-                self._host, self._port, ssl=ssl
+                self._host, self._port, ssl=ssl_context
             )
         else:
             reader, writer = await asyncio.open_connection(self._host, self._port)
