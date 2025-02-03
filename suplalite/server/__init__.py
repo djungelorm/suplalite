@@ -297,7 +297,7 @@ class Connection:
                     else:
                         await handler.func(self._context, *payload)
             except Exception as exc:  # pylint: disable=broad-exception-caught
-                logger.error("event handler failed: %s", exc)
+                logger.error("event handler failed", exc_info=exc)
 
 
 class Server:
