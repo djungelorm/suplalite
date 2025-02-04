@@ -306,7 +306,6 @@ async def oauth_token_request(
     # Include URL for API
     url = f"https://{context.server.host}:{context.server.api_port}"
     token = key.encode() + b"." + base64.b64encode(url.encode()) + b"\x00"
-    print(url)
 
     return proto.TSC_OAuthTokenRequestResult(
         proto.OAuthResultCode.SUCCESS,
