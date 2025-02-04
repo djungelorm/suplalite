@@ -13,141 +13,44 @@ import uvicorn
 from suplalite import encoding, network, proto
 from suplalite.packets import Packet, PacketStream
 from suplalite.server import api, state
+from suplalite.server.context import (
+    BaseContext,
+    ClientContext,
+    ConnectionContext,
+    DeviceContext,
+    ServerContext,
+)
 from suplalite.server.events import EventContext, EventId, EventQueue
+from suplalite.server.handlers import CallHandler, EventHandler
 
 logger = logging.getLogger("suplalite")
 
 
-class BaseContext:
-    server: Server
-    events: EventQueue
-    name: str
+def default_log_config(
+    log_level: str, log_time: bool
+) -> dict[str, Any]:  # pragma: no cover
+    date_format = "%Y-%m-%d %H:%M:%S"
+    when = ""
+    if log_time:
+        when = "%(asctime)s "
 
-    def __init__(self, server: Server, events: EventQueue, name: str) -> None:
-        self.server = server
-        self.events = events
-        self.name = name
-
-    def log(self, msg: str, level: int = logging.INFO) -> None:
-        if not logger.isEnabledFor(level):  # pragma: no cover
-            return
-        logger.log(level=level, msg=f"{self.name} {msg}")
-
-
-class ServerContext(BaseContext):
-    pass
-
-
-class ConnectionContext(BaseContext):
-    conn: Connection
-    activity_timeout: int
-    # indicates whether an error occured in a handler
-    error: bool
-
-    def __init__(
-        self,
-        server: Server,
-        events: EventQueue,
-        name: str,
-        conn: Connection,
-    ) -> None:
-        super().__init__(server, events, name)
-        self.conn = conn
-        self.activity_timeout = proto.ACTIVITY_TIMEOUT_MIN
-        self.error = False
-
-        self._replacement: ClientContext | DeviceContext | None = None
-
-    def replace(self, context: ClientContext | DeviceContext) -> None:
-        self._replacement = context
-
-    @property
-    def should_replace(self) -> bool:
-        return self._replacement is not None
-
-    @property
-    def replacement(self) -> ClientContext | DeviceContext:
-        assert self._replacement is not None
-        return self._replacement
-
-
-class ClientContext(ConnectionContext):
-    guid: bytes
-    client_id: int
-    authorized: bool
-
-    def __init__(self, context: ConnectionContext, guid: bytes, client_id: int) -> None:
-        super().__init__(
-            context.server,
-            context.events,
-            context.name,
-            context.conn,
-        )
-        self.guid = guid
-        self.client_id = client_id
-        self.authorized = False
-
-
-class DeviceContext(ConnectionContext):
-    guid: bytes
-    device_id: int
-
-    def __init__(self, context: ConnectionContext, guid: bytes, device_id: int) -> None:
-        super().__init__(
-            context.server,
-            context.events,
-            context.name,
-            context.conn,
-        )
-        self.guid = guid
-        self.device_id = device_id
-
-
-class Handler:
-    pass
-
-
-@dataclass
-class EventHandler(Handler):
-    event_context: EventContext
-    event_id: EventId
-    func: Any  # TODO: correct typing
-
-
-@dataclass
-class CallHandler(Handler):
-    call_id: proto.Call
-    func: Any  # TODO: correct typing
-    result_id: proto.Call | None
-    call_type: type[Any] | None  # TODO: correct typing
-
-
-def create_supla_server(
-    listen_host: str,
-    host: str,
-    port: int,
-    secure_port: int,
-    api_port: int,
-    certfile: str,
-    keyfile: str,
-    location_name: str,
-    email: str,
-    password: str,
-    handlers: list[Handler],
-) -> Server:
-    return Server(
-        listen_host,
-        host,
-        port,
-        secure_port,
-        api_port,
-        certfile,
-        keyfile,
-        location_name,
-        email,
-        password,
-        handlers,
+    log_config = uvicorn.config.LOGGING_CONFIG
+    log_config["loggers"]["suplalite"] = {
+        "handlers": ["default"],
+        "level": log_level,
+        "propagate": False,
+    }
+    log_config["loggers"]["uvicorn"]["level"] = log_level
+    log_config["loggers"]["uvicorn.error"]["level"] = log_level
+    log_config["loggers"]["uvicorn.access"]["level"] = log_level
+    log_config["formatters"]["default"]["fmt"] = when + "%(levelname)s %(message)s"
+    log_config["formatters"]["default"]["datefmt"] = date_format
+    log_config["formatters"]["access"]["fmt"] = (
+        when + '%(levelname)s api %(client_addr)s "%(request_line)s" %(status_code)s'
     )
+    log_config["formatters"]["access"]["datefmt"] = date_format
+    log_config["handlers"]["default"]["stream"] = "ext://sys.stdout"
+    return log_config
 
 
 class Connection:
@@ -310,7 +213,7 @@ class Connection:
 
 
 class Server:
-    def __init__(
+    def __init__(  # pylint: disable=too-many-positional-arguments
         self,
         listen_host: str,
         host: str,
@@ -322,8 +225,15 @@ class Server:
         location_name: str,
         email: str,
         password: str,
-        handlers: list[Handler],
+        log_level: str = "INFO",
+        log_time: bool = True,
+        log_config: dict[str, Any] | None = None,
     ) -> None:
+        if log_config is None:  # pragma: no cover
+            log_config = default_log_config(log_level, log_time)
+        if len(log_config) > 0:  # pragma: no cover
+            logging.config.dictConfig(log_config)
+
         self._listen_host = listen_host
         self._host = host
         self._port = port
@@ -335,6 +245,12 @@ class Server:
         self._email = email
         self._password = password
 
+        # Import here to break cyclic dependency
+        from suplalite.server.handlers import (  # pylint: disable=import-outside-toplevel
+            get_handlers,
+        )
+
+        handlers = get_handlers()
         self._call_handlers: dict[proto.Call, CallHandler] = {}
         for handler in handlers:
             if isinstance(handler, CallHandler):
@@ -363,7 +279,9 @@ class Server:
             port=api_port,
             ssl_certfile=certfile,
             ssl_keyfile=keyfile,
-            log_level=logging.INFO,
+            log_level=logging.DEBUG,
+            log_config=None,
+            use_colors=False,
         )
 
         self._tasks: list[asyncio.Task[None]] = []
@@ -498,7 +416,7 @@ class Server:
 
     async def _event_loop(self) -> None:
         try:
-            logger.debug("event loop started")
+            logger.info("event loop started")
             while True:
                 event_id, payload = await self._events.get()
 
@@ -534,29 +452,29 @@ class Server:
             logger.error(str(exc), exc_info=exc)
             raise
         finally:
-            logger.debug("event loop stopped")
+            logger.info("event loop stopped")
 
     async def _server_loop(self) -> None:
         try:
-            logger.debug("server started")
+            logger.info("server started")
             assert self._server is not None
             await self._server.serve_forever()
         except Exception as exc:  # pragma: no cover
             logger.error(str(exc), exc_info=exc)
             raise
         finally:
-            logger.debug("server stopped")
+            logger.info("server stopped")
 
     async def _secure_server_loop(self) -> None:
         try:
-            logger.debug("secure server started")
+            logger.info("secure server started")
             assert self._secure_server is not None
             await self._secure_server.serve_forever()
         except Exception as exc:  # pragma: no cover
             logger.error(str(exc), exc_info=exc)
             raise
         finally:
-            logger.debug("secure server stopped")
+            logger.info("secure server stopped")
 
     async def _client_connected(
         self, secure: bool, reader: asyncio.StreamReader, writer: asyncio.StreamWriter

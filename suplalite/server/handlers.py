@@ -1,21 +1,44 @@
+from __future__ import annotations
+
 import base64
 import inspect
 import logging
 import random
 import time
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Any, TypeVar
 
-from suplalite import encoding, proto, server
-from suplalite.server import ClientContext, ConnectionContext, DeviceContext
+from suplalite import encoding, proto
+from suplalite.server.context import ClientContext, ConnectionContext, DeviceContext
 from suplalite.server.events import EventContext, EventId
 from suplalite.server.state import GeneralPurposeMeasurementChannelConfig
 from suplalite.utils import batched, to_hex
 
-_handlers: list[server.Handler] = []
+
+class Handler:
+    pass
 
 
-def get_handlers() -> list[server.Handler]:
+@dataclass
+class EventHandler(Handler):
+    event_context: EventContext
+    event_id: EventId
+    func: Any  # TODO: correct typing
+
+
+@dataclass
+class CallHandler(Handler):
+    call_id: proto.Call
+    func: Any  # TODO: correct typing
+    result_id: proto.Call | None
+    call_type: type[Any] | None  # TODO: correct typing
+
+
+_handlers: list[Handler] = []
+
+
+def get_handlers() -> list[Handler]:
     return _handlers
 
 
@@ -32,9 +55,7 @@ def call_handler(
         call_type = None
         if "msg" in annotations:
             call_type = annotations["msg"]
-        _handlers.append(
-            server.CallHandler(call_id, handler_func, result_id, call_type)
-        )
+        _handlers.append(CallHandler(call_id, handler_func, result_id, call_type))
         return handler_func
 
     return func
@@ -50,7 +71,7 @@ def event_handler(
     event_id: EventId,
 ) -> Callable[[EventHandlerFunc], EventHandlerFunc]:
     def func(handler_func: EventHandlerFunc) -> EventHandlerFunc:
-        _handlers.append(server.EventHandler(event_context, event_id, handler_func))
+        _handlers.append(EventHandler(event_context, event_id, handler_func))
         return handler_func
 
     return func
@@ -202,10 +223,9 @@ async def register_device(
         )
 
     await context.server.events.add(EventId.DEVICE_CONNECTED, (device_id,))
-    context.log("registered")
     context.log(
-        f"{msg.name} {msg.soft_ver} proto={proto_version} "
-        f"(manufacturer={msg.manufacturer_id}, product={msg.product_id})"
+        f"registered; {msg.name} {msg.soft_ver} proto={proto_version} "
+        f"(mid={msg.manufacturer_id}, pid={msg.product_id})"
     )
 
     return proto.TSD_RegisterDeviceResult(
@@ -259,8 +279,7 @@ async def register_client(
         context.name = f"client[{msg.name}]"
         context.replace(ClientContext(context, guid=msg.guid, client_id=client_id))
 
-        context.log("registered")
-        context.log(f"proto={context.conn.proto_version}")
+        context.log(f"registered; proto={context.conn.proto_version}")
         await context.server.events.add(EventId.CLIENT_CONNECTED, (client_id,))
         await context.events.add(EventId.SEND_LOCATIONS)
         await context.events.add(EventId.SEND_CHANNELS)

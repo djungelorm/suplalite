@@ -18,9 +18,10 @@ import pytest_asyncio
 
 from suplalite import encoding, network, proto
 from suplalite.packets import Packet, PacketStream
-from suplalite.server import Server, ServerContext, create_supla_server, state
+from suplalite.server import Server, state
+from suplalite.server.context import ServerContext
 from suplalite.server.events import EventContext, EventId
-from suplalite.server.handlers import event_handler, get_handlers
+from suplalite.server.handlers import event_handler
 from suplalite.utils import to_hex
 
 device_guid = {
@@ -88,7 +89,7 @@ async def client_disconnected(
 
 @pytest_asyncio.fixture(scope="function")
 async def server() -> AsyncIterator[Server]:
-    server = create_supla_server(
+    server = Server(
         listen_host="localhost",
         host="localhost",
         port=0,
@@ -99,7 +100,7 @@ async def server() -> AsyncIterator[Server]:
         location_name="Test",
         email="email@email.com",
         password="password123",
-        handlers=get_handlers(),
+        log_config={},
     )
     setup_server(server)
     await server.start()

@@ -5,21 +5,11 @@ import signal
 import struct
 
 from suplalite import proto
-from suplalite.server import (
-    ClientContext,
-    DeviceContext,
-    ServerContext,
-    create_supla_server,
-)
+from suplalite.server import Server
+from suplalite.server.context import ClientContext, DeviceContext, ServerContext
 from suplalite.server.events import EventContext, EventId
 from suplalite.server.handlers import event_handler, get_handlers
 from suplalite.server.state import GeneralPurposeMeasurementChannelConfig
-
-logging.basicConfig(
-    format="%(asctime)s %(levelname)-8s %(message)s",
-    level=logging.DEBUG,
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
 
 
 @event_handler(EventContext.SERVER, EventId.CHANNEL_REGISTER_VALUE)
@@ -87,7 +77,7 @@ def load_icon(path):
 
 
 async def main():
-    server = create_supla_server(
+    server = Server(
         listen_host="0.0.0.0",
         host="192.168.1.10",
         port=2015,
@@ -98,7 +88,7 @@ async def main():
         location_name="Test",
         email="email@email.com",
         password="1",
-        handlers=get_handlers(),
+        log_level="INFO",
     )
 
     device_id = server.state.add_device(
