@@ -401,7 +401,7 @@ async def channel_set_value_result(
     context: DeviceContext, msg: proto.TDS_ChannelNewValueResult
 ) -> None:
     device = await context.server.state.get_device(context.device_id)
-    if msg.channel_number not in device.channel_ids:
+    if msg.channel_number >= len(device.channel_ids):
         context.log(
             "failed to handle set value result; "
             f"channel number {msg.channel_number} does not exist",
