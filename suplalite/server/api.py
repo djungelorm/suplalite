@@ -15,7 +15,7 @@ if TYPE_CHECKING:  # pragma: no cover
 def create(server: Server) -> FastAPI:
     router = APIRouter()
     router.add_route(
-        "/api/2.2.0/user-icons",
+        "/api/{api_version}/user-icons",
         functools.partial(get_user_icons, server),
         ["GET"],
     )
