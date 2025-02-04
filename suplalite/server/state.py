@@ -139,6 +139,9 @@ class ServerState:
         self._icons_by_id[icon.id] = icon
         return icon.id
 
+    def get_icons(self) -> list[Icon]:
+        return copy.deepcopy(list(self._icons.values()))
+
     def get_icon(self, icon_id: int) -> Icon:
         return self._icons_by_id[icon_id]
 

@@ -743,9 +743,25 @@ async def test_client_get_channel_state(server: Server) -> None:
 
 
 @pytest.mark.asyncio
+async def test_client_get_all_icons(server: Server) -> None:
+    url = f"https://{server.host}:{server.api_port}/api/2.2.0/user-icons"
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url, ssl=False) as response:
+            assert response.status == 200
+            assert response.headers["content-type"] == "application/json"
+            assert await response.json() == [
+                {"id": 15666345},
+                {"id": 732673},
+            ]
+
+
+@pytest.mark.asyncio
 async def test_client_get_multiple_channel_icons(server: Server) -> None:
     async with open_device(server, 4):
-        url = f"https://{server.host}:{server.api_port}/api/2.2.0/user-icons?ids=15666345,732673"
+        url = (
+            f"https://{server.host}:{server.api_port}/api/2.2.0/"
+            "user-icons?ids=15666345,732673&include=images"
+        )
         async with aiohttp.ClientSession() as session:
             async with session.get(url, ssl=False) as response:
                 assert response.status == 200
@@ -767,7 +783,10 @@ async def test_client_get_multiple_channel_icons(server: Server) -> None:
 @pytest.mark.asyncio
 async def test_client_get_single_channel_icon(server: Server) -> None:
     async with open_device(server, 4):
-        url = f"https://{server.host}:{server.api_port}/api/2.2.0/user-icons?ids=732673"
+        url = (
+            f"https://{server.host}:{server.api_port}/api/2.2.0/"
+            "user-icons?ids=732673&include=images"
+        )
         async with aiohttp.ClientSession() as session:
             async with session.get(url, ssl=False) as response:
                 assert response.status == 200
