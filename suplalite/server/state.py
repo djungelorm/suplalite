@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import copy
+import hashlib
 from dataclasses import dataclass, field
 
 from suplalite import proto
@@ -24,6 +26,9 @@ class ServerState:
         self._channels: dict[int, ChannelState] = {}
         self._device_connections: set[int] = set()
         self._device_events: dict[int, EventQueue] = {}
+
+        self._icons: dict[str, Icon] = {}
+        self._icons_by_id: dict[int, Icon] = {}
 
     def server_started(self) -> None:
         self._started = True
@@ -102,15 +107,40 @@ class ServerState:
         func: proto.ChannelFunc,
         alt_icon: int = 0,
         config: ChannelConfig | None = None,
+        icons: list[bytes] | None = None,
     ) -> int:
         assert self._started is False
         channel_id = len(self._channels) + 1
+
+        user_icon = 0
+        if icons is not None:
+            user_icon = self.add_icons(icons)
+
         channel = ChannelState(
-            name, channel_id, device_id, caption, typ, func, alt_icon, config
+            name, channel_id, device_id, caption, typ, func, alt_icon, user_icon, config
         )
         self._channels[channel_id] = channel
         self._devices[device_id].channel_ids.append(channel_id)
         return channel_id
+
+    def add_icons(self, icons: list[bytes]) -> int:
+        data = [base64.b64encode(icon).decode() for icon in icons]
+        key = ",".join(data)
+        if key in self._icons:
+            return self._icons[key].id
+
+        # Generate a 6-bit integer from the hash of the icon data
+        # to provide a unique id based on the content of the image.
+        # The SUPLA app caches images based on id number, so the id number
+        # needs to change if the image content changes
+        icon_id = int(hashlib.sha1(key.encode("utf-8")).hexdigest()[:6], 16)
+        icon = Icon(icon_id, data)
+        self._icons[key] = icon
+        self._icons_by_id[icon.id] = icon
+        return icon.id
+
+    def get_icon(self, icon_id: int) -> Icon:
+        return self._icons_by_id[icon_id]
 
     async def get_devices(self) -> dict[int, DeviceState]:
         return copy.deepcopy(self._devices)
@@ -202,5 +232,12 @@ class ChannelState:
     typ: proto.ChannelType
     func: proto.ChannelFunc
     alt_icon: int
+    user_icon: int
     config: ChannelConfig | None
     value: bytes = b"\x00\x00\x00\x00\x00\x00\x00\x00"
+
+
+@dataclass
+class Icon:
+    id: int
+    data: list[str]

@@ -81,11 +81,18 @@ async def update(context, action, channel_id, value):
         print(topic, "unknown value")
 
 
+def load_icon(path):
+    with open(path, "rb") as file:
+        return file.read()
+
+
 async def main():
     server = create_supla_server(
-        "0.0.0.0",
+        listen_host="0.0.0.0",
+        host="192.168.1.10",
         port=2015,
         secure_port=2016,
+        api_port=5000,
         certfile="ssl/server.cert",
         keyfile="ssl/server.key",
         location_name="Test",
@@ -161,14 +168,27 @@ async def main():
 
     server.state.add_channel(
         device_id,
-        "gpmeasurement",
-        "GP Measurement",
+        "traffic-light",
+        "Traffic Light",
+        proto.ChannelType.RELAY,
+        proto.ChannelFunc.LIGHTSWITCH,
+        icons=[
+            load_icon("examples/red.png"),
+            load_icon("examples/green.png"),
+        ],
+    )
+
+    server.state.add_channel(
+        device_id,
+        "car-battery",
+        "Car Battery",
         proto.ChannelType.GENERAL_PURPOSE_MEASUREMENT,
         proto.ChannelFunc.GENERAL_PURPOSE_MEASUREMENT,
         config=GeneralPurposeMeasurementChannelConfig(
             unit_after_value="%",
             value_precision=1,
         ),
+        icons=[load_icon("examples/car.png")],
     )
 
     device_id = server.state.add_device(

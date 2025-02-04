@@ -8,6 +8,8 @@ dynamic = ['version']
 requires-python = ">=3.10"
 dependencies = [
     "tlslite-ng",
+    "fastapi",
+    "uvicorn",
 ]
 license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]
@@ -19,6 +21,7 @@ source = "uv-dynamic-versioning"
 dev = [
     "build",
     "mypy",
+    "aiohttp",
     "pre-commit",
     "pylint",
     "pylint-pytest",

@@ -1,5 +1,7 @@
+import base64
 import inspect
 import logging
+import random
 import time
 from collections.abc import Callable
 from typing import Any, TypeVar
@@ -297,9 +299,21 @@ async def register_client_push_notification_token(
 )
 async def oauth_token_request(
     context: ClientContext,  # pylint:disable=unused-argument
-) -> proto.TSC_OAuthTokenRequestResult:  # pragma: no cover
+) -> proto.TSC_OAuthTokenRequestResult:
+
+    # Generate a random token (we don't actually do proper oauth, just allow all)
+    key = "".join(random.choice("0123456789abcdef") for i in range(86))
+    # Include URL for API
+    url = f"https://{context.server.host}:{context.server.api_port}"
+    token = key.encode() + b"." + base64.b64encode(url.encode()) + b"\x00"
+    print(url)
+
     return proto.TSC_OAuthTokenRequestResult(
-        proto.OAuthResultCode.ERROR, proto.TSC_OAuthToken(0, b"")
+        proto.OAuthResultCode.SUCCESS,
+        proto.TSC_OAuthToken(
+            300,
+            token,
+        ),
     )
 
 
@@ -445,7 +459,7 @@ async def send_channels(context: ClientContext) -> None:
                     type=channel.typ,
                     func=channel.func,
                     alt_icon=channel.alt_icon,
-                    user_icon=0,
+                    user_icon=channel.user_icon,
                     manufacturer_id=device.manufacturer_id,
                     product_id=device.product_id,
                     flags=65536,  # TODO: what are these?

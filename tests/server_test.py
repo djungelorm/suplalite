@@ -1,6 +1,7 @@
-# pylint: disable=redefined-outer-name
+# pylint: disable=redefined-outer-name,too-many-statements
 
 import asyncio
+import base64
 import hashlib
 import logging
 import os
@@ -11,6 +12,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 
+import aiohttp
 import pytest
 import pytest_asyncio
 
@@ -25,6 +27,7 @@ device_guid = {
     1: b"\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
     2: b"\x02\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
     3: b"\x03\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
+    4: b"\x04\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
 }
 
 
@@ -86,9 +89,11 @@ async def client_disconnected(
 @pytest_asyncio.fixture(scope="function")
 async def server() -> AsyncIterator[Server]:
     server = create_supla_server(
-        "localhost",
+        listen_host="localhost",
+        host="localhost",
         port=0,
         secure_port=0,
+        api_port=0,
         certfile="ssl/server.cert",
         keyfile="ssl/server.key",
         location_name="Test",
@@ -135,6 +140,7 @@ def setup_server(server: Server) -> None:
         "Lights",
         proto.ChannelType.DIMMER,
         proto.ChannelFunc.DIMMER,
+        alt_icon=1,
     )
 
     device_id = server.state.add_device("device-3", device_guid[3], 0, 0)
@@ -159,6 +165,35 @@ def setup_server(server: Server) -> None:
             unit_after_value="%",
             no_space_after_value=True,
         ),
+    )
+
+    device_id = server.state.add_device("device-4", device_guid[4], 0, 0)
+    assert device_id == 4
+    server.state.add_channel(
+        device_id,
+        "lights-2",
+        "Lights 2",
+        proto.ChannelType.RELAY,
+        proto.ChannelFunc.LIGHTSWITCH,
+        icons=[b"icon1", b"icon2"],
+    )
+    server.state.add_channel(
+        device_id,
+        "gpm-3",
+        "Measurement 3",
+        proto.ChannelType.GENERAL_PURPOSE_MEASUREMENT,
+        proto.ChannelFunc.GENERAL_PURPOSE_MEASUREMENT,
+        config=state.GeneralPurposeMeasurementChannelConfig(),
+        icons=[b"icon3"],
+    )
+    server.state.add_channel(
+        device_id,
+        "gpm-4",
+        "Measurement 4",
+        proto.ChannelType.GENERAL_PURPOSE_MEASUREMENT,
+        proto.ChannelFunc.GENERAL_PURPOSE_MEASUREMENT,
+        config=state.GeneralPurposeMeasurementChannelConfig(),
+        icons=[b"icon3"],
     )
 
 
@@ -276,6 +311,37 @@ def register_device_message(device_id: int) -> proto.TDS_RegisterDevice_E:
         channels.append(
             proto.TDS_DeviceChannel_C(
                 number=1,
+                typ=proto.ChannelType.GENERAL_PURPOSE_MEASUREMENT,
+                action_trigger_caps=proto.ActionCap.NONE,
+                default_func=proto.ChannelFunc.GENERAL_PURPOSE_MEASUREMENT,
+                flags=proto.ChannelFlag.NONE,
+                value=b"\x00\x00\x00\x00\x00\x00\x00\x00",
+            )
+        )
+    elif device_id == 4:
+        channels.append(
+            proto.TDS_DeviceChannel_C(
+                number=0,
+                typ=proto.ChannelType.RELAY,
+                action_trigger_caps=proto.ActionCap.NONE,
+                default_func=proto.ChannelFunc.LIGHTSWITCH,
+                flags=proto.ChannelFlag.NONE,
+                value=b"\x00\x00\x00\x00\x00\x00\x00\x00",
+            )
+        )
+        channels.append(
+            proto.TDS_DeviceChannel_C(
+                number=1,
+                typ=proto.ChannelType.GENERAL_PURPOSE_MEASUREMENT,
+                action_trigger_caps=proto.ActionCap.NONE,
+                default_func=proto.ChannelFunc.GENERAL_PURPOSE_MEASUREMENT,
+                flags=proto.ChannelFlag.NONE,
+                value=b"\x00\x00\x00\x00\x00\x00\x00\x00",
+            )
+        )
+        channels.append(
+            proto.TDS_DeviceChannel_C(
+                number=2,
                 typ=proto.ChannelType.GENERAL_PURPOSE_MEASUREMENT,
                 action_trigger_caps=proto.ActionCap.NONE,
                 default_func=proto.ChannelFunc.GENERAL_PURPOSE_MEASUREMENT,
@@ -512,27 +578,35 @@ async def test_register_client(
         assert location_pack.items[0].caption == "Test"
 
         # channel update
-        assert len(channel_pack.items) == 6
+        assert len(channel_pack.items) == 9
 
         assert channel_pack.items[0].caption == "Relay"
         assert channel_pack.items[0].id == 1
         assert channel_pack.items[0].device_id == 1
         assert channel_pack.items[0].type == proto.ChannelType.RELAY
+        assert channel_pack.items[0].alt_icon == 0
+        assert channel_pack.items[0].user_icon == 0
 
         assert channel_pack.items[1].caption == "Thermometer"
         assert channel_pack.items[1].id == 2
         assert channel_pack.items[1].device_id == 1
         assert channel_pack.items[1].type == proto.ChannelType.THERMOMETER
+        assert channel_pack.items[1].alt_icon == 0
+        assert channel_pack.items[1].user_icon == 0
 
         assert channel_pack.items[2].caption == "Relay2"
         assert channel_pack.items[2].id == 3
         assert channel_pack.items[2].device_id == 1
         assert channel_pack.items[2].type == proto.ChannelType.RELAY
+        assert channel_pack.items[2].alt_icon == 0
+        assert channel_pack.items[2].user_icon == 0
 
         assert channel_pack.items[3].caption == "Lights"
         assert channel_pack.items[3].id == 4
         assert channel_pack.items[3].device_id == 2
         assert channel_pack.items[3].type == proto.ChannelType.DIMMER
+        assert channel_pack.items[3].alt_icon == 1
+        assert channel_pack.items[3].user_icon == 0
 
         assert channel_pack.items[4].caption == "Measurement 1"
         assert channel_pack.items[4].id == 5
@@ -540,6 +614,8 @@ async def test_register_client(
         assert (
             channel_pack.items[4].type == proto.ChannelType.GENERAL_PURPOSE_MEASUREMENT
         )
+        assert channel_pack.items[4].alt_icon == 0
+        assert channel_pack.items[4].user_icon == 0
 
         assert channel_pack.items[5].caption == "Measurement 2"
         assert channel_pack.items[5].id == 6
@@ -547,6 +623,33 @@ async def test_register_client(
         assert (
             channel_pack.items[5].type == proto.ChannelType.GENERAL_PURPOSE_MEASUREMENT
         )
+        assert channel_pack.items[5].alt_icon == 0
+        assert channel_pack.items[5].user_icon == 0
+
+        assert channel_pack.items[6].caption == "Lights 2"
+        assert channel_pack.items[6].id == 7
+        assert channel_pack.items[6].device_id == 4
+        assert channel_pack.items[6].type == proto.ChannelType.RELAY
+        assert channel_pack.items[6].alt_icon == 0
+        assert channel_pack.items[6].user_icon == 15666345
+
+        assert channel_pack.items[7].caption == "Measurement 3"
+        assert channel_pack.items[7].id == 8
+        assert channel_pack.items[7].device_id == 4
+        assert (
+            channel_pack.items[7].type == proto.ChannelType.GENERAL_PURPOSE_MEASUREMENT
+        )
+        assert channel_pack.items[7].alt_icon == 0
+        assert channel_pack.items[7].user_icon == 732673
+
+        assert channel_pack.items[8].caption == "Measurement 4"
+        assert channel_pack.items[8].id == 9
+        assert channel_pack.items[8].device_id == 4
+        assert (
+            channel_pack.items[8].type == proto.ChannelType.GENERAL_PURPOSE_MEASUREMENT
+        )
+        assert channel_pack.items[8].alt_icon == 0
+        assert channel_pack.items[8].user_icon == 732673
 
         # scene update
         assert len(scene_pack.items) == 0
@@ -637,6 +740,45 @@ async def test_client_get_channel_state(server: Server) -> None:
             assert client_response.receiver_id == client.client_id
             assert client_response.channel_id == channel_id
             assert client_response.mac == b"\x01\x02\x03\x04\x05\x06"
+
+
+@pytest.mark.asyncio
+async def test_client_get_multiple_channel_icons(server: Server) -> None:
+    async with open_device(server, 4):
+        url = f"https://{server.host}:{server.api_port}/api/2.2.0/user-icons?ids=15666345,732673"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, ssl=False) as response:
+                assert response.status == 200
+                assert response.headers["content-type"] == "application/json"
+                assert await response.json() == [
+                    {
+                        "id": 15666345,
+                        "images": ["aWNvbjE=", "aWNvbjI="],
+                        "imagesDark": ["aWNvbjE=", "aWNvbjI="],
+                    },
+                    {
+                        "id": 732673,
+                        "images": ["aWNvbjM="],
+                        "imagesDark": ["aWNvbjM="],
+                    },
+                ]
+
+
+@pytest.mark.asyncio
+async def test_client_get_single_channel_icon(server: Server) -> None:
+    async with open_device(server, 4):
+        url = f"https://{server.host}:{server.api_port}/api/2.2.0/user-icons?ids=732673"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, ssl=False) as response:
+                assert response.status == 200
+                assert response.headers["content-type"] == "application/json"
+                assert await response.json() == [
+                    {
+                        "id": 732673,
+                        "images": ["aWNvbjM="],
+                        "imagesDark": ["aWNvbjM="],
+                    },
+                ]
 
 
 @pytest.mark.asyncio
@@ -1114,6 +1256,28 @@ async def test_device_set_value_result_invalid_channel_number(
     )
     assert "client[test] handle event EventId.CHANNEL_VALUE_CHANGED" not in caplog.text
     assert "client[test] send Call.SC_CHANNELVALUE_PACK_UPDATE_B" not in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_client_oauth_token(
+    server: Server, caplog: pytest.LogCaptureFixture
+) -> None:
+    async with open_client(server, "test") as client:
+        await client.stream.send(Packet(proto.Call.CS_OAUTH_TOKEN_REQUEST))
+
+        packet = await client.stream.recv()
+        assert packet.call_id == proto.Call.SC_OAUTH_TOKEN_REQUEST_RESULT
+        msg, _ = encoding.decode(proto.TSC_OAuthTokenRequestResult, packet.data)
+        assert msg.result_code == proto.OAuthResultCode.SUCCESS
+        assert msg.token.expires_in == 300
+        token = msg.token.token
+        key, _, encoded_url = token.decode().partition(".")
+        assert len(key) == 86
+        url = base64.b64decode(encoded_url).decode()
+        assert url == f"https://{server.host}:{server.api_port}"
+
+    assert "client[test] handle call Call.CS_OAUTH_TOKEN_REQUEST" in caplog.text
+    assert "client[test] send Call.SC_OAUTH_TOKEN_REQUEST_RESULT" in caplog.text
 
 
 @pytest.mark.asyncio

@@ -1,16 +1,18 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import functools
 import logging
 from dataclasses import dataclass
 from typing import Any, cast
 
 import tlslite  # type: ignore
+import uvicorn
 
 from suplalite import encoding, network, proto
 from suplalite.packets import Packet, PacketStream
-from suplalite.server import state
+from suplalite.server import api, state
 from suplalite.server.events import EventContext, EventId, EventQueue
 
 logger = logging.getLogger("suplalite")
@@ -121,9 +123,11 @@ class CallHandler(Handler):
 
 
 def create_supla_server(
-    address: str,
+    listen_host: str,
+    host: str,
     port: int,
     secure_port: int,
+    api_port: int,
     certfile: str,
     keyfile: str,
     location_name: str,
@@ -132,9 +136,11 @@ def create_supla_server(
     handlers: list[Handler],
 ) -> Server:
     return Server(
-        address,
+        listen_host,
+        host,
         port,
         secure_port,
+        api_port,
         certfile,
         keyfile,
         location_name,
@@ -306,9 +312,11 @@ class Connection:
 class Server:
     def __init__(
         self,
+        listen_host: str,
         host: str,
         port: int,
         secure_port: int,
+        api_port: int,
         certfile: str,
         keyfile: str,
         location_name: str,
@@ -316,9 +324,11 @@ class Server:
         password: str,
         handlers: list[Handler],
     ) -> None:
+        self._listen_host = listen_host
         self._host = host
         self._port = port
         self._secure_port = secure_port
+        self._api_port = api_port
         self._ssl_cert = self._load_cert(certfile)
         self._ssl_key = self._load_key(keyfile)
         self._location_name = location_name
@@ -344,6 +354,17 @@ class Server:
 
         self._server: asyncio.Server | None = None
         self._secure_server: asyncio.Server | None = None
+        self._api_server: uvicorn.Server | None = None
+
+        self._api = api.create(self)
+        self._api_config = uvicorn.Config(
+            self._api,
+            host=listen_host,
+            port=api_port,
+            ssl_certfile=certfile,
+            ssl_keyfile=keyfile,
+            log_level=logging.INFO,
+        )
 
         self._tasks: list[asyncio.Task[None]] = []
 
@@ -369,6 +390,10 @@ class Server:
         return tlslite.api.parsePEMKey(key, private=True)
 
     @property
+    def host(self) -> str:
+        return self._host
+
+    @property
     def port(self) -> int:
         assert self._server is not None
         return cast(int, self._server.sockets[0].getsockname()[1])
@@ -377,6 +402,14 @@ class Server:
     def secure_port(self) -> int:
         assert self._secure_server is not None
         return cast(int, self._secure_server.sockets[0].getsockname()[1])
+
+    @property
+    def api_port(self) -> int:
+        assert self._api_server is not None
+        for server in self._api_server.servers:
+            for socket in server.sockets:  # pragma: no branch
+                return cast(int, socket.getsockname()[1])
+        raise RuntimeError  # pragma: no cover
 
     @property
     def location_name(self) -> str:
@@ -398,23 +431,30 @@ class Server:
         self._state.server_started()
 
         self._server = await asyncio.start_server(
-            functools.partial(self._client_connected, False), self._host, self._port
+            functools.partial(self._client_connected, False),
+            self._listen_host,
+            self._port,
         )
         self._secure_server = await network.start_secure_server(
             functools.partial(self._client_connected, True),
-            self._host,
+            self._listen_host,
             self._secure_port,
             self._ssl_cert,
             self._ssl_key,
             tlslite.HandshakeSettings(),
         )
+        self._api_server = uvicorn.Server(self._api_config)
         self._tasks.extend(
             (
                 asyncio.create_task(self._event_loop()),
                 asyncio.create_task(self._server_loop()),
                 asyncio.create_task(self._secure_server_loop()),
+                asyncio.create_task(self._api_server.serve()),
             )
         )
+
+        while not self._api_server.started:
+            await asyncio.sleep(0)
 
         logger.info("started")
 
@@ -423,10 +463,12 @@ class Server:
             await asyncio.sleep(0.1)
         assert self._server is not None
         assert self._secure_server is not None
+        assert self._api_server is not None
         self._server.close()
         self._secure_server.close()
         await self._server.wait_closed()
         await self._secure_server.wait_closed()
+        await self._api_server.shutdown()
         for task in self._tasks:
             task.cancel()
         for task in self._tasks:

@@ -57,7 +57,10 @@ async def main():
     fan = channels.Relay(on_change=handle_change)
     tv = channels.Relay(on_change=handle_change)
     lights = channels.Relay(func=proto.ChannelFunc.LIGHTSWITCH, on_change=handle_change)
-    gpmeasurement = channels.GeneralPurposeMeasurement()
+    traffic_light = channels.Relay(
+        func=proto.ChannelFunc.LIGHTSWITCH, on_change=handle_change
+    )
+    car = channels.GeneralPurposeMeasurement()
 
     device.add(relay)
     device.add(temperature)
@@ -66,7 +69,8 @@ async def main():
     device.add(fan)
     device.add(tv)
     device.add(lights)
-    device.add(gpmeasurement)
+    device.add(traffic_light)
+    device.add(car)
 
     await device.start()
     device.add_task(asyncio.create_task(update_loop(device)))
