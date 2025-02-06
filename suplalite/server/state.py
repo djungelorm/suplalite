@@ -6,7 +6,7 @@ import copy
 import hashlib
 from dataclasses import dataclass, field
 
-from suplalite import proto
+from suplalite import encoding, proto
 from suplalite.server.events import EventQueue
 
 
@@ -200,8 +200,13 @@ class ServerState:
         self._channels[channel_id].value = value
         # Note: if the value is non-zero, save the value as the "last value"
         # For example, used to preserve dimmer brightness across on/off actions
-        if value != b"\x00\x00\x00\x00\x00\x00\x00\x00":
+        if self._should_set_last(self._channels[channel_id].type, value):
             self._channels[channel_id].last_value = value
+
+    def _should_set_last(self, channel_type: proto.ChannelType, value: bytes) -> bool:
+        if channel_type == proto.ChannelType.DIMMER:
+            return encoding.decode(proto.TDimmerChannel_Value, value)[0].brightness > 0
+        return False
 
     def get_device_events(self, device_id: int) -> EventQueue:
         return self._device_events[device_id]
