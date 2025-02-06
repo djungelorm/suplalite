@@ -930,6 +930,12 @@ class TRelayChannel_Value:
 
 
 @dataclass
+class TDimmerChannel_Value:
+    brightness: int = field(metadata=c_uint8())
+    padding: bytes = field(repr=False, init=False, metadata=c_bytes(size=7))
+
+
+@dataclass
 class TCS_DeviceCalCfgRequest_B:
     channel_id: int = field(metadata=c_int32())
     target: int = field(metadata=c_uint8())
