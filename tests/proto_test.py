@@ -23,7 +23,7 @@ def test_register_device_e() -> None:
         "Test Client",
         "1.2.3",
         "localhost",
-        0,
+        proto.DeviceFlag.NONE,
         42,
         7,
         [
@@ -328,7 +328,7 @@ def test_partial_decode() -> None:
                 "Test Client",
                 "1.2.3",
                 "localhost",
-                0,
+                proto.DeviceFlag.NONE,
                 42,
                 7,
                 [

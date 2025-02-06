@@ -332,7 +332,8 @@ class ActionCap(IntFlag):
     TOGGLE_x5 = 1 << 6
 
 
-class DeviceFlag(Enum):
+class DeviceFlag(IntFlag):
+    NONE = 0
     CALCFG_ENTER_CFG_MODE = 0x0010  #  ver. >= 17
     SLEEP_MODE_ENABLED = 0x0020  #  ver. >= 18
     CALCFG_SET_TIME = 0x0040  #  ver. >= 21
@@ -464,7 +465,7 @@ class TDS_RegisterDevice_E:
     name: str = field(metadata=c_string(DEVICE_NAME_MAXSIZE))
     soft_ver: str = field(metadata=c_string(SOFTVER_MAXSIZE))
     server_name: str = field(metadata=c_string(SERVER_NAME_MAXSIZE))
-    flags: int = field(metadata=c_int32())
+    flags: DeviceFlag = field(metadata=c_int32())
     manufacturer_id: int = field(metadata=c_int16())
     product_id: int = field(metadata=c_int16())
     channels: list[TDS_DeviceChannel_C] = field(

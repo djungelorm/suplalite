@@ -177,7 +177,7 @@ class Device:
             name=self._name,
             soft_ver=self._version,
             server_name=self._host,
-            flags=0,
+            flags=proto.DeviceFlag.NONE,
             manufacturer_id=0,
             product_id=0,
             channels=[

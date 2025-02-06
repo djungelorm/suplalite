@@ -364,7 +364,7 @@ def register_device_message(device_id: int) -> proto.TDS_RegisterDevice_E:
         name=f"Device #{device_id}",
         soft_ver="1.2.3",
         server_name="localhost",
-        flags=0,  # TODO: what should these be?
+        flags=proto.DeviceFlag.NONE,
         manufacturer_id=manufacturer_id,
         product_id=product_id,
         channels=channels,
