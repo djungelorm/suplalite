@@ -128,7 +128,7 @@ async def register_device(
     msg: proto.TDS_RegisterDevice_E,
 ) -> proto.TSD_RegisterDeviceResult:
     try:
-        device_id = await context.server.state.get_device_id(msg.guid)
+        device_id = context.server.state.get_device_id(msg.guid)
     except KeyError:
         context.log(
             f"device not found with guid {to_hex(msg.guid)}", level=logging.WARN
@@ -141,7 +141,7 @@ async def register_device(
             proto.PROTO_VERSION_MIN,
         )
 
-    device = await context.server.state.get_device(device_id)
+    device = context.server.state.get_device(device_id)
 
     if device.manufacturer_id != msg.manufacturer_id:
         context.log(
@@ -171,13 +171,13 @@ async def register_device(
             proto.PROTO_VERSION_MIN,
         )
 
-    channels = await context.server.state.get_device_channels(device_id)
+    channels = context.server.state.get_device_channels(device_id)
     error: str | None = None
     if len(msg.channels) != len(channels):
         error = f"incorrect number of channels; expected {len(channels)} got {len(msg.channels)}"
 
     for number, (channel_id, channel_msg) in enumerate(zip(channels, msg.channels)):
-        channel = await context.server.state.get_channel(channel_id)
+        channel = context.server.state.get_channel(channel_id)
         if number != channel_msg.number:
             error = "incorrect channel number"
             break
@@ -205,7 +205,7 @@ async def register_device(
         )
 
     proto_version = context.conn.proto_version
-    if not await context.server.state.device_connected(
+    if not context.server.state.device_connected(
         device_id, proto_version, context.events
     ):
         # failed to connect, the device is already connected
@@ -223,7 +223,7 @@ async def register_device(
 
     for channel_number, config in enumerate(msg.channels):
         channel_id = device.channel_ids[channel_number]
-        await context.server.state.set_channel_value(channel_id, config.value)
+        context.server.state.set_channel_value(channel_id, config.value)
         await context.server.events.add(
             EventId.CHANNEL_REGISTER_VALUE, (channel_id, config.value)
         )
@@ -259,9 +259,9 @@ async def device_channel_value_changed_c(
 async def _device_channel_value_changed(
     context: DeviceContext, channel_number: int, value: bytes
 ) -> None:
-    device = await context.server.state.get_device(context.device_id)
+    device = context.server.state.get_device(context.device_id)
     channel_id = device.channel_ids[channel_number]
-    await context.server.state.set_channel_value(channel_id, value)
+    context.server.state.set_channel_value(channel_id, value)
     await context.server.events.add(EventId.CHANNEL_VALUE_CHANGED, (channel_id, value))
 
 
@@ -273,9 +273,9 @@ async def register_client(
     context: ClientContext,
     msg: proto.TCS_RegisterClient_D,
 ) -> proto.TSC_RegisterClientResult_D:
-    client_id = await context.server.state.add_client(msg.guid)
+    client_id = context.server.state.add_client(msg.guid)
 
-    if not await context.server.state.client_connected(client_id, context.events):
+    if not context.server.state.client_connected(client_id, context.events):
         # failed to connect, the client is already connected
         context.log("client already connected", level=logging.WARN)
         context.error = True
@@ -292,7 +292,7 @@ async def register_client(
         await context.events.add(EventId.SEND_SCENES)
         result_code = proto.ResultCode.TRUE
 
-    channel_count = len(await context.server.state.get_channels())
+    channel_count = len(context.server.state.get_channels())
 
     return proto.TSC_RegisterClientResult_D(
         result_code=result_code,
@@ -373,7 +373,7 @@ async def client_execute_action(
 
     # check the channel exists
     try:
-        await context.server.state.get_channel(channel_id)
+        context.server.state.get_channel(channel_id)
     except KeyError:
         context.log(
             f"failed to execute action; channel id {channel_id} does not exist",
@@ -383,7 +383,7 @@ async def client_execute_action(
             proto.ResultCode.FALSE, msg.action_id, msg.subject_id, msg.subject_type
         )
 
-    await context.server.state.set_channel_value(channel_id, value)
+    context.server.state.set_channel_value(channel_id, value)
     await context.server.events.add(EventId.CHANNEL_SET_VALUE, (channel_id, value))
     return proto.TSC_ActionExecutionResult(
         proto.ResultCode.TRUE, msg.action_id, msg.subject_id, msg.subject_type
@@ -400,7 +400,7 @@ async def client_set_value(context: ClientContext, msg: proto.TCS_NewValue) -> N
 
     # check the channel exists
     try:
-        await context.server.state.get_channel(channel_id)
+        context.server.state.get_channel(channel_id)
     except KeyError:
         context.log(
             f"failed to set value; channel id {channel_id} does not exist",
@@ -408,7 +408,7 @@ async def client_set_value(context: ClientContext, msg: proto.TCS_NewValue) -> N
         )
         return
 
-    await context.server.state.set_channel_value(channel_id, value)
+    context.server.state.set_channel_value(channel_id, value)
     await context.server.events.add(EventId.CHANNEL_SET_VALUE, (channel_id, value))
 
 
@@ -416,7 +416,7 @@ async def client_set_value(context: ClientContext, msg: proto.TCS_NewValue) -> N
 async def channel_set_value(
     context: DeviceContext, channel_id: int, value: bytes
 ) -> None:
-    device = await context.server.state.get_device(context.device_id)
+    device = context.server.state.get_device(context.device_id)
     if channel_id not in device.channel_ids:  # pragma: no cover
         # channel is not on this device, ignore event
         return
@@ -438,7 +438,7 @@ async def channel_set_value(
 async def channel_set_value_result(
     context: DeviceContext, msg: proto.TDS_ChannelNewValueResult
 ) -> None:
-    device = await context.server.state.get_device(context.device_id)
+    device = context.server.state.get_device(context.device_id)
     if msg.channel_number >= len(device.channel_ids):
         context.log(
             "failed to handle set value result; "
@@ -447,7 +447,7 @@ async def channel_set_value_result(
         )
         return
     channel_id = device.channel_ids[msg.channel_number]
-    channel = await context.server.state.get_channel(channel_id)
+    channel = context.server.state.get_channel(channel_id)
     value = channel.value
     await context.server.events.add(EventId.CHANNEL_VALUE_CHANGED, (channel_id, value))
 
@@ -465,8 +465,8 @@ async def send_locations(context: ClientContext) -> None:
 
 @event_handler(EventContext.CLIENT, EventId.SEND_CHANNELS)
 async def send_channels(context: ClientContext) -> None:
-    devices = await context.server.state.get_devices()
-    channels = await context.server.state.get_channels()
+    devices = context.server.state.get_devices()
+    channels = context.server.state.get_channels()
 
     total_left = len(channels.values())
     batches = batched(channels.values(), proto.CHANNELPACK_MAXCOUNT)
@@ -516,7 +516,7 @@ async def client_get_channel_config(
     context: ClientContext, msg: proto.TCS_GetChannelConfigRequest
 ) -> proto.TSC_ChannelConfigUpdateOrResult:
     try:
-        channel = await context.server.state.get_channel(msg.channel_id)
+        channel = context.server.state.get_channel(msg.channel_id)
     except KeyError:
         context.log(
             f"failed to get channel config; channel id {msg.channel_id} does not exist",
@@ -576,8 +576,8 @@ async def client_get_channel_config(
 async def client_get_channel_state(
     context: ClientContext, msg: proto.TCS_ChannelStateRequest
 ) -> None:
-    channel = await context.server.state.get_channel(msg.channel_id)
-    events = await context.server.state.get_device_events(channel.device_id)
+    channel = context.server.state.get_channel(msg.channel_id)
+    events = context.server.state.get_device_events(channel.device_id)
     # Note: sender id appears to always be set to 0. It's not the client id,
     # so instead we use the client id from the context
     await events.add(EventId.GET_CHANNEL_STATE, (context.client_id, msg.channel_id))
@@ -587,7 +587,7 @@ async def client_get_channel_state(
 async def device_get_channel_state(
     context: DeviceContext, sender_id: int, channel_id: int
 ) -> None:
-    device = await context.server.state.get_device(context.device_id)
+    device = context.server.state.get_device(context.device_id)
     channel_number = device.channel_ids.index(channel_id)
     msg = proto.TSD_ChannelStateRequest(
         sender_id=sender_id, channel_number=channel_number
@@ -603,12 +603,12 @@ async def device_channel_state_result(
     # # Note: receiver_id is the value originally passed in sender_id in the request message,
     # # 0 if the server originally sent it, otherwise the client id that requested the channel state
     # if msg.receiver_id == 0:
-    #     device = await context.server.state.get_device(context.device_id)
+    #     device = context.server.state.get_device(context.device_id)
     #     channel_id = device.channel_ids[msg.channel_number]
     #     print(msg)
     # else:
-    events = await context.server.state.get_client_events(msg.receiver_id)
-    device = await context.server.state.get_device(context.device_id)
+    events = context.server.state.get_client_events(msg.receiver_id)
+    device = context.server.state.get_device(context.device_id)
     channel_id = device.channel_ids[msg.channel_number]
     await events.add(EventId.CHANNEL_STATE_RESULT, (msg, channel_id))
 
@@ -630,7 +630,7 @@ async def client_superuser_authorization_request(
 ) -> None:
     if context.server.check_authorized(msg.email, msg.password):
         context.log("authorized", level=logging.INFO)
-        await context.server.state.set_client_authorized(context.client_id)
+        context.server.state.set_client_authorized(context.client_id)
         result = proto.ResultCode.AUTHORIZED
     else:
         context.log("unauthorized", level=logging.WARN)
@@ -644,16 +644,16 @@ async def client_calcfg_request(
     context: ClientContext, msg: proto.TCS_DeviceCalCfgRequest_B
 ) -> None:
     try:
-        channel = await context.server.state.get_channel(msg.channel_id)
+        channel = context.server.state.get_channel(msg.channel_id)
     except KeyError:
         context.log(
             f"failed calcfg request; channel id {msg.channel_id} does not exist",
             level=logging.ERROR,
         )
         return
-    device = await context.server.state.get_device(channel.device_id)
+    device = context.server.state.get_device(channel.device_id)
     channel_number = device.channel_ids.index(channel.id)
-    events = await context.server.state.get_device_events(device.id)
+    events = context.server.state.get_device_events(device.id)
     await events.add(EventId.DEVICE_CONFIG, (msg, context.client_id, channel_number))
 
 
@@ -664,7 +664,7 @@ async def device_calcfg_request(
     client_id: int,
     channel_number: int,
 ) -> None:
-    client = await context.server.state.get_client(client_id)
+    client = context.server.state.get_client(client_id)
     msg = proto.TSD_DeviceCalCfgRequest(
         sender_id=client_id,
         channel_number=channel_number,
@@ -682,7 +682,7 @@ async def device_calcfg_result(
 ) -> None:
     client_id = msg.receiver_id
     try:
-        await context.server.state.get_client(client_id)
+        context.server.state.get_client(client_id)
     except KeyError:
         context.log(
             f"failed calcfg result; client id {client_id} does not exist",
@@ -690,7 +690,7 @@ async def device_calcfg_result(
         )
         return
     channel_number = msg.channel_number
-    device = await context.server.state.get_device(context.device_id)
+    device = context.server.state.get_device(context.device_id)
     if channel_number not in device.channel_ids:
         context.log(
             f"failed calcfg result; channel number {channel_number} does not exist",
@@ -698,7 +698,7 @@ async def device_calcfg_result(
         )
         return
     channel_id = device.channel_ids[channel_number]
-    events = await context.server.state.get_client_events(client_id)
+    events = context.server.state.get_client_events(client_id)
     await events.add(EventId.DEVICE_CONFIG_RESULT, (msg, channel_id))
 
 
@@ -721,14 +721,14 @@ async def client_calcfg_result(
 @event_handler(EventContext.CLIENT, EventId.DEVICE_CONNECTED)
 @event_handler(EventContext.CLIENT, EventId.DEVICE_DISCONNECTED)
 async def device_connected(context: ClientContext, device_id: int) -> None:
-    device = await context.server.state.get_device(device_id)
+    device = context.server.state.get_device(device_id)
     total_left = len(device.channel_ids)
 
     batches = batched(device.channel_ids, proto.CHANNELVALUE_PACK_MAXCOUNT)
     for batch in batches:
         items = []
         for channel_id in batch:
-            channel = await context.server.state.get_channel(channel_id)
+            channel = context.server.state.get_channel(channel_id)
             items.append(
                 proto.TSC_ChannelValue_B(
                     eol=False,
@@ -749,7 +749,7 @@ async def device_connected(context: ClientContext, device_id: int) -> None:
 async def channel_value_changed(
     context: ClientContext, channel_id: int, value: bytes
 ) -> None:
-    channel = await context.server.state.get_channel(channel_id)
+    channel = context.server.state.get_channel(channel_id)
     msg = proto.TSC_ChannelValuePack_B(
         total_left=0,
         items=[

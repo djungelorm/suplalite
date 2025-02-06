@@ -108,7 +108,7 @@ class Connection:
             if isinstance(self._context, DeviceContext):
                 device_id = self._context.device_id
                 async with self._context.server.state.lock:
-                    await self._context.server.state.device_disconnected(device_id)
+                    self._context.server.state.device_disconnected(device_id)
                     await self._context.server.events.add(
                         EventId.DEVICE_DISCONNECTED, (device_id,)
                     )
@@ -117,7 +117,7 @@ class Connection:
             if isinstance(self._context, ClientContext):
                 client_id = self._context.client_id
                 async with self._context.server.state.lock:
-                    await self._context.server.state.client_disconnected(client_id)
+                    self._context.server.state.client_disconnected(client_id)
                     await self._context.server.events.add(
                         EventId.CLIENT_DISCONNECTED, (client_id,)
                     )
@@ -432,18 +432,18 @@ class Server:
                         await handler.func(self._context, *payload)
 
                 async with self._state.lock:
-                    clients = await self._state.get_clients()
+                    clients = self._state.get_clients()
                     for client in clients.values():
                         try:
-                            events = await self._state.get_client_events(client.id)
+                            events = self._state.get_client_events(client.id)
                         except KeyError:
                             continue
                         await events.add(event_id, payload)
 
-                    devices = await self._state.get_devices()
+                    devices = self._state.get_devices()
                     for device in devices.values():
                         try:
-                            events = await self._state.get_device_events(device.id)
+                            events = self._state.get_device_events(device.id)
                         except KeyError:
                             continue
                         await events.add(event_id, payload)

@@ -428,7 +428,7 @@ async def test_register_device(
     server: Server, device_id: int, secure: bool, caplog: pytest.LogCaptureFixture
 ) -> None:
     async with open_device(server, device_id, secure):
-        info = await server.state.get_device(device_id)
+        info = server.state.get_device(device_id)
         assert info.online
     assert re.search(r"device\[device-[0-9]+\] registered", caplog.text) is not None
 
@@ -1205,10 +1205,8 @@ async def test_device_set_value_result(
     async with open_device(server, 1) as device:
         async with open_client(server, "test") as client:
             async with server.state.lock:
-                await server.state.set_channel_value(
-                    3, b"\x01\x02\x03\x04\x05\x06\x07\x08"
-                )
-                channel = await server.state.get_channel(3)
+                server.state.set_channel_value(3, b"\x01\x02\x03\x04\x05\x06\x07\x08")
+                channel = server.state.get_channel(3)
                 assert channel.value == b"\x01\x02\x03\x04\x05\x06\x07\x08"
 
             await device.stream.send(
