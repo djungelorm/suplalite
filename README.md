@@ -3,6 +3,8 @@ suplalite
 
 A lightweight implementation of SUPLA server and devices in Python.
 
+Install using `pip install suplalite`
+
 Note: this project is not affiliated with SUPLA or Zamel -- this is not an "official" library.
 
 suplalite.server
