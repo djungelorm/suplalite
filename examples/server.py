@@ -34,36 +34,36 @@ async def channel_value_changed(
 
 
 async def update(context, action, channel_id, value):
-    channel = await context.server.state.get_channel(channel_id)
-    device = await context.server.state.get_device(channel.device_id)
+    channel = context.server.state.get_channel(channel_id)
+    device = context.server.state.get_device(channel.device_id)
     topic = f"supla/{channel.name}/{action}"
-    if channel.typ == proto.ChannelType.THERMOMETER:
+    if channel.type == proto.ChannelType.THERMOMETER:
         value = struct.unpack("<d", channel.value)[0]
         # FIXME: decode unknown values
         print(topic, round(value, 1))
 
-    elif channel.typ == proto.ChannelType.HUMIDITYSENSOR:
+    elif channel.type == proto.ChannelType.HUMIDITYSENSOR:
         parts = struct.unpack("ii", channel.value)
         value = parts[1] / 1000.0
         # FIXME: decode unknown values
         print(topic, round(value, 1))
 
-    elif channel.typ == proto.ChannelType.HUMIDITYANDTEMPSENSOR:
+    elif channel.type == proto.ChannelType.HUMIDITYANDTEMPSENSOR:
         parts = struct.unpack("ii", channel.value)
         temp = parts[0] / 1000.0
         humi = parts[1] / 1000.0
         # FIXME: decode unknown values
         print(topic, json.dumps((round(temp, 1), round(humi, 1))))
 
-    elif channel.typ == proto.ChannelType.RELAY:
+    elif channel.type == proto.ChannelType.RELAY:
         value = struct.unpack("Q", channel.value)[0] == 1
         print(topic, value)
 
-    elif channel.typ == proto.ChannelType.DIMMER:
+    elif channel.type == proto.ChannelType.DIMMER:
         value = int(channel.value[0])
         print(topic, value)
 
-    elif channel.typ == proto.ChannelType.GENERAL_PURPOSE_MEASUREMENT:
+    elif channel.type == proto.ChannelType.GENERAL_PURPOSE_MEASUREMENT:
         value = struct.unpack("d", channel.value)[0]
         print(topic, value)
 
@@ -88,7 +88,7 @@ async def main():
         location_name="Test",
         email="email@email.com",
         password="1",
-        log_level="INFO",
+        log_level="DEBUG",
     )
 
     device_id = server.state.add_device(
@@ -183,7 +183,7 @@ async def main():
 
     device_id = server.state.add_device(
         "lounge-lights",
-        bytes.fromhex("56fd454d0cc07f1be04e5c0bfeb207a9"),
+        bytes.fromhex("7c59477b7b3cdf7887fdd9387f1c9e77"),
         manufacturer_id=7,
         product_id=1,
     )
