@@ -117,7 +117,15 @@ class ServerState:
             user_icon = self.add_icons(icons)
 
         channel = ChannelState(
-            name, channel_id, device_id, caption, typ, func, alt_icon, user_icon, config
+            name,
+            channel_id,
+            device_id,
+            caption,
+            typ,
+            func,
+            alt_icon,
+            user_icon,
+            config,
         )
         self._channels[channel_id] = channel
         self._devices[device_id].channel_ids.append(channel_id)
@@ -238,7 +246,7 @@ class ChannelState:
     id: int
     device_id: int
     caption: str
-    typ: proto.ChannelType
+    type: proto.ChannelType
     func: proto.ChannelFunc
     alt_icon: int
     user_icon: int

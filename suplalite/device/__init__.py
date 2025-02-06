@@ -183,7 +183,7 @@ class Device:
             channels=[
                 proto.TDS_DeviceChannel_C(
                     number=number,
-                    typ=channel.type,
+                    type=channel.type,
                     action_trigger_caps=channel.action_trigger_caps,
                     default_func=channel.func,
                     flags=channel.flags,

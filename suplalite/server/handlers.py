@@ -181,10 +181,10 @@ async def register_device(
         if number != channel_msg.number:
             error = "incorrect channel number"
             break
-        if channel.typ != channel_msg.typ:
+        if channel.type != channel_msg.type:
             error = (
                 f"incorrect type for channel number {number}; "
-                f"expected {channel.typ} got {channel_msg.typ}"
+                f"expected {channel.type} got {channel_msg.type}"
             )
             break
         if channel.func != channel_msg.default_func:
@@ -480,7 +480,7 @@ async def send_channels(context: ClientContext) -> None:
                     id=channel.id,
                     device_id=channel.device_id,
                     location_id=1,
-                    type=channel.typ,
+                    type=channel.type,
                     func=channel.func,
                     alt_icon=channel.alt_icon,
                     user_icon=channel.user_icon,

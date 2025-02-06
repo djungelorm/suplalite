@@ -449,7 +449,7 @@ class ActionTriggerProperties:
 @dataclass
 class TDS_DeviceChannel_C:
     number: int = field(metadata=c_uint8())
-    typ: ChannelType = field(metadata=c_enum(ctypes.c_int32))
+    type: ChannelType = field(metadata=c_enum(ctypes.c_int32))
     action_trigger_caps: ActionCap = field(metadata=c_uint32())
     default_func: ChannelFunc = field(metadata=c_int32())
     flags: ChannelFlag = field(metadata=c_int32())
