@@ -357,26 +357,62 @@ async def client_execute_action(
     msg: proto.TCS_Action,
 ) -> proto.TSC_ActionExecutionResult:
     if msg.subject_type != proto.ActionSubjectType.CHANNEL:
+        context.log(
+            "failed to execute action; subject type not supported",
+            level=logging.WARN,
+        )
         return proto.TSC_ActionExecutionResult(
             proto.ResultCode.FALSE, msg.action_id, msg.subject_id, msg.subject_type
         )
     channel_id = msg.subject_id
 
-    if msg.action_id == proto.ActionType.TURN_ON:
-        value = encoding.encode(proto.TRelayChannel_Value(on=True, flags=0))
-    elif msg.action_id == proto.ActionType.TURN_OFF:
-        value = encoding.encode(proto.TRelayChannel_Value(on=False, flags=0))
-    else:
+    try:
+        channel = context.server.state.get_channel(channel_id)
+    except KeyError:
+        context.log(
+            f"failed to execute action; channel id {channel_id} does not exist",
+            level=logging.WARN,
+        )
         return proto.TSC_ActionExecutionResult(
             proto.ResultCode.FALSE, msg.action_id, msg.subject_id, msg.subject_type
         )
 
-    # check the channel exists
-    try:
-        context.server.state.get_channel(channel_id)
-    except KeyError:
+    if channel.type == proto.ChannelType.RELAY:
+        if msg.action_id == proto.ActionType.TURN_ON:
+            value = encoding.encode(proto.TRelayChannel_Value(on=True, flags=0))
+        elif msg.action_id == proto.ActionType.TURN_OFF:
+            value = encoding.encode(proto.TRelayChannel_Value(on=False, flags=0))
+        elif msg.action_id == proto.ActionType.TOGGLE:
+            current_value, _ = encoding.decode(proto.TRelayChannel_Value, channel.value)
+            value = encoding.encode(
+                proto.TRelayChannel_Value(on=not current_value.on, flags=0)
+            )
+        else:
+            context.log(
+                "failed to execute action; action not supported",
+                level=logging.WARN,
+            )
+            return proto.TSC_ActionExecutionResult(
+                proto.ResultCode.FALSE, msg.action_id, msg.subject_id, msg.subject_type
+            )
+    elif channel.type == proto.ChannelType.DIMMER:
+        if msg.action_id == proto.ActionType.TURN_ON:
+            value = channel.last_value or encoding.encode(
+                proto.TDimmerChannel_Value(brightness=100)
+            )
+        elif msg.action_id == proto.ActionType.TURN_OFF:
+            value = encoding.encode(proto.TDimmerChannel_Value(brightness=0))
+        else:
+            context.log(
+                "failed to execute action; action not supported",
+                level=logging.WARN,
+            )
+            return proto.TSC_ActionExecutionResult(
+                proto.ResultCode.FALSE, msg.action_id, msg.subject_id, msg.subject_type
+            )
+    else:
         context.log(
-            f"failed to execute action; channel id {channel_id} does not exist",
+            "failed to execute action; channel type not supported",
             level=logging.WARN,
         )
         return proto.TSC_ActionExecutionResult(

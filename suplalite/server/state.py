@@ -198,6 +198,10 @@ class ServerState:
 
     def set_channel_value(self, channel_id: int, value: bytes) -> None:
         self._channels[channel_id].value = value
+        # Note: if the value is non-zero, save the value as the "last value"
+        # For example, used to preserve dimmer brightness across on/off actions
+        if value != b"\x00\x00\x00\x00\x00\x00\x00\x00":
+            self._channels[channel_id].last_value = value
 
     def get_device_events(self, device_id: int) -> EventQueue:
         return self._device_events[device_id]
@@ -252,6 +256,7 @@ class ChannelState:
     user_icon: int
     config: ChannelConfig | None
     value: bytes = b"\x00\x00\x00\x00\x00\x00\x00\x00"
+    last_value: bytes | None = None
 
 
 @dataclass

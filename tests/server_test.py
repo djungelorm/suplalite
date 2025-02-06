@@ -1041,6 +1041,32 @@ async def test_client_execute_action_off(
     assert "server event CHANNEL_SET_VALUE 3 0000000000000000" in caplog.text
 
 
+@pytest.mark.asyncio
+async def test_client_execute_action_toggle(
+    server: Server, caplog: pytest.LogCaptureFixture
+) -> None:
+    async with open_device(server, 1) as device:
+        async with open_client(server, "test") as client:
+            await do_execute_action(
+                client,
+                device,
+                proto.TCS_Action(
+                    action_id=proto.ActionType.TOGGLE,
+                    subject_id=3,
+                    subject_type=proto.ActionSubjectType.CHANNEL,
+                    param=b"",
+                ),
+                2,
+                b"\x01\x00\x00\x00\x00\x00\x00\x00",
+            )
+    assert "client[test] handle call Call.CS_EXECUTE_ACTION" in caplog.text
+    assert "client[test] send Call.SC_ACTION_EXECUTION_RESULT" in caplog.text
+    assert "device[device-1] handle event EventId.CHANNEL_SET_VALUE" in caplog.text
+    assert "device[device-1] send Call.SD_CHANNEL_SET_VALUE" in caplog.text
+
+    assert "server event CHANNEL_SET_VALUE 3 0100000000000000" in caplog.text
+
+
 async def do_execute_action_with_error(
     client: Client, action: proto.TCS_Action
 ) -> None:
@@ -1059,22 +1085,9 @@ async def do_execute_action_with_error(
 
 
 @pytest.mark.asyncio
-async def test_client_execute_action_invalid_channel(server: Server) -> None:
-    async with open_device(server, 1):
-        async with open_client(server, "test") as client:
-            await do_execute_action_with_error(
-                client,
-                proto.TCS_Action(
-                    action_id=proto.ActionType.TURN_ON,
-                    subject_id=42,
-                    subject_type=proto.ActionSubjectType.CHANNEL,
-                    param=b"",
-                ),
-            )
-
-
-@pytest.mark.asyncio
-async def test_client_execute_action_invalid_subject(server: Server) -> None:
+async def test_client_execute_action_invalid_subject(
+    server: Server, caplog: pytest.LogCaptureFixture
+) -> None:
     async with open_device(server, 1):
         async with open_client(server, "test") as client:
             await do_execute_action_with_error(
@@ -1086,10 +1099,37 @@ async def test_client_execute_action_invalid_subject(server: Server) -> None:
                     param=b"",
                 ),
             )
+    assert (
+        "client[test] failed to execute action; subject type not supported"
+        in caplog.text
+    )
 
 
 @pytest.mark.asyncio
-async def test_client_execute_action_invalid_action(server: Server) -> None:
+async def test_client_execute_action_invalid_channel(
+    server: Server, caplog: pytest.LogCaptureFixture
+) -> None:
+    async with open_device(server, 1):
+        async with open_client(server, "test") as client:
+            await do_execute_action_with_error(
+                client,
+                proto.TCS_Action(
+                    action_id=proto.ActionType.TURN_ON,
+                    subject_id=42,
+                    subject_type=proto.ActionSubjectType.CHANNEL,
+                    param=b"",
+                ),
+            )
+    assert (
+        "client[test] failed to execute action; channel id 42 does not exist"
+        in caplog.text
+    )
+
+
+@pytest.mark.asyncio
+async def test_client_execute_action_invalid_relay_action(
+    server: Server, caplog: pytest.LogCaptureFixture
+) -> None:
     async with open_device(server, 1):
         async with open_client(server, "test") as client:
             await do_execute_action_with_error(
@@ -1101,6 +1141,46 @@ async def test_client_execute_action_invalid_action(server: Server) -> None:
                     param=b"",
                 ),
             )
+    assert "client[test] failed to execute action; action not supported" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_client_execute_action_invalid_dimmer_action(
+    server: Server, caplog: pytest.LogCaptureFixture
+) -> None:
+    async with open_device(server, 2):
+        async with open_client(server, "test") as client:
+            await do_execute_action_with_error(
+                client,
+                proto.TCS_Action(
+                    action_id=proto.ActionType.INTERRUPT,
+                    subject_id=4,
+                    subject_type=proto.ActionSubjectType.CHANNEL,
+                    param=b"",
+                ),
+            )
+    assert "client[test] failed to execute action; action not supported" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_client_execute_action_unsupported_channel_type(
+    server: Server, caplog: pytest.LogCaptureFixture
+) -> None:
+    async with open_device(server, 1):
+        async with open_client(server, "test") as client:
+            await do_execute_action_with_error(
+                client,
+                proto.TCS_Action(
+                    action_id=proto.ActionType.TURN_ON,
+                    subject_id=2,
+                    subject_type=proto.ActionSubjectType.CHANNEL,
+                    param=b"",
+                ),
+            )
+    assert (
+        "client[test] failed to execute action; channel type not supported"
+        in caplog.text
+    )
 
 
 async def do_set_value(
@@ -1689,3 +1769,104 @@ async def test_get_channel_by_name(server: Server) -> None:
 async def test_get_channel_by_name_invalid(server: Server) -> None:
     with pytest.raises(KeyError):
         server.state.get_channel_by_name("doesntexist")
+
+
+@pytest.mark.asyncio
+async def test_dimmer_off_on_preserves_brightness(
+    server: Server, caplog: pytest.LogCaptureFixture
+) -> None:
+    async with open_device(server, 2) as device:
+        async with open_client(server, "test") as client:
+            # set brightness = 50
+            await do_set_value(
+                client,
+                device,
+                proto.TCS_NewValue(
+                    value_id=4,
+                    target=proto.Target.CHANNEL,
+                    value=b"\x32\x00\x00\x00\x00\x00\x00\x00",
+                ),
+                0,
+            )
+
+            # turn off
+            await do_execute_action(
+                client,
+                device,
+                proto.TCS_Action(
+                    action_id=proto.ActionType.TURN_OFF,
+                    subject_id=4,
+                    subject_type=proto.ActionSubjectType.CHANNEL,
+                    param=b"",
+                ),
+                0,
+                b"\x00\x00\x00\x00\x00\x00\x00\x00",
+            )
+
+            # turn on
+            await do_execute_action(
+                client,
+                device,
+                proto.TCS_Action(
+                    action_id=proto.ActionType.TURN_ON,
+                    subject_id=4,
+                    subject_type=proto.ActionSubjectType.CHANNEL,
+                    param=b"",
+                ),
+                0,
+                b"\x32\x00\x00\x00\x00\x00\x00\x00",
+            )
+
+
+@pytest.mark.asyncio
+async def test_dimmer_initial_on_sets_full_brightness(
+    server: Server, caplog: pytest.LogCaptureFixture
+) -> None:
+    async with open_device(server, 2) as device:
+        async with open_client(server, "test") as client:
+            # turn on
+            await do_execute_action(
+                client,
+                device,
+                proto.TCS_Action(
+                    action_id=proto.ActionType.TURN_ON,
+                    subject_id=4,
+                    subject_type=proto.ActionSubjectType.CHANNEL,
+                    param=b"",
+                ),
+                0,
+                b"\x64\x00\x00\x00\x00\x00\x00\x00",
+            )
+
+
+@pytest.mark.asyncio
+async def test_dimmer_already_on_preserves_brightness(
+    server: Server, caplog: pytest.LogCaptureFixture
+) -> None:
+    async with open_device(server, 2) as device:
+        async with open_client(server, "test") as client:
+            # set brightness = 50
+            await do_set_value(
+                client,
+                device,
+                proto.TCS_NewValue(
+                    value_id=4,
+                    target=proto.Target.CHANNEL,
+                    value=b"\x32\x00\x00\x00\x00\x00\x00\x00",
+                ),
+                0,
+            )
+
+            # turn on
+            await do_execute_action(
+                client,
+                device,
+                proto.TCS_Action(
+                    action_id=proto.ActionType.TURN_ON,
+                    subject_id=4,
+                    subject_type=proto.ActionSubjectType.CHANNEL,
+                    param=b"",
+                ),
+                0,
+                b"\x32\x00\x00\x00\x00\x00\x00\x00",
+            )
