@@ -361,13 +361,8 @@ def test_partial_decode() -> None:
             639,
         ),
         (
-            proto.TSC_RegisterClientResult_B,
-            (proto.ResultCode.TRUE, 1, 2, 3, 4, 5, 6, 7, 8),
-            21,
-        ),
-        (
             proto.TSC_RegisterClientResult_D,
-            (proto.ResultCode.TRUE, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10),
+            (proto.ResultCode.TRUE, 1, 2, 3, 4, 5, 6, 7, 8, 9),
             27,
         ),
         (

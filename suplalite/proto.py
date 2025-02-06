@@ -544,19 +544,6 @@ class TCS_RegisterClient_D:
 
 
 @dataclass
-class TSC_RegisterClientResult_B:
-    result_code: ResultCode = field(metadata=c_enum(ctypes.c_int32))
-    client_id: int = field(metadata=c_int32())
-    location_count: int = field(metadata=c_int16())
-    channel_count: int = field(metadata=c_int16())
-    channel_group_count: int = field(metadata=c_int16())
-    flags: int = field(metadata=c_int32())
-    activity_timeout: int = field(metadata=c_int8())
-    version: int = field(metadata=c_int8())
-    version_min: int = field(metadata=c_int8())
-
-
-@dataclass
 class TSC_RegisterClientResult_D:
     result_code: ResultCode = field(metadata=c_enum(ctypes.c_int32))
     client_id: int = field(metadata=c_int32())
@@ -564,7 +551,9 @@ class TSC_RegisterClientResult_D:
     channel_count: int = field(metadata=c_int16())
     channel_group_count: int = field(metadata=c_int16())
     scene_count: int = field(metadata=c_int16())
-    flags: int = field(metadata=c_int32())
+    flags: bytes = field(  # always zero
+        repr=False, init=False, metadata=c_bytes(size=4)
+    )
     activity_timeout: int = field(metadata=c_int8())
     version: int = field(metadata=c_int8())
     version_min: int = field(metadata=c_int8())
