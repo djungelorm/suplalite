@@ -8,8 +8,8 @@ import os
 import re
 import ssl
 import time
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from collections.abc import AsyncIterator, Callable
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from dataclasses import dataclass
 
 import aiohttp
@@ -217,8 +217,13 @@ async def open_connection(
 
 
 @dataclass
-class Device:
+class Connection:
     stream: PacketStream
+
+
+@dataclass
+class Device(Connection):
+    pass
 
 
 @asynccontextmanager
@@ -231,8 +236,7 @@ async def open_device(
 
 
 @dataclass
-class Client:
-    stream: PacketStream
+class Client(Connection):
     client_id: int
     location_pack: proto.TSC_LocationPack
     channel_pack: proto.TSC_ChannelPack_D
@@ -857,7 +861,9 @@ connectors = {
 @pytest.mark.asyncio
 @pytest.mark.parametrize(**connectors)  # type: ignore
 async def test_device_ping(
-    server: Server, connect, caplog: pytest.LogCaptureFixture
+    server: Server,
+    connect: Callable[[Server], AbstractAsyncContextManager[Connection]],
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     async with connect(server) as conn:
         now = time.time()
@@ -877,7 +883,10 @@ async def test_device_ping(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(**connectors)  # type: ignore
-async def test_registration_enabled(server: Server, connect) -> None:
+async def test_registration_enabled(
+    server: Server,
+    connect: Callable[[Server], AbstractAsyncContextManager[Connection]],
+) -> None:
     async with connect(server) as conn:
         await conn.stream.send(Packet(proto.Call.DCS_GET_REGISTRATION_ENABLED))
         packet = await conn.stream.recv()
@@ -889,7 +898,10 @@ async def test_registration_enabled(server: Server, connect) -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(**connectors)  # type: ignore
-async def test_set_activity_timeout(server: Server, connect) -> None:
+async def test_set_activity_timeout(
+    server: Server,
+    connect: Callable[[Server], AbstractAsyncContextManager[Connection]],
+) -> None:
     async with connect(server) as conn:
         await conn.stream.send(
             Packet(
