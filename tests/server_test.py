@@ -534,7 +534,10 @@ async def test_register_device_invalid_channel_type(
         call = register_device_message(1)
         call.channels[1].typ = proto.ChannelType.RELAY
         await do_register_device_invalid(stream, call)
-    assert "incorrect type for channel number 1" in caplog.text
+    assert (
+        "incorrect type for channel number 1; "
+        "expected ChannelType.THERMOMETER got ChannelType.RELAY" in caplog.text
+    )
     assert "error; closing connection" in caplog.text
 
 
@@ -546,7 +549,10 @@ async def test_register_device_invalid_channel_func(
         call = register_device_message(1)
         call.channels[0].default_func = proto.ChannelFunc.THERMOMETER
         await do_register_device_invalid(stream, call)
-    assert "incorrect function for channel number 0" in caplog.text
+    assert (
+        "incorrect function for channel number 0; "
+        "expected ChannelFunc.POWERSWITCH got ChannelFunc.THERMOMETER" in caplog.text
+    )
     assert "error; closing connection" in caplog.text
 
 

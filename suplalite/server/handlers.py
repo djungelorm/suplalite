@@ -182,10 +182,16 @@ async def register_device(
             error = "incorrect channel number"
             break
         if channel.typ != channel_msg.typ:
-            error = f"incorrect type for channel number {number}"
+            error = (
+                f"incorrect type for channel number {number}; "
+                f"expected {channel.typ} got {channel_msg.typ}"
+            )
             break
         if channel.func != channel_msg.default_func:
-            error = f"incorrect function for channel number {number}"
+            error = (
+                f"incorrect function for channel number {number}; "
+                f"expected {channel.func} got {channel_msg.default_func}"
+            )
             break
 
     if error is not None:
