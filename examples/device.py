@@ -28,7 +28,7 @@ async def update_loop(device):
             await device.get(2).set_value(random.uniform(50, 80))
             await device.get(3).set_temperature(random.uniform(10, 30))
             await device.get(3).set_humidity(random.uniform(50, 80))
-            await device.get(7).set_value(random.uniform(-100, 100))
+            await device.get(8).set_value(random.uniform(-100, 100))
             await asyncio.sleep(3)
 
     except Exception as exc:
