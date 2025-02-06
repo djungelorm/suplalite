@@ -166,6 +166,12 @@ class ServerState:
     def get_channel(self, channel_id: int) -> ChannelState:
         return copy.deepcopy(self._channels[channel_id])
 
+    def get_channel_by_name(self, name: str) -> ChannelState:
+        for channel in self._channels.values():
+            if channel.name == name:
+                return copy.deepcopy(channel)
+        raise KeyError
+
     def device_connected(
         self, device_id: int, proto_version: int, events: EventQueue
     ) -> bool:

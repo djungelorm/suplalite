@@ -1676,3 +1676,16 @@ async def test_disconnect(server: Server, caplog: pytest.LogCaptureFixture) -> N
     assert "device[device-1] disconnected" in caplog.text
     assert "device[device-1] event task stopped" in caplog.text
     assert "device[device-1] closed" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_get_channel_by_name(server: Server) -> None:
+    channel = server.state.get_channel_by_name("thermometer")
+    assert channel.id == 2
+    assert channel.typ == proto.ChannelType.THERMOMETER
+
+
+@pytest.mark.asyncio
+async def test_get_channel_by_name_invalid(server: Server) -> None:
+    with pytest.raises(KeyError):
+        server.state.get_channel_by_name("doesntexist")
