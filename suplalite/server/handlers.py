@@ -727,7 +727,7 @@ async def device_calcfg_result(
         return
     channel_number = msg.channel_number
     device = context.server.state.get_device(context.device_id)
-    if channel_number not in device.channel_ids:
+    if channel_number >= len(device.channel_ids):
         context.log(
             f"failed calcfg result; channel number {channel_number} does not exist",
             level=logging.ERROR,
