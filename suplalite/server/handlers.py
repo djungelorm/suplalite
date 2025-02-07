@@ -301,7 +301,6 @@ async def register_client(
         channel_count=channel_count,
         channel_group_count=0,
         scene_count=0,
-        flags=0,
         activity_timeout=context.activity_timeout,
         version=proto.PROTO_VERSION,
         version_min=proto.PROTO_VERSION_MIN,

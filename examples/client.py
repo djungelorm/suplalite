@@ -54,17 +54,6 @@ async def register_result_b(context: Context):
     logging.debug("pong")
 
 
-@supla_call(proto.Call.SC_REGISTER_CLIENT_RESULT_B)
-async def register_result_b(context: Context, msg: proto.TSC_RegisterClientResult_B):
-    result_code = proto.ResultCode(msg.result_code)
-    if result_code != proto.ResultCode.TRUE:
-        raise RuntimeError(f"Register failed: {result_code.name}")
-    logging.debug("registered")
-    context.client._ping_timeout = msg.activity_timeout / 2
-    context.client._state = context.client.State.CONNECTED
-    await oauth_request(context)
-
-
 @supla_call(proto.Call.SC_REGISTER_CLIENT_RESULT_D)
 async def register_result_d(context: Context, msg: proto.TSC_RegisterClientResult_D):
     result_code = proto.ResultCode(msg.result_code)
