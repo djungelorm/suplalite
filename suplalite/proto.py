@@ -450,10 +450,10 @@ class ActionTriggerProperties:
 @dataclass
 class TDS_DeviceChannel_C:
     number: int = field(metadata=c_uint8())
-    type: ChannelType = field(metadata=c_enum(ctypes.c_int32))
-    action_trigger_caps: ActionCap = field(metadata=c_uint32())
-    default_func: ChannelFunc = field(metadata=c_int32())
-    flags: ChannelFlag = field(metadata=c_int32())
+    type: ChannelType = field(metadata=c_enum(ctypes.c_uint32))
+    action_trigger_caps: ActionCap = field(metadata=c_enum(ctypes.c_uint32))
+    default_func: ChannelFunc = field(metadata=c_enum(ctypes.c_uint32))
+    flags: ChannelFlag = field(metadata=c_enum(ctypes.c_uint32))
     value: bytes = field(metadata=c_bytes(size=8))
 
 
@@ -465,7 +465,7 @@ class TDS_RegisterDevice_E:
     name: str = field(metadata=c_string(DEVICE_NAME_MAXSIZE))
     soft_ver: str = field(metadata=c_string(SOFTVER_MAXSIZE))
     server_name: str = field(metadata=c_string(SERVER_NAME_MAXSIZE))
-    flags: DeviceFlag = field(metadata=c_int32())
+    flags: DeviceFlag = field(metadata=c_enum(ctypes.c_uint32))
     manufacturer_id: int = field(metadata=c_int16())
     product_id: int = field(metadata=c_int16())
     channels: list[TDS_DeviceChannel_C] = field(
@@ -475,7 +475,7 @@ class TDS_RegisterDevice_E:
 
 @dataclass
 class TSD_RegisterDeviceResult:
-    result_code: ResultCode = field(metadata=c_enum(ctypes.c_int32))
+    result_code: ResultCode = field(metadata=c_enum(ctypes.c_uint32))
     activity_timeout: int = field(metadata=c_int8())
     version: int = field(metadata=c_int8())
     version_min: int = field(metadata=c_int8())
@@ -545,7 +545,7 @@ class TCS_RegisterClient_D:
 
 @dataclass
 class TSC_RegisterClientResult_D:
-    result_code: ResultCode = field(metadata=c_enum(ctypes.c_int32))
+    result_code: ResultCode = field(metadata=c_enum(ctypes.c_uint32))
     client_id: int = field(metadata=c_int32())
     location_count: int = field(metadata=c_int16())
     channel_count: int = field(metadata=c_int16())
@@ -579,7 +579,7 @@ class Platform(Enum):
 @dataclass
 class TCS_PnClientToken:
     development_env: int = field(metadata=c_int8())
-    platform: Platform = field(metadata=c_int32())
+    platform: Platform = field(metadata=c_enum(ctypes.c_uint32))
     app_id: int = field(metadata=c_int32())
     profile_name: str = field(metadata=c_string(PN_PROFILE_NAME_MAXSIZE))
     real_token_size: int = field(metadata=c_uint16())
@@ -596,7 +596,7 @@ class TCS_RegisterPnClientToken:
 
 @dataclass
 class TSC_RegisterPnClientTokenResult:
-    result_code: ResultCode = field(metadata=c_enum(ctypes.c_int32))
+    result_code: ResultCode = field(metadata=c_enum(ctypes.c_uint32))
 
 
 @dataclass
@@ -607,7 +607,7 @@ class TCS_SuperUserAuthorizationRequest:
 
 @dataclass
 class TSC_SuperUserAuthorizationResult:
-    result: ResultCode = field(metadata=c_int32())
+    result: ResultCode = field(metadata=c_enum(ctypes.c_uint32))
 
 
 @dataclass
@@ -649,7 +649,7 @@ class TSC_Channel:
     eol: bool = field(metadata=c_uint8())
     id: int = field(metadata=c_int32())
     location_id: int = field(metadata=c_int32())
-    func: ChannelFunc = field(metadata=c_enum(ctypes.c_int32))
+    func: ChannelFunc = field(metadata=c_enum(ctypes.c_uint32))
     online: bool = field(metadata=c_uint8())
     value: ChannelValue
     caption: str = field(
@@ -663,8 +663,8 @@ class TSC_Channel_D:
     id: int = field(metadata=c_int32())
     device_id: int = field(metadata=c_int32())
     location_id: int = field(metadata=c_int32())
-    type: ChannelType = field(metadata=c_enum(ctypes.c_int32))
-    func: ChannelFunc = field(metadata=c_enum(ctypes.c_int32))
+    type: ChannelType = field(metadata=c_enum(ctypes.c_uint32))
+    func: ChannelFunc = field(metadata=c_enum(ctypes.c_uint32))
     alt_icon: int = field(metadata=c_int32())
     user_icon: int = field(metadata=c_int32())
     manufacturer_id: int = field(metadata=c_int16())
@@ -779,7 +779,7 @@ class ActionType(Enum):
 
 @dataclass
 class TCS_Action:
-    action_id: ActionType = field(metadata=c_enum(ctypes.c_int32))
+    action_id: ActionType = field(metadata=c_enum(ctypes.c_uint32))
     subject_id: int = field(metadata=c_int32())
     subject_type: ActionSubjectType = field(metadata=c_enum(ctypes.c_uint8))
     param: bytes = field(
@@ -790,9 +790,9 @@ class TCS_Action:
 @dataclass
 class TSC_ActionExecutionResult:
     result_code: ResultCode = field(metadata=c_enum(ctypes.c_uint8))
-    action_id: ActionType = field(metadata=c_enum(ctypes.c_int32))
+    action_id: ActionType = field(metadata=c_enum(ctypes.c_uint32))
     subject_id: int = field(metadata=c_int32())
-    subject_type: ActionSubjectType = field(metadata=c_enum(ctypes.c_int32))
+    subject_type: ActionSubjectType = field(metadata=c_enum(ctypes.c_uint32))
 
 
 @dataclass
@@ -830,7 +830,7 @@ class TDS_ChannelState:
     receiver_id: int = field(metadata=c_int32())
     channel_number: int = field(metadata=c_uint8())
     padding: bytes = field(repr=False, init=False, metadata=c_bytes(size=3))
-    fields: ChannelStateField = field(metadata=c_int32())
+    fields: ChannelStateField = field(metadata=c_enum(ctypes.c_uint32))
     default_icon_field: int = field(metadata=c_int32())
     ipv4: int = field(metadata=c_int32())
     mac: bytes = field(metadata=c_bytes(6))
@@ -853,7 +853,7 @@ class TDS_ChannelState:
 class TSC_ChannelState:
     receiver_id: int = field(metadata=c_int32())
     channel_id: int = field(metadata=c_int32())
-    fields: ChannelStateField = field(metadata=c_int32())
+    fields: ChannelStateField = field(metadata=c_enum(ctypes.c_uint32))
     default_icon_field: int = field(metadata=c_int32())
     ipv4: int = field(metadata=c_int32())
     mac: bytes = field(metadata=c_bytes(6))
@@ -900,7 +900,7 @@ class OAuthResultCode(Enum):
 
 @dataclass
 class TSC_OAuthTokenRequestResult:
-    result_code: OAuthResultCode = field(metadata=c_uint8())
+    result_code: OAuthResultCode = field(metadata=c_enum(ctypes.c_uint8))
     token: TSC_OAuthToken
 
 
@@ -994,15 +994,15 @@ class ConfigResult(Enum):
 @dataclass
 class TCS_GetChannelConfigRequest:
     channel_id: int = field(metadata=c_int32())
-    config_type: ConfigType = field(metadata=c_uint8())
+    config_type: ConfigType = field(metadata=c_enum(ctypes.c_uint8))
     flags: int = field(metadata=c_int32())
 
 
 @dataclass
 class TSCS_ChannelConfig:
     channel_id: int = field(metadata=c_int32())
-    func: ChannelFunc = field(metadata=c_int32())
-    config_type: ConfigType = field(metadata=c_uint8())
+    func: ChannelFunc = field(metadata=c_enum(ctypes.c_uint32))
+    config_type: ConfigType = field(metadata=c_enum(ctypes.c_uint8))
     config: bytes = field(
         metadata=c_bytes(size_ctype=ctypes.c_int16, max_size=CHANNEL_CONFIG_MAXSIZE)
     )
@@ -1010,7 +1010,7 @@ class TSCS_ChannelConfig:
 
 @dataclass
 class TSC_ChannelConfigUpdateOrResult:
-    result: ConfigResult = field(metadata=c_uint8())
+    result: ConfigResult = field(metadata=c_enum(ctypes.c_uint8))
     config: TSCS_ChannelConfig
 
 
@@ -1031,7 +1031,9 @@ class TChannelConfig_GeneralPurposeMeasurement:
     no_space_before_value: bool = field(metadata=c_uint8())
     no_space_after_value: bool = field(metadata=c_uint8())
     keep_history: bool = field(metadata=c_uint8())
-    chart_type: GeneralPurposeMeasurementChartType = field(metadata=c_uint8())
+    chart_type: GeneralPurposeMeasurementChartType = field(
+        metadata=c_enum(ctypes.c_uint8)
+    )
     refresh_interval_ms: int = field(metadata=c_uint16())
     default_value_divider: int = field(metadata=c_int32())
     default_value_multiplier: int = field(metadata=c_int32())
