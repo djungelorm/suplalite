@@ -378,13 +378,19 @@ async def client_execute_action(
 
     if channel.type == proto.ChannelType.RELAY:
         if msg.action_id == proto.ActionType.TURN_ON:
-            value = encoding.encode(proto.TRelayChannel_Value(on=True, flags=0))
+            value = encoding.encode(
+                proto.TRelayChannel_Value(on=True, flags=proto.RelayFlag.NONE)
+            )
         elif msg.action_id == proto.ActionType.TURN_OFF:
-            value = encoding.encode(proto.TRelayChannel_Value(on=False, flags=0))
+            value = encoding.encode(
+                proto.TRelayChannel_Value(on=False, flags=proto.RelayFlag.NONE)
+            )
         elif msg.action_id == proto.ActionType.TOGGLE:
             current_value, _ = encoding.decode(proto.TRelayChannel_Value, channel.value)
             value = encoding.encode(
-                proto.TRelayChannel_Value(on=not current_value.on, flags=0)
+                proto.TRelayChannel_Value(
+                    on=not current_value.on, flags=proto.RelayFlag.NONE
+                )
             )
         else:
             context.log(

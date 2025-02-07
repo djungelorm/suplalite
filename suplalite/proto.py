@@ -912,10 +912,15 @@ class TSC_OAuthToken:
     )
 
 
+class RelayFlag(IntFlag):
+    NONE = 0
+    OVERCURRENT_RELAY_OFF = 0x1
+
+
 @dataclass
 class TRelayChannel_Value:
     on: bool = field(metadata=c_uint8())
-    flags: int = field(metadata=c_uint16())
+    flags: RelayFlag = field(metadata=c_enum(ctypes.c_uint16))
     padding: bytes = field(repr=False, init=False, metadata=c_bytes(size=5))
 
 
