@@ -105,6 +105,7 @@ class ServerState:
         caption: str,
         typ: proto.ChannelType,
         func: proto.ChannelFunc,
+        flags: proto.ChannelFlag,
         alt_icon: int = 0,
         config: ChannelConfig | None = None,
         icons: list[bytes] | None = None,
@@ -123,6 +124,7 @@ class ServerState:
             caption,
             typ,
             func,
+            flags,
             alt_icon,
             user_icon,
             config,
@@ -257,6 +259,7 @@ class ChannelState:
     caption: str
     type: proto.ChannelType
     func: proto.ChannelFunc
+    flags: proto.ChannelFlag
     alt_icon: int
     user_icon: int
     config: ChannelConfig | None

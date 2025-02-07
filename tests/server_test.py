@@ -117,6 +117,7 @@ def setup_server(server: Server) -> None:
         "Relay",
         proto.ChannelType.RELAY,
         proto.ChannelFunc.POWERSWITCH,
+        proto.ChannelFlag.CHANNELSTATE,
     )
     server.state.add_channel(
         device_id,
@@ -124,6 +125,7 @@ def setup_server(server: Server) -> None:
         "Thermometer",
         proto.ChannelType.THERMOMETER,
         proto.ChannelFunc.THERMOMETER,
+        proto.ChannelFlag.CHANNELSTATE,
     )
     server.state.add_channel(
         device_id,
@@ -131,6 +133,7 @@ def setup_server(server: Server) -> None:
         "Relay2",
         proto.ChannelType.RELAY,
         proto.ChannelFunc.POWERSWITCH,
+        proto.ChannelFlag.CHANNELSTATE,
     )
 
     device_id = server.state.add_device("device-2", device_guid[2], 7, 1)
@@ -141,6 +144,7 @@ def setup_server(server: Server) -> None:
         "Lights",
         proto.ChannelType.DIMMER,
         proto.ChannelFunc.DIMMER,
+        proto.ChannelFlag.CHANNELSTATE,
         alt_icon=1,
     )
 
@@ -152,6 +156,7 @@ def setup_server(server: Server) -> None:
         "Measurement 1",
         proto.ChannelType.GENERAL_PURPOSE_MEASUREMENT,
         proto.ChannelFunc.GENERAL_PURPOSE_MEASUREMENT,
+        proto.ChannelFlag.CHANNELSTATE,
         config=state.GeneralPurposeMeasurementChannelConfig(),
     )
     server.state.add_channel(
@@ -160,6 +165,7 @@ def setup_server(server: Server) -> None:
         "Measurement 2",
         proto.ChannelType.GENERAL_PURPOSE_MEASUREMENT,
         proto.ChannelFunc.GENERAL_PURPOSE_MEASUREMENT,
+        proto.ChannelFlag.CHANNELSTATE,
         config=state.GeneralPurposeMeasurementChannelConfig(
             value_divider=10,
             value_added=42,
@@ -176,6 +182,7 @@ def setup_server(server: Server) -> None:
         "Lights 2",
         proto.ChannelType.RELAY,
         proto.ChannelFunc.LIGHTSWITCH,
+        proto.ChannelFlag.CHANNELSTATE,
         icons=[b"icon1", b"icon2"],
     )
     server.state.add_channel(
@@ -184,6 +191,7 @@ def setup_server(server: Server) -> None:
         "Measurement 3",
         proto.ChannelType.GENERAL_PURPOSE_MEASUREMENT,
         proto.ChannelFunc.GENERAL_PURPOSE_MEASUREMENT,
+        proto.ChannelFlag.CHANNELSTATE,
         config=state.GeneralPurposeMeasurementChannelConfig(),
         icons=[b"icon3"],
     )
@@ -193,6 +201,7 @@ def setup_server(server: Server) -> None:
         "Measurement 4",
         proto.ChannelType.GENERAL_PURPOSE_MEASUREMENT,
         proto.ChannelFunc.GENERAL_PURPOSE_MEASUREMENT,
+        proto.ChannelFlag.CHANNELSTATE,
         config=state.GeneralPurposeMeasurementChannelConfig(),
         icons=[b"icon3"],
     )
@@ -265,7 +274,7 @@ def register_device_message(device_id: int) -> proto.TDS_RegisterDevice_E:
                 type=proto.ChannelType.RELAY,
                 action_trigger_caps=proto.ActionCap.TURN_ON | proto.ActionCap.TURN_OFF,
                 default_func=proto.ChannelFunc.POWERSWITCH,
-                flags=proto.ChannelFlag.NONE,
+                flags=proto.ChannelFlag.CHANNELSTATE,
                 value=b"\x00\x00\x00\x00\x00\x00\x00\x00",
             )
         )
@@ -285,7 +294,7 @@ def register_device_message(device_id: int) -> proto.TDS_RegisterDevice_E:
                 type=proto.ChannelType.RELAY,
                 action_trigger_caps=proto.ActionCap.TURN_ON | proto.ActionCap.TURN_OFF,
                 default_func=proto.ChannelFunc.POWERSWITCH,
-                flags=proto.ChannelFlag.NONE,
+                flags=proto.ChannelFlag.CHANNELSTATE,
                 value=b"\x00\x00\x00\x00\x00\x00\x00\x00",
             )
         )
@@ -298,7 +307,7 @@ def register_device_message(device_id: int) -> proto.TDS_RegisterDevice_E:
                 type=proto.ChannelType.DIMMER,
                 action_trigger_caps=proto.ActionCap.NONE,
                 default_func=proto.ChannelFunc.DIMMER,
-                flags=proto.ChannelFlag.NONE,
+                flags=proto.ChannelFlag.CHANNELSTATE,
                 value=b"\x00\x00\x00\x00\x00\x00\x00\x00",
             )
         )
@@ -309,7 +318,7 @@ def register_device_message(device_id: int) -> proto.TDS_RegisterDevice_E:
                 type=proto.ChannelType.GENERAL_PURPOSE_MEASUREMENT,
                 action_trigger_caps=proto.ActionCap.NONE,
                 default_func=proto.ChannelFunc.GENERAL_PURPOSE_MEASUREMENT,
-                flags=proto.ChannelFlag.NONE,
+                flags=proto.ChannelFlag.CHANNELSTATE,
                 value=b"\x00\x00\x00\x00\x00\x00\x00\x00",
             )
         )
@@ -319,7 +328,7 @@ def register_device_message(device_id: int) -> proto.TDS_RegisterDevice_E:
                 type=proto.ChannelType.GENERAL_PURPOSE_MEASUREMENT,
                 action_trigger_caps=proto.ActionCap.NONE,
                 default_func=proto.ChannelFunc.GENERAL_PURPOSE_MEASUREMENT,
-                flags=proto.ChannelFlag.NONE,
+                flags=proto.ChannelFlag.CHANNELSTATE,
                 value=b"\x00\x00\x00\x00\x00\x00\x00\x00",
             )
         )
@@ -330,7 +339,7 @@ def register_device_message(device_id: int) -> proto.TDS_RegisterDevice_E:
                 type=proto.ChannelType.RELAY,
                 action_trigger_caps=proto.ActionCap.NONE,
                 default_func=proto.ChannelFunc.LIGHTSWITCH,
-                flags=proto.ChannelFlag.NONE,
+                flags=proto.ChannelFlag.CHANNELSTATE,
                 value=b"\x00\x00\x00\x00\x00\x00\x00\x00",
             )
         )
@@ -340,7 +349,7 @@ def register_device_message(device_id: int) -> proto.TDS_RegisterDevice_E:
                 type=proto.ChannelType.GENERAL_PURPOSE_MEASUREMENT,
                 action_trigger_caps=proto.ActionCap.NONE,
                 default_func=proto.ChannelFunc.GENERAL_PURPOSE_MEASUREMENT,
-                flags=proto.ChannelFlag.NONE,
+                flags=proto.ChannelFlag.CHANNELSTATE,
                 value=b"\x00\x00\x00\x00\x00\x00\x00\x00",
             )
         )
@@ -350,7 +359,7 @@ def register_device_message(device_id: int) -> proto.TDS_RegisterDevice_E:
                 type=proto.ChannelType.GENERAL_PURPOSE_MEASUREMENT,
                 action_trigger_caps=proto.ActionCap.NONE,
                 default_func=proto.ChannelFunc.GENERAL_PURPOSE_MEASUREMENT,
-                flags=proto.ChannelFlag.NONE,
+                flags=proto.ChannelFlag.CHANNELSTATE,
                 value=b"\x00\x00\x00\x00\x00\x00\x00\x00",
             )
         )
@@ -556,6 +565,24 @@ async def test_register_device_invalid_channel_func(
     assert (
         "incorrect function for channel number 0; "
         "expected ChannelFunc.POWERSWITCH got ChannelFunc.THERMOMETER" in caplog.text
+    )
+    assert "error; closing connection" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_register_device_invalid_channel_flags(
+    server: Server, caplog: pytest.LogCaptureFixture
+) -> None:
+    async with open_connection(server) as stream:
+        call = register_device_message(1)
+        call.channels[0].flags = (
+            proto.ChannelFlag.RS_AUTO_CALIBRATION | proto.ChannelFlag.ZWAVE_BRIDGE
+        )
+        await do_register_device_invalid(stream, call)
+    assert (
+        "incorrect flags for channel number 0; "
+        "expected ChannelFlag.CHANNELSTATE got ChannelFlag.RS_AUTO_CALIBRATION|ZWAVE_BRIDGE"
+        in caplog.text
     )
     assert "error; closing connection" in caplog.text
 

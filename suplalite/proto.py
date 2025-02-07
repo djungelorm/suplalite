@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import ctypes
 from dataclasses import dataclass, field
-from enum import Enum, IntFlag
+from enum import Enum
+from enum import IntFlag as _IntFlag
 
 from suplalite.encoding import (
     c_bytes,
@@ -19,6 +20,14 @@ from suplalite.encoding import (
     c_uint32,
     c_uint64,
 )
+
+
+# Customize IntFlag to print human-readable string when f-strings/format
+# See https://github.com/python/cpython/issues/86073
+class IntFlag(_IntFlag):
+    def __format__(self, spec: str) -> str:
+        return self.__str__()
+
 
 ACTIVITY_TIMEOUT_MIN = 30
 ACTIVITY_TIMEOUT_MAX = 240

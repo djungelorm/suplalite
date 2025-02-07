@@ -104,6 +104,7 @@ async def main():
         "Relay",
         proto.ChannelType.RELAY,
         proto.ChannelFunc.POWERSWITCH,
+        proto.ChannelFlag.CHANNELSTATE,
     )
 
     server.state.add_channel(
@@ -112,6 +113,7 @@ async def main():
         "Thermometer",
         proto.ChannelType.THERMOMETER,
         proto.ChannelFunc.THERMOMETER,
+        proto.ChannelFlag.CHANNELSTATE,
     )
 
     server.state.add_channel(
@@ -120,6 +122,7 @@ async def main():
         "Humidity",
         proto.ChannelType.HUMIDITYSENSOR,
         proto.ChannelFunc.HUMIDITY,
+        proto.ChannelFlag.CHANNELSTATE,
     )
 
     server.state.add_channel(
@@ -128,6 +131,7 @@ async def main():
         "Temperature and Humidity",
         proto.ChannelType.HUMIDITYANDTEMPSENSOR,
         proto.ChannelFunc.HUMIDITYANDTEMPERATURE,
+        proto.ChannelFlag.CHANNELSTATE,
     )
 
     server.state.add_channel(
@@ -136,6 +140,7 @@ async def main():
         "Fan",
         proto.ChannelType.RELAY,
         proto.ChannelFunc.POWERSWITCH,
+        proto.ChannelFlag.CHANNELSTATE,
         alt_icon=4,
     )
 
@@ -145,6 +150,7 @@ async def main():
         "TV",
         proto.ChannelType.RELAY,
         proto.ChannelFunc.POWERSWITCH,
+        proto.ChannelFlag.CHANNELSTATE,
         alt_icon=1,
     )
 
@@ -154,6 +160,7 @@ async def main():
         "Non-Dimmable Lights",
         proto.ChannelType.RELAY,
         proto.ChannelFunc.LIGHTSWITCH,
+        proto.ChannelFlag.CHANNELSTATE,
     )
 
     server.state.add_channel(
@@ -162,6 +169,7 @@ async def main():
         "Traffic Light",
         proto.ChannelType.RELAY,
         proto.ChannelFunc.LIGHTSWITCH,
+        proto.ChannelFlag.CHANNELSTATE,
         icons=[
             load_icon("examples/red.png"),
             load_icon("examples/green.png"),
@@ -174,6 +182,7 @@ async def main():
         "Car Battery",
         proto.ChannelType.GENERAL_PURPOSE_MEASUREMENT,
         proto.ChannelFunc.GENERAL_PURPOSE_MEASUREMENT,
+        proto.ChannelFlag.CHANNELSTATE,
         config=GeneralPurposeMeasurementChannelConfig(
             unit_after_value="%",
             value_precision=1,
@@ -193,6 +202,7 @@ async def main():
         "Lounge",
         proto.ChannelType.DIMMER,
         proto.ChannelFunc.DIMMER,
+        proto.ChannelFlag.CHANNELSTATE,
     )
 
     await server.start()

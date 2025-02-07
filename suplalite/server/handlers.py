@@ -193,6 +193,12 @@ async def register_device(
                 f"expected {channel.func} got {channel_msg.default_func}"
             )
             break
+        if channel.flags != channel_msg.flags:
+            error = (
+                f"incorrect flags for channel number {number}; "
+                f"expected {channel.flags} got {channel_msg.flags}"
+            )
+            break
 
     if error is not None:
         context.log(error, level=logging.WARN)
@@ -527,7 +533,7 @@ async def send_channels(context: ClientContext) -> None:
                     user_icon=channel.user_icon,
                     manufacturer_id=device.manufacturer_id,
                     product_id=device.product_id,
-                    flags=65536,  # TODO: what are these?
+                    flags=channel.flags,
                     protocol_version=device.proto_version,
                     online=device.online,
                     value=proto.ChannelValue_B(

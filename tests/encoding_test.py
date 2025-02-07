@@ -1,6 +1,6 @@
 import ctypes
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import Enum, IntFlag
 from typing import Any
 
 import pytest
@@ -27,9 +27,20 @@ class MyEnum(Enum):
     BAR = 2
 
 
+class MyFlag(IntFlag):
+    FOO = 0x01
+    BAR = 0x02
+    BAZ = 0x04
+
+
 @dataclass
 class EnumMessage:
     x: MyEnum = field(metadata=c_enum(ctypes.c_int16))
+
+
+@dataclass
+class FlagMessage:
+    x: MyFlag = field(metadata=c_enum(ctypes.c_int16))
 
 
 @dataclass
@@ -97,6 +108,7 @@ class LargerMessage:
     [
         (Int32Message, [("x", int, True, {"ctype": ctypes.c_int32})]),
         (EnumMessage, [("x", MyEnum, True, {"ctype": ctypes.c_int16})]),
+        (FlagMessage, [("x", MyFlag, True, {"ctype": ctypes.c_int16})]),
         (FixedBytesMessage, [("x", bytes, True, {"bytes": True, "size": 10})]),
         (
             VariableBytesMessage,
@@ -173,6 +185,8 @@ def test_fields(
     [
         (Int32Message, (0x42,), b"\x42\x00\x00\x00"),
         (EnumMessage, (MyEnum.BAR,), b"\x02\x00"),
+        (FlagMessage, (MyFlag.BAR,), b"\x02\x00"),
+        (FlagMessage, (MyFlag.FOO | MyFlag.BAZ,), b"\x05\x00"),
         (FixedBytesMessage, (b"foobar\x00\x00\x00\x00",), b"foobar\x00\x00\x00\x00"),
         (VariableBytesMessage, (b"foobar",), b"\x06\x00foobar"),
         (FixedStringMessage, ("foobar",), b"foobar\x00\x00\x00\x00"),
