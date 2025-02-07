@@ -581,7 +581,7 @@ async def test_register_device_invalid_channel_flags(
         await do_register_device_invalid(stream, call)
     assert (
         "incorrect flags for channel number 0; "
-        "expected ChannelFlag.CHANNELSTATE got ChannelFlag.RS_AUTO_CALIBRATION|ZWAVE_BRIDGE"
+        "expected ChannelFlag.CHANNELSTATE got ChannelFlag.ZWAVE_BRIDGE|RS_AUTO_CALIBRATION"
         in caplog.text
     )
     assert "error; closing connection" in caplog.text
