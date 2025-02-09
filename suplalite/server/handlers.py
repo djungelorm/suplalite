@@ -10,27 +10,38 @@ from dataclasses import dataclass
 from typing import Any, TypeVar
 
 from suplalite import encoding, proto
-from suplalite.server.context import ClientContext, ConnectionContext, DeviceContext
+from suplalite.server.context import (
+    BaseContext,
+    ClientContext,
+    ConnectionContext,
+    DeviceContext,
+)
 from suplalite.server.events import EventContext, EventId
 from suplalite.server.state import GeneralPurposeMeasurementChannelConfig
 from suplalite.utils import batched, to_hex
 
 
+@dataclass
 class Handler:
-    pass
+    func: Any  # TODO: correct typing
+
+    async def handle_event(self, context: BaseContext, payload: Any) -> None:
+        num_params = len(inspect.signature(self.func).parameters) - 1
+        if payload is None:
+            payload = tuple()
+        args = list(payload)[:num_params]
+        await self.func(context, *args)
 
 
 @dataclass
 class EventHandler(Handler):
     event_context: EventContext
     event_id: EventId
-    func: Any  # TODO: correct typing
 
 
 @dataclass
 class CallHandler(Handler):
     call_id: proto.Call
-    func: Any  # TODO: correct typing
     result_id: proto.Call | None
     call_type: type[Any] | None  # TODO: correct typing
 
@@ -55,7 +66,7 @@ def call_handler(
         call_type = None
         if "msg" in annotations:
             call_type = annotations["msg"]
-        _handlers.append(CallHandler(call_id, handler_func, result_id, call_type))
+        _handlers.append(CallHandler(handler_func, call_id, result_id, call_type))
         return handler_func
 
     return func
@@ -71,7 +82,7 @@ def event_handler(
     event_id: EventId,
 ) -> Callable[[EventHandlerFunc], EventHandlerFunc]:
     def func(handler_func: EventHandlerFunc) -> EventHandlerFunc:
-        _handlers.append(EventHandler(event_context, event_id, handler_func))
+        _handlers.append(EventHandler(handler_func, event_context, event_id))
         return handler_func
 
     return func

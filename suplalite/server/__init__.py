@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import functools
+import inspect
 import logging
 from dataclasses import dataclass
 from typing import Any, cast
@@ -204,10 +205,7 @@ class Connection:
             self._context.log(f"handle event {event_id}", level=logging.DEBUG)
             try:
                 async with self._context.server.state.lock:
-                    if payload is None:
-                        await handler.func(self._context)
-                    else:
-                        await handler.func(self._context, *payload)
+                    await handler.handle_event(self._context, payload)
             except Exception as exc:  # pylint: disable=broad-exception-caught
                 logger.error("event handler failed", exc_info=exc)
 
@@ -426,11 +424,13 @@ class Server:
                         f"handle event {event_id} {handler.func.__name__}",
                         level=logging.DEBUG,
                     )
-                    if payload is None:  # pragma: no cover
-                        await handler.func(self._context)
-                    else:
-                        await handler.func(self._context, *payload)
-
+                    try:
+                        async with self._context.server.state.lock:
+                            await handler.handle_event(self._context, payload)
+                    except (
+                        Exception  # pylint: disable=broad-exception-caught
+                    ) as exc:  # pragma: no cover
+                        logger.error("event handler failed", exc_info=exc)
                 async with self._state.lock:
                     clients = self._state.get_clients()
                     for client in clients.values():

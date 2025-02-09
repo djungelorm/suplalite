@@ -39,6 +39,15 @@ async def device_connected(
     logging.info("server event DEVICE_CONNECTED %d", device_id)
 
 
+@event_handler(EventContext.SERVER, EventId.DEVICE_CONNECTED)
+async def device_connected_with_extra(
+    context: ServerContext,  # pylint:disable=unused-argument
+    device_id: int,
+    extra: str | None = None,
+) -> None:
+    logging.info("server event DEVICE_CONNECTED %d %s", device_id, extra or "none")
+
+
 @event_handler(EventContext.SERVER, EventId.DEVICE_DISCONNECTED)
 async def device_disconnected(
     context: ServerContext, device_id: int  # pylint:disable=unused-argument
@@ -457,7 +466,17 @@ async def test_register_device_events(
     assert "server event CHANNEL_REGISTER_VALUE 2 0000000000000000" in caplog.text
     assert "server event CHANNEL_REGISTER_VALUE 3 0000000000000000" in caplog.text
     assert "server event DEVICE_CONNECTED 1" in caplog.text
+    assert "server event DEVICE_CONNECTED 1 none" in caplog.text
     assert "server event DEVICE_DISCONNECTED 1" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_event_with_extra(
+    server: Server, caplog: pytest.LogCaptureFixture
+) -> None:
+    await server.events.add(EventId.DEVICE_CONNECTED, (42, "foo"))
+    await asyncio.sleep(0.5)
+    assert "server event DEVICE_CONNECTED 42 foo" in caplog.text
 
 
 async def do_register_device_invalid(
