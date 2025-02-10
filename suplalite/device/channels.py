@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import ctypes
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING
 
 from suplalite import proto
@@ -52,7 +52,7 @@ class Relay(Channel):
     def __init__(
         self,
         default: bool = False,
-        on_change: Callable[[Relay, bool], None] | None = None,
+        on_change: Callable[[Relay, bool], Awaitable[None]] | None = None,
         func: proto.ChannelFunc = proto.ChannelFunc.POWERSWITCH,
     ):
         super().__init__()
@@ -96,7 +96,7 @@ class Relay(Channel):
         if self._on_change is None:
             await self.do_set_value(value)
         else:
-            self._on_change(self, value)
+            await self._on_change(self, value)
         return True
 
     @property
@@ -267,7 +267,9 @@ class GeneralPurposeMeasurement(Channel):
     def __init__(
         self,
         default: float = 0.0,
-        on_change: Callable[[GeneralPurposeMeasurement, float], None] | None = None,
+        on_change: (
+            Callable[[GeneralPurposeMeasurement, float], Awaitable[None]] | None
+        ) = None,
     ):
         super().__init__()
         self._value = default
@@ -301,7 +303,7 @@ class GeneralPurposeMeasurement(Channel):
         if self._on_change is None:
             await self.do_set_value(value)
         else:
-            self._on_change(self, value)
+            await self._on_change(self, value)
         return True
 
     @property
