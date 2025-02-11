@@ -29,19 +29,6 @@ class DeviceState(Enum):
     CONNECTED = 3
 
 
-def create_supla_device(
-    host: str,
-    port: int,
-    secure: bool,
-    email: str,
-    name: str,
-    version: str,
-    authkey: bytes,
-    guid: bytes,
-) -> Device:
-    return Device(host, port, secure, email, name, version, authkey, guid)
-
-
 class Device:
     def __init__(
         self,
