@@ -56,6 +56,7 @@ device_guid = {
     2: b"\x02\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
     3: b"\x03\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
     4: b"\x04\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
+    5: b"\x05\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
 }
 
 
@@ -155,4 +156,47 @@ def setup_server(server: Server) -> None:
         proto.ChannelFlag.CHANNELSTATE,
         config=state.GeneralPurposeMeasurementChannelConfig(),
         icons=[b"icon3"],
+    )
+
+    device_id = server.state.add_device("device-5", device_guid[5], 0, 0)
+    assert device_id == 5
+    server.state.add_channel(
+        device_id,
+        "relay",
+        "Relay",
+        proto.ChannelType.RELAY,
+        proto.ChannelFunc.POWERSWITCH,
+        proto.ChannelFlag.CHANNELSTATE,
+    )
+    server.state.add_channel(
+        device_id,
+        "thermometer",
+        "Thermometer",
+        proto.ChannelType.THERMOMETER,
+        proto.ChannelFunc.THERMOMETER,
+        proto.ChannelFlag.CHANNELSTATE,
+    )
+    server.state.add_channel(
+        device_id,
+        "humidity",
+        "Humidity",
+        proto.ChannelType.HUMIDITYSENSOR,
+        proto.ChannelFunc.HUMIDITY,
+        proto.ChannelFlag.CHANNELSTATE,
+    )
+    server.state.add_channel(
+        device_id,
+        "temperature-and-humidity",
+        "Temperature and Humidity",
+        proto.ChannelType.HUMIDITYANDTEMPSENSOR,
+        proto.ChannelFunc.HUMIDITYANDTEMPERATURE,
+        proto.ChannelFlag.CHANNELSTATE,
+    )
+    server.state.add_channel(
+        device_id,
+        "general-purpose-measurement",
+        "General Purpose Measurement",
+        proto.ChannelType.GENERAL_PURPOSE_MEASUREMENT,
+        proto.ChannelFunc.GENERAL_PURPOSE_MEASUREMENT,
+        proto.ChannelFlag.CHANNELSTATE,
     )

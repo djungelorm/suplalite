@@ -509,7 +509,7 @@ async def test_register_client(
         assert location_pack.items[0].caption == "Test"
 
         # channel update
-        assert len(channel_pack.items) == 9
+        assert len(channel_pack.items) == 14
 
         assert channel_pack.items[0].caption == "Relay"
         assert channel_pack.items[0].id == 1

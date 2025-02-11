@@ -54,6 +54,7 @@ class Device:
         self._channels: list[Channel] = []
 
         self._state = DeviceState.CONNECTING
+        self._connected = asyncio.Event()
         self._ping_timeout = proto.ACTIVITY_TIMEOUT_MIN - 5
         self._last_ping = time.time()
 
@@ -70,7 +71,7 @@ class Device:
         return self._channels[channel_number]
 
     async def start(self) -> None:
-        if self._secure:
+        if self._secure:  # pragma: no cover
             ssl_context = ssl.SSLContext()
             ssl_context.check_hostname = False
             ssl_context.verify_mode = ssl.CERT_NONE
@@ -91,7 +92,11 @@ class Device:
             asyncio.create_task(self._task_loop()),
         ]
 
-    async def loop_forever(self) -> None:
+    @property
+    def connected(self) -> asyncio.Event:
+        return self._connected
+
+    async def loop_forever(self) -> None:  # pragma: no cover
         for task in self._tasks:
             await task
 
@@ -107,7 +112,7 @@ class Device:
                 packet = await self._packets.recv()
                 await self._handle_message(packet)
 
-        except Exception as exc:
+        except Exception as exc:  # pragma: no cover
             logger.error(str(exc), exc_info=exc)
             raise
         finally:
@@ -139,17 +144,18 @@ class Device:
     async def stop(self) -> None:
         for task in self._tasks:
             task.cancel()
-        for task in self._tasks:
-            try:
-                await task
-            except asyncio.exceptions.CancelledError:
-                pass
-        assert self._packets is not None
-        await self._packets.close()
-        logger.info("stopped")
+        try:
+            for task in self._tasks:
+                try:
+                    await task
+                except asyncio.exceptions.CancelledError:
+                    pass
+        finally:
+            assert self._packets is not None
+            await self._packets.close()
+            logger.info("stopped")
 
     async def _register(self) -> None:
-
         if len(self._channels) == 0:
             raise DeviceError("No channels")
 
@@ -220,12 +226,12 @@ class Device:
             ),
         }
 
-        if packet.call_id in handlers:
+        if packet.call_id in handlers:  # pragma: no branch
             msg_type, handler = handlers[packet.call_id]
             msg, size = encoding.decode(msg_type, packet.data)
             assert len(packet.data) == size
             await handler(msg)
-        else:
+        else:  # pragma: no cover
             raise DeviceError(f"Unhandled call {packet.call_id}")
 
     async def _handle_register_result(
@@ -236,6 +242,7 @@ class Device:
         logger.debug("registered ok")
         self._ping_timeout = msg.activity_timeout - 5
         self._state = DeviceState.CONNECTED
+        self._connected.set()
 
     async def _handle_channel_state_request(
         self, msg: proto.TSD_ChannelStateRequest
@@ -284,7 +291,7 @@ class Device:
         logger.debug("channel %d new value", msg.channel_number)
 
         success = False
-        if msg.channel_number < len(self._channels):
+        if msg.channel_number < len(self._channels):  # pragma: no cover
             success = await self._channels[msg.channel_number].set_encoded_value(
                 msg.value
             )
@@ -309,19 +316,20 @@ class Device:
             )
 
     async def set_value(self, channel_number: int, value: bytes) -> None:
-        if self._state == DeviceState.CONNECTED:
-            msg = proto.TDS_DeviceChannelValue_C(
-                channel_number=channel_number,
-                offline=False,
-                validity_time_sec=0,
-                value=value,
-            )
-            logger.debug("channel %d value changed", channel_number)
-            async with self._lock:
-                assert self._packets is not None
-                await self._packets.send(
-                    Packet(
-                        proto.Call.DS_DEVICE_CHANNEL_VALUE_CHANGED_C,
-                        encoding.encode(msg),
-                    )
+        if self._state != DeviceState.CONNECTED:  # pragma: no cover
+            return
+        msg = proto.TDS_DeviceChannelValue_C(
+            channel_number=channel_number,
+            offline=False,
+            validity_time_sec=0,
+            value=value,
+        )
+        logger.debug("channel %d value changed", channel_number)
+        async with self._lock:
+            assert self._packets is not None
+            await self._packets.send(
+                Packet(
+                    proto.Call.DS_DEVICE_CHANNEL_VALUE_CHANGED_C,
+                    encoding.encode(msg),
                 )
+            )

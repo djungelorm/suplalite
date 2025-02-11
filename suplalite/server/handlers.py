@@ -658,7 +658,11 @@ async def device_channel_state_result(
     context: DeviceContext,
     msg: proto.TDS_ChannelState,
 ) -> None:
-    events = context.server.state.get_client_events(msg.receiver_id)
+    try:
+        events = context.server.state.get_client_events(msg.receiver_id)
+    except KeyError:
+        context.log(f"client id {msg.receiver_id} not found")
+        return
     device = context.server.state.get_device(context.device_id)
     channel_id = device.channel_ids[msg.channel_number]
     await events.add(EventId.CHANNEL_STATE_RESULT, (msg, channel_id))

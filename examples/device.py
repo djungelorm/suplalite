@@ -6,8 +6,7 @@ import signal
 import time
 
 from suplalite import device, network, proto
-from suplalite.device import channels, create_supla_device
-
+from suplalite.device import Device, channels
 from suplalite.logging import configure_logging
 
 
@@ -36,7 +35,8 @@ async def update_loop(device):
 
 async def main():
     configure_logging()
-    device = create_supla_device(
+
+    device = Device(
         host="127.0.0.1",
         port=2016,
         secure=True,

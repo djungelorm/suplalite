@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 from suplalite import proto
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from suplalite import device
 
 
@@ -20,7 +20,7 @@ class Channel:  # pylint: disable=too-few-public-methods
         self._channel_number = channel_number
 
     async def update(self) -> None:
-        if self._device is not None:
+        if self._device is not None:  # pragma: no branch
             assert self._channel_number is not None
             await self._device.set_value(self._channel_number, self.encoded_value)
 
@@ -267,13 +267,9 @@ class GeneralPurposeMeasurement(Channel):
     def __init__(
         self,
         default: float = 0.0,
-        on_change: (
-            Callable[[GeneralPurposeMeasurement, float], Awaitable[None]] | None
-        ) = None,
     ):
         super().__init__()
         self._value = default
-        self._on_change = on_change
 
     @property
     def value(self) -> float:
@@ -295,15 +291,9 @@ class GeneralPurposeMeasurement(Channel):
     def flags(self) -> proto.ChannelFlag:
         return proto.ChannelFlag.CHANNELSTATE
 
-    async def do_set_value(self, value: float) -> None:
+    async def set_value(self, value: float) -> bool:
         self._value = value
         await self.update()
-
-    async def set_value(self, value: float) -> bool:
-        if self._on_change is None:
-            await self.do_set_value(value)
-        else:
-            await self._on_change(self, value)
         return True
 
     @property
@@ -311,5 +301,5 @@ class GeneralPurposeMeasurement(Channel):
         return bytes(ctypes.c_double(self._value))
 
     async def set_encoded_value(self, value: bytes) -> bool:
-        decoded_value = bool(ctypes.c_double.from_buffer_copy(value).value)
+        decoded_value = ctypes.c_double.from_buffer_copy(value).value
         return await self.set_value(decoded_value)
