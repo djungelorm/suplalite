@@ -24,34 +24,7 @@ from suplalite.server.context import (
 from suplalite.server.events import EventContext, EventId, EventQueue
 from suplalite.server.handlers import CallHandler, EventHandler
 
-logger = logging.getLogger("suplalite")
-
-
-def default_log_config(
-    log_level: str, log_time: bool
-) -> dict[str, Any]:  # pragma: no cover
-    date_format = "%Y-%m-%d %H:%M:%S"
-    when = ""
-    if log_time:
-        when = "%(asctime)s "
-
-    log_config = uvicorn.config.LOGGING_CONFIG
-    log_config["loggers"]["suplalite"] = {
-        "handlers": ["default"],
-        "level": log_level,
-        "propagate": False,
-    }
-    log_config["loggers"]["uvicorn"]["level"] = log_level
-    log_config["loggers"]["uvicorn.error"]["level"] = log_level
-    log_config["loggers"]["uvicorn.access"]["level"] = log_level
-    log_config["formatters"]["default"]["fmt"] = when + "%(levelname)s %(message)s"
-    log_config["formatters"]["default"]["datefmt"] = date_format
-    log_config["formatters"]["access"]["fmt"] = (
-        when + '%(levelname)s api %(client_addr)s "%(request_line)s" %(status_code)s'
-    )
-    log_config["formatters"]["access"]["datefmt"] = date_format
-    log_config["handlers"]["default"]["stream"] = "ext://sys.stdout"
-    return log_config
+logger = logging.getLogger("suplalite.server")
 
 
 class Connection:
@@ -172,7 +145,7 @@ class Connection:
     async def _handle_call(self, context: BaseContext, packet: Packet) -> None:
         handler = self._context.server.get_call_handler(packet.call_id)
         if handler is None:
-            self._context.log(f"Unhandled call {packet.call_id}")
+            context.log(f"Unhandled call {packet.call_id}", level=logging.ERROR)
             return
         context.log(f"handle call {packet.call_id}", level=logging.DEBUG)
         call_data = packet.data
@@ -223,14 +196,7 @@ class Server:
         location_name: str,
         email: str,
         password: str,
-        log_level: str = "INFO",
-        log_time: bool = True,
-        log_config: dict[str, Any] | None = None,
     ) -> None:
-        if log_config is None:  # pragma: no cover
-            log_config = default_log_config(log_level, log_time)
-        if len(log_config) > 0:  # pragma: no cover
-            logging.config.dictConfig(log_config)
 
         self._listen_host = listen_host
         self._host = host
@@ -277,9 +243,7 @@ class Server:
             port=api_port,
             ssl_certfile=certfile,
             ssl_keyfile=keyfile,
-            log_level=logging.DEBUG,
             log_config=None,
-            use_colors=False,
         )
 
         self._tasks: list[asyncio.Task[None]] = []

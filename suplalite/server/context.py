@@ -10,7 +10,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from suplalite.server import Connection, Server
 
 
-logger = logging.getLogger("suplalite")
+logger = logging.getLogger("suplalite.server")
 
 
 class BaseContext:

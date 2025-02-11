@@ -732,6 +732,17 @@ async def test_client_get_single_channel_icon(server: Server) -> None:
 
 
 @pytest.mark.asyncio
+async def test_api_not_found(server: Server) -> None:
+    async with open_device(server, 4):
+        url = f"https://{server.host}:{server.api_port}/api/2.2.0/foo"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, ssl=False) as response:
+                assert response.status == 404
+                assert response.headers["content-type"] == "application/json"
+                assert await response.json() == {"message": "Not found"}
+
+
+@pytest.mark.asyncio
 async def test_client_update_on_device_connect(server: Server) -> None:
     async with open_client(server, "Client A") as client_a:
         async with open_client(server, "Client B") as client_b:

@@ -5,6 +5,7 @@ import signal
 import struct
 
 from suplalite import proto
+from suplalite.logging import configure_logging
 from suplalite.server import Server
 from suplalite.server.context import ClientContext, DeviceContext, ServerContext
 from suplalite.server.events import EventContext, EventId
@@ -77,6 +78,8 @@ def load_icon(path):
 
 
 async def main():
+    configure_logging()
+
     server = Server(
         listen_host="0.0.0.0",
         host="192.168.1.10",
@@ -88,7 +91,6 @@ async def main():
         location_name="Test",
         email="email@email.com",
         password="1",
-        log_level="DEBUG",
     )
 
     device_id = server.state.add_device(

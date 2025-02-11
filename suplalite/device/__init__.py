@@ -12,7 +12,7 @@ from suplalite import encoding, network, proto
 from suplalite.device.channels import Channel
 from suplalite.packets import Packet, PacketStream
 
-logger = logging.getLogger("suplalite")
+logger = logging.getLogger("suplalite.device")
 
 
 ACTIVITY_TIMEOUT_MIN = 30
@@ -299,7 +299,6 @@ class Device:
             success=success,
         )
 
-        logger.debug("channel new value result")
         async with self._lock:
             assert self._packets is not None
             await self._packets.send(

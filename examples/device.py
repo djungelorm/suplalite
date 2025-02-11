@@ -8,11 +8,7 @@ import time
 from suplalite import device, network, proto
 from suplalite.device import channels, create_supla_device
 
-logging.basicConfig(
-    format="%(asctime)s %(levelname)-8s %(message)s",
-    level=logging.DEBUG,
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
+from suplalite.logging import configure_logging
 
 
 def handle_change(channel, value):
@@ -39,6 +35,7 @@ async def update_loop(device):
 
 
 async def main():
+    configure_logging()
     device = create_supla_device(
         host="127.0.0.1",
         port=2016,

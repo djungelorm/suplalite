@@ -43,8 +43,8 @@ async def server() -> AsyncIterator[Server]:
         location_name="Test",
         email="email@email.com",
         password="password123",
-        log_config={},
     )
+
     setup_server(server)
     await server.start()
     yield server

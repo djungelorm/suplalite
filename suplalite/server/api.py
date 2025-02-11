@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import functools
+import logging
 from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, FastAPI
@@ -10,6 +11,8 @@ from fastapi.responses import JSONResponse
 
 if TYPE_CHECKING:  # pragma: no cover
     from suplalite.server import Server
+
+logger = logging.getLogger("suplalite.server")
 
 
 def create(server: Server) -> FastAPI:
@@ -22,7 +25,39 @@ def create(server: Server) -> FastAPI:
 
     api = FastAPI()
     api.include_router(router)
+    api.exception_handler(404)(handle_404)
+    api.exception_handler(500)(handle_500)
     return api
+
+
+def _log(request: Request, status_code: int, msg: str, level: int) -> None:
+    address = "?"
+    if request.client is not None:  # pragma: no branch
+        address = request.client.host
+    logger.log(
+        level,
+        "%s %s %s -- %d %s",
+        address,
+        request.method,
+        request.url.path,
+        status_code,
+        msg,
+    )
+
+
+def handle_error(
+    request: Request, status_code: int, msg: str, level: int
+) -> JSONResponse:
+    _log(request, status_code, msg, level)
+    return JSONResponse(status_code=status_code, content={"message": msg})
+
+
+async def handle_404(request: Request, _: Any) -> JSONResponse:
+    return handle_error(request, 404, "Not found", logging.WARN)
+
+
+async def handle_500(request: Request, _: Any) -> JSONResponse:  # pragma: no cover
+    return handle_error(request, 500, "Internal server error", logging.ERROR)
 
 
 async def get_user_icons(server: Server, request: Request) -> JSONResponse:
@@ -48,4 +83,5 @@ async def get_user_icons(server: Server, request: Request) -> JSONResponse:
                 entry["imagesDark"] = icon.data
             response.append(entry)
 
+        _log(request, 200, "OK", logging.DEBUG)
         return JSONResponse(content=jsonable_encoder(response))
