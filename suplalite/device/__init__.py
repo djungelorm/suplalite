@@ -61,10 +61,6 @@ class Device:
         self._packets: PacketStream | None = None
         self._tasks: list[asyncio.Task[None]] = []
 
-    @property
-    def state(self) -> DeviceState:
-        return self._state
-
     def add(self, channel: Channel) -> None:
         channel_number = len(self._channels)
         self._channels.append(channel)
