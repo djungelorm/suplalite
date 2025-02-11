@@ -5,14 +5,20 @@ build-backend = "hatchling.build"
 [project]
 name = "suplalite"
 dynamic = ['version']
+description = "A lightweight implementation of SUPLA server and devices"
+readme = "README.md"
 requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
 dependencies = [
     "tlslite-ng",
     "fastapi",
     "uvicorn",
 ]
-license = "GPL-3.0-or-later"
-license-files = ["LICENSE"]
 
 [tool.hatch.version]
 source = "uv-dynamic-versioning"
