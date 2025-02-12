@@ -116,8 +116,13 @@ class PacketStream:
             )
         )
         self._advance_send_rr_id()
-        self._writer.write(data)
-        await self._writer.drain()
+        try:
+            self._writer.write(data)
+            await self._writer.drain()
+        except ConnectionResetError as exc:  # pragma: no cover
+            raise network.NetworkError(str(exc))
+        except tlslite.errors.TLSAbruptCloseError as exc:  # pragma: no cover
+            raise network.NetworkError(str(exc))
 
     def _advance_send_rr_id(self) -> None:
         # Increment rr_id without overflowing back to zero
