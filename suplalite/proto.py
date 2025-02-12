@@ -7,6 +7,7 @@ from enum import Enum
 
 from suplalite.encoding import (
     c_bytes,
+    c_double,
     c_enum,
     c_int8,
     c_int16,
@@ -377,10 +378,6 @@ class ChannelFlag(IntFlag):
     HAS_PARENT = 0x20000000  # ver. >= 21
     CALCFG_RESTART_SUBDEVICE = 0x40000000  # ver. >= 25
     BATTERY_COVER_AVAILABLE = 0x80000000  # ver. >= 25
-
-
-TEMPERATURE_NOT_AVAILABLE = -275.0
-HUMIDITY_NOT_AVAILABLE = -1
 
 
 class ResultCode(Enum):
@@ -923,6 +920,27 @@ class TRelayChannel_Value:
     on: bool = field(metadata=c_uint8())
     flags: RelayFlag = field(metadata=c_enum(ctypes.c_uint16))
     padding: bytes = field(repr=False, init=False, metadata=c_bytes(size=5))
+
+
+TEMPERATURE_NOT_AVAILABLE_FLOAT = -275.0
+TEMPERATURE_NOT_AVAILABLE_INT = 0xFFFBCDC8
+HUMIDITY_NOT_AVAILABLE = 0xFFFFFC18
+
+
+@dataclass
+class TTemperatureChannel_Value:
+    value: float = field(metadata=c_double())
+
+
+@dataclass
+class TTemperatureAndHumidityChannel_Value:
+    temperature: int = field(metadata=c_uint32())
+    humidity: int = field(metadata=c_uint32())
+
+
+@dataclass
+class TGeneralPurposeMeasurementChannel_Value:
+    value: float = field(metadata=c_double())
 
 
 @dataclass

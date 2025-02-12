@@ -72,6 +72,14 @@ def c_uint64() -> dict[str, Any]:
     }
 
 
+def c_double() -> dict[str, Any]:
+    return {
+        "ctype": ctypes.c_double,
+        "encoder": _encode_ctype,
+        "decoder": _decode_ctype,
+    }
+
+
 def c_enum(ctype: type) -> dict[str, Any]:
     return {
         "ctype": ctype,

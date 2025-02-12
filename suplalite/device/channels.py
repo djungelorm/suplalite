@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import ctypes
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING
 
-from suplalite import proto
+from suplalite import encoding, proto
 
 if TYPE_CHECKING:  # pragma: no cover
     from suplalite import device
@@ -44,7 +43,7 @@ class Channel:  # pylint: disable=too-few-public-methods
     def encoded_value(self) -> bytes:
         raise NotImplementedError  # pragma: no cover
 
-    async def set_encoded_value(self, value: bytes) -> bool:
+    async def set_encoded_value(self, data: bytes) -> bool:
         raise NotImplementedError  # pragma: no cover
 
 
@@ -101,11 +100,22 @@ class Relay(Channel):
 
     @property
     def encoded_value(self) -> bytes:
-        return bytes(ctypes.c_uint64(self._value))
+        return self.encode(self._value)
 
-    async def set_encoded_value(self, value: bytes) -> bool:
-        decoded_value = bool(ctypes.c_uint64.from_buffer_copy(value).value)
-        return await self.set_value(decoded_value)
+    async def set_encoded_value(self, data: bytes) -> bool:
+        value = self.decode(data)
+        return await self.set_value(value)
+
+    @staticmethod
+    def encode(value: bool) -> bytes:
+        return encoding.encode(
+            proto.TRelayChannel_Value(on=value, flags=proto.RelayFlag.NONE)
+        )
+
+    @staticmethod
+    def decode(data: bytes) -> bool:
+        msg, _ = encoding.decode(proto.TRelayChannel_Value, data)
+        return msg.on
 
 
 class Temperature(Channel):
@@ -140,17 +150,28 @@ class Temperature(Channel):
 
     @property
     def encoded_value(self) -> bytes:
-        value = self._value
-        if value is None:
-            value = proto.TEMPERATURE_NOT_AVAILABLE
-        return bytes(ctypes.c_double(value))
+        return self.encode(self._value)
 
-    async def set_encoded_value(self, value: bytes) -> bool:
-        self._value = ctypes.c_double.from_buffer_copy(value).value
-        if self._value == proto.TEMPERATURE_NOT_AVAILABLE:
-            self._value = None
+    async def set_encoded_value(self, data: bytes) -> bool:
+        self._value = self.decode(data)
         await self.update()
         return True
+
+    @staticmethod
+    def encode(value: float | None) -> bytes:
+        msg = proto.TTemperatureChannel_Value(
+            value=proto.TEMPERATURE_NOT_AVAILABLE_FLOAT
+        )
+        if value is not None:
+            msg.value = value
+        return encoding.encode(msg)
+
+    @staticmethod
+    def decode(data: bytes) -> float | None:
+        msg, _ = encoding.decode(proto.TTemperatureChannel_Value, data)
+        if msg.value == proto.TEMPERATURE_NOT_AVAILABLE_FLOAT:
+            return None
+        return msg.value
 
 
 class Humidity(Channel):
@@ -185,19 +206,29 @@ class Humidity(Channel):
 
     @property
     def encoded_value(self) -> bytes:
-        value = self._value
-        if value is None:
-            value = proto.HUMIDITY_NOT_AVAILABLE
-        temp_data = bytes(ctypes.c_int32(int(proto.TEMPERATURE_NOT_AVAILABLE * 1000)))
-        humi_data = bytes(ctypes.c_int32(int(value * 1000)))
-        return temp_data + humi_data
+        return self.encode(self._value)
 
-    async def set_encoded_value(self, value: bytes) -> bool:
-        self._value = ctypes.c_int32.from_buffer_copy(value[4:8]).value / 1000
-        if self._value == proto.HUMIDITY_NOT_AVAILABLE:
-            self._value = None
+    async def set_encoded_value(self, data: bytes) -> bool:
+        self._value = self.decode(data)
         await self.update()
         return True
+
+    @staticmethod
+    def encode(value: float | None) -> bytes:
+        msg = proto.TTemperatureAndHumidityChannel_Value(
+            temperature=proto.TEMPERATURE_NOT_AVAILABLE_INT,
+            humidity=proto.HUMIDITY_NOT_AVAILABLE,
+        )
+        if value is not None:
+            msg.humidity = int(value * 1000)
+        return encoding.encode(msg)
+
+    @staticmethod
+    def decode(data: bytes) -> float | None:
+        msg, _ = encoding.decode(proto.TTemperatureAndHumidityChannel_Value, data)
+        if msg.humidity == proto.HUMIDITY_NOT_AVAILABLE:
+            return None
+        return float(msg.humidity) / 1000
 
 
 class TemperatureAndHumidity(Channel):
@@ -242,25 +273,37 @@ class TemperatureAndHumidity(Channel):
 
     @property
     def encoded_value(self) -> bytes:
-        temp = self._temperature
-        humi = self._humidity
-        if temp is None:
-            temp = proto.TEMPERATURE_NOT_AVAILABLE
-        if humi is None:
-            humi = proto.HUMIDITY_NOT_AVAILABLE
-        temp_data = bytes(ctypes.c_int32(int(temp * 1000)))
-        humi_data = bytes(ctypes.c_int32(int(humi * 1000)))
-        return temp_data + humi_data
+        return self.encode(self._temperature, self._humidity)
 
-    async def set_encoded_value(self, value: bytes) -> bool:
-        self._temperature = ctypes.c_int32.from_buffer_copy(value[0:4]).value / 1000
-        self._humidity = ctypes.c_int32.from_buffer_copy(value[4:8]).value / 1000
-        if self._temperature == proto.TEMPERATURE_NOT_AVAILABLE:
-            self._temperature = None
-        if self._humidity == proto.HUMIDITY_NOT_AVAILABLE:
-            self._humidity = None
+    async def set_encoded_value(self, data: bytes) -> bool:
+        temperature, humidity = self.decode(data)
+        self._temperature = temperature
+        self._humidity = humidity
         await self.update()
         return True
+
+    @staticmethod
+    def encode(temperature: float | None, humidity: float | None) -> bytes:
+        msg = proto.TTemperatureAndHumidityChannel_Value(
+            temperature=proto.TEMPERATURE_NOT_AVAILABLE_INT,
+            humidity=proto.HUMIDITY_NOT_AVAILABLE,
+        )
+        if temperature is not None:
+            msg.temperature = int(temperature * 1000)
+        if humidity is not None:
+            msg.humidity = int(humidity * 1000)
+        return encoding.encode(msg)
+
+    @staticmethod
+    def decode(data: bytes) -> tuple[float | None, float | None]:
+        msg, _ = encoding.decode(proto.TTemperatureAndHumidityChannel_Value, data)
+        temperature = None
+        humidity = None
+        if msg.temperature != proto.TEMPERATURE_NOT_AVAILABLE_INT:
+            temperature = float(msg.temperature) / 1000
+        if msg.humidity != proto.HUMIDITY_NOT_AVAILABLE:
+            humidity = float(msg.humidity) / 1000
+        return temperature, humidity
 
 
 class GeneralPurposeMeasurement(Channel):
@@ -298,8 +341,20 @@ class GeneralPurposeMeasurement(Channel):
 
     @property
     def encoded_value(self) -> bytes:
-        return bytes(ctypes.c_double(self._value))
+        return self.encode(self._value)
 
-    async def set_encoded_value(self, value: bytes) -> bool:
-        decoded_value = ctypes.c_double.from_buffer_copy(value).value
-        return await self.set_value(decoded_value)
+    async def set_encoded_value(self, data: bytes) -> bool:
+        self._value = self.decode(data)
+        await self.update()
+        return True
+
+    @staticmethod
+    def encode(value: float) -> bytes:
+        return encoding.encode(
+            proto.TGeneralPurposeMeasurementChannel_Value(value=value)
+        )
+
+    @staticmethod
+    def decode(data: bytes) -> float:
+        msg, _ = encoding.decode(proto.TGeneralPurposeMeasurementChannel_Value, data)
+        return msg.value
