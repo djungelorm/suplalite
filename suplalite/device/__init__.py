@@ -18,6 +18,9 @@ logger = logging.getLogger("suplalite.device")
 ACTIVITY_TIMEOUT_MIN = 30
 ACTIVITY_TIMEOUT_MAX = 240
 
+# Minimum required proto version for basic device messages (excl. channels)
+BASE_PROTO_VERSION = 12
+
 
 class DeviceError(Exception):
     pass
@@ -40,6 +43,7 @@ class Device:
         version: str,
         authkey: bytes,
         guid: bytes,
+        proto_version: int = BASE_PROTO_VERSION,
     ) -> None:
         self._start_time = time.time()
         self._host = host
@@ -50,6 +54,7 @@ class Device:
         self._version = version
         self._authkey = authkey
         self._guid = guid
+        self._proto_version = proto_version
 
         self._channels: list[Channel] = []
 
@@ -66,6 +71,7 @@ class Device:
         channel_number = len(self._channels)
         self._channels.append(channel)
         channel.set_device(self, channel_number)
+        self._proto_version = max(self._proto_version, channel.proto_version)
 
     def get(self, channel_number: int) -> Channel:
         return self._channels[channel_number]
@@ -83,7 +89,8 @@ class Device:
                 raise network.NetworkError("Connection refused") from exc
         else:
             reader, writer = await asyncio.open_connection(self._host, self._port)
-        self._packets = PacketStream(reader, writer)
+        logger.debug("protocol version = %d", self._proto_version)
+        self._packets = PacketStream(reader, writer, self._proto_version)
 
         logger.info("started")
 

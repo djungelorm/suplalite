@@ -247,8 +247,10 @@ async def register_device(
 
     await context.server.events.add(EventId.DEVICE_CONNECTED, (device_id,))
     context.log(
-        f"registered; {msg.name} {msg.soft_ver} proto={proto_version} "
-        f"(mid={msg.manufacturer_id}, pid={msg.product_id})"
+        f"registered; {msg.name} {msg.soft_ver} "
+        f"proto={proto_version} "
+        f"mid={msg.manufacturer_id} "
+        f"pid={msg.product_id}"
     )
 
     return proto.TSD_RegisterDeviceResult(

@@ -24,6 +24,12 @@ class Channel:  # pylint: disable=too-few-public-methods
             await self._device.set_value(self._channel_number, self.encoded_value)
 
     @property
+    def proto_version(self) -> int:
+        # Minimum required proto version to use this channel type
+        # Override if greater than 1
+        return 1
+
+    @property
     def type(self) -> proto.ChannelType:
         raise NotImplementedError  # pragma: no cover
 
@@ -128,6 +134,10 @@ class Temperature(Channel):
         return self._value
 
     @property
+    def proto_version(self) -> int:
+        return 8
+
+    @property
     def type(self) -> proto.ChannelType:
         return proto.ChannelType.THERMOMETER
 
@@ -182,6 +192,10 @@ class Humidity(Channel):
     @property
     def value(self) -> float | None:
         return self._value
+
+    @property
+    def proto_version(self) -> int:
+        return 8
 
     @property
     def type(self) -> proto.ChannelType:
@@ -244,6 +258,10 @@ class TemperatureAndHumidity(Channel):
     @property
     def humidity(self) -> float | None:
         return self._humidity
+
+    @property
+    def proto_version(self) -> int:
+        return 8
 
     @property
     def type(self) -> proto.ChannelType:
@@ -317,6 +335,10 @@ class GeneralPurposeMeasurement(Channel):
     @property
     def value(self) -> float:
         return self._value
+
+    @property
+    def proto_version(self) -> int:
+        return 23
 
     @property
     def type(self) -> proto.ChannelType:

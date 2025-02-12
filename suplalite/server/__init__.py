@@ -104,9 +104,16 @@ class Connection:
         try:
             while True:
                 try:
+                    proto_version = self._packets.proto_version
                     packet = await asyncio.wait_for(
                         self._packets.recv(), timeout=self._context.activity_timeout
                     )
+                    if proto_version != self._packets.proto_version:
+                        self._context.log(
+                            "proto version changed: "
+                            f"{proto_version} -> {self._packets.proto_version}",
+                            logging.DEBUG,
+                        )
                     if packet is None:  # pragma: no cover
                         break
                     await self._handle_call(self._context, packet)

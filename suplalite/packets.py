@@ -21,11 +21,14 @@ class Packet:
 
 class PacketStream:
     def __init__(
-        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+        self,
+        reader: asyncio.StreamReader,
+        writer: asyncio.StreamWriter,
+        proto_version: int = proto.PROTO_VERSION,
     ) -> None:
         self._reader = reader
         self._writer = writer
-        self._proto_version = proto.PROTO_VERSION
+        self._proto_version = proto_version
 
         self._recv_buffer = b""
         self._next_send_rr_id = 1
