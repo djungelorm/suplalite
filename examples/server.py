@@ -1,10 +1,10 @@
 import asyncio
-import json
 import logging
 import signal
 import struct
 
 from suplalite import proto
+from suplalite.device import channels
 from suplalite.logging import configure_logging
 from suplalite.server import Server
 from suplalite.server.context import ClientContext, DeviceContext, ServerContext
@@ -39,33 +39,27 @@ async def update(context, action, channel_id, value):
     device = context.server.state.get_device(channel.device_id)
     topic = f"supla/{channel.name}/{action}"
     if channel.type == proto.ChannelType.THERMOMETER:
-        value = struct.unpack("<d", channel.value)[0]
-        # FIXME: decode unknown values
-        print(topic, round(value, 1))
+        value = channels.Temperature.decode(channel.value)
+        print(topic, value)
 
     elif channel.type == proto.ChannelType.HUMIDITYSENSOR:
-        parts = struct.unpack("ii", channel.value)
-        value = parts[1] / 1000.0
-        # FIXME: decode unknown values
-        print(topic, round(value, 1))
+        value = channels.Humidity.decode(channel.value)
+        print(topic, value)
 
     elif channel.type == proto.ChannelType.HUMIDITYANDTEMPSENSOR:
-        parts = struct.unpack("ii", channel.value)
-        temp = parts[0] / 1000.0
-        humi = parts[1] / 1000.0
-        # FIXME: decode unknown values
-        print(topic, json.dumps((round(temp, 1), round(humi, 1))))
+        temp, humi = channels.TemperatureAndHumidity.decode(channel.value)
+        print(topic, temp, humi)
 
     elif channel.type == proto.ChannelType.RELAY:
-        value = struct.unpack("Q", channel.value)[0] == 1
+        value = channels.Relay.decode(channel.value)
         print(topic, value)
 
     elif channel.type == proto.ChannelType.DIMMER:
-        value = int(channel.value[0])
+        value = channels.Dimmer.decode(channel.value)
         print(topic, value)
 
     elif channel.type == proto.ChannelType.GENERAL_PURPOSE_MEASUREMENT:
-        value = struct.unpack("d", channel.value)[0]
+        value = channels.GeneralPurposeMeasurement.decode(channel.value)
         print(topic, value)
 
     else:
