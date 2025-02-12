@@ -10,9 +10,9 @@ Note: this project is not affiliated with SUPLA or Zamel -- this is not an "offi
 suplalite.server
 ----------------
 
-Library providing a lightweight implementation of supla-server and supla-cloud.
-
-Provides just enough to coordinate a collection of SUPLA devices and clients on a local network.
+Provides a lightweight implementation of supla-server and supla-cloud.
+Has just enough functionality to coordinate a set of SUPLA devices and
+clients on a local network. Use over the public internet is not recommended.
 
 This implementation does *not* require/provide:
  - A MySQL database
@@ -22,7 +22,7 @@ This implementation does *not* require/provide:
  - Authentication of clients
 
 Configuration of the server is static, i.e. devices must be configured before starting the
-server. Clients do not need to be registed. Any client is allowed.
+server. Clients registration is not required -- any client is allowed to connect.
 
 See `examples/server.py` for an example.
 
