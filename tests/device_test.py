@@ -497,6 +497,19 @@ async def test_general_purpose_measurement() -> None:
     assert channel.value == 1.23
 
 
+@pytest.mark.asyncio
+async def test_dimmer() -> None:
+    assert channels.Dimmer.encode(0) == b"\x00\x00\x00\x00\x00\x00\x00\x00"
+    assert channels.Dimmer.encode(42) == b"*\x00\x00\x00\x00\x00\x00\x00"
+    assert channels.Dimmer.encode(100) == b"d\x00\x00\x00\x00\x00\x00\x00"
+
+    assert channels.Dimmer.decode(b"\x00\x00\x00\x00\x00\x00\x00\x00") == 0
+    assert channels.Dimmer.decode(b"*\x00\x00\x00\x00\x00\x00\x00") == 42
+    assert channels.Dimmer.decode(b"d\x00\x00\x00\x00\x00\x00\x00") == 100
+
+    assert channels.Dimmer.decode(b"*\xff\xff\xff\xff\xff\xff\xff") == 42
+
+
 async def sub_task() -> None:
     while True:
         await asyncio.sleep(0)

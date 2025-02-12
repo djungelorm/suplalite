@@ -358,3 +358,14 @@ class GeneralPurposeMeasurement(Channel):
     def decode(data: bytes) -> float:
         msg, _ = encoding.decode(proto.TGeneralPurposeMeasurementChannel_Value, data)
         return msg.value
+
+
+class Dimmer:
+    @staticmethod
+    def encode(value: int) -> bytes:
+        return encoding.encode(proto.TDimmerChannel_Value(brightness=value))
+
+    @staticmethod
+    def decode(data: bytes) -> int:
+        msg, _ = encoding.decode(proto.TDimmerChannel_Value, data)
+        return msg.brightness
