@@ -44,3 +44,6 @@ class IntFlag(_IntFlag):
 
     def __format__(self, spec: str) -> str:
         return self.__str__()
+
+    def __repr__(self) -> str:
+        return "<" + self.__str__() + f": {self.value}>"

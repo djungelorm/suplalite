@@ -60,3 +60,4 @@ class MyFlagWithoutNone(IntFlag):
 def test_int_flag_format(flag: Any, string: str) -> None:
     assert str(flag) == string
     assert f"{flag}" == string
+    assert repr(flag) == "<" + string + ": " + str(flag.value) + ">"
