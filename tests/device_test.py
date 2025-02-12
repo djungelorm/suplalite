@@ -1,16 +1,26 @@
 import asyncio
+from typing import Any
 
 import pytest
 
 from suplalite.device import Device, DeviceError, channels
 from suplalite.server import Server
-from suplalite.server.events import EventId
+from suplalite.server.context import BaseContext
+from suplalite.server.events import EventContext, EventId
+from suplalite.server.handlers import event_handler
 
 from .conftest import device_guid  # type: ignore
 
 
+@event_handler(EventContext.SERVER, EventId.REQUEST)
+async def handle_packet_received(
+    context: BaseContext, _: Any, call: int, msg: Any
+) -> None:
+    context.log(f"call {call} {msg}")
+
+
 @pytest.mark.asyncio
-async def test_device(server: Server) -> None:
+async def test_device(server: Server, caplog: pytest.LogCaptureFixture) -> None:
     asyncio.create_task(server.serve_forever())
 
     device = Device(
@@ -37,6 +47,37 @@ async def test_device(server: Server) -> None:
     await device.start()
     await device.connected.wait()
     await device.stop()
+
+    assert (
+        "[suplalite.server] server call Call.DS_REGISTER_DEVICE_E "
+        "TDS_RegisterDevice_E("
+        "email='email@email.com', "
+        "authkey=b'\\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08"
+        "\\t\\x00\\n\\x0b\\x0c\\r\\x0e\\x0f', "
+        "guid=b'\\x01\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00"
+        "\\x00\\x00\\x00\\x00\\x00\\x00\\x00', "
+        "name='device', "
+        "soft_ver='1.0.0', "
+        "server_name='localhost', "
+        "flags=<DeviceFlag.NONE: 0>, "
+        "manufacturer_id=0, "
+        "product_id=0, "
+        "channels=["
+        "TDS_DeviceChannel_C(number=0, type=<ChannelType.RELAY: 2900>, "
+        "action_trigger_caps=<ActionCap.TOGGLE_x5|TOGGLE_x4|TOGGLE_x3|TOGGLE_x2|TOGGLE_x1|"
+        "TURN_OFF|TURN_ON: 127>, default_func=<ChannelFunc.POWERSWITCH: 130>, "
+        "flags=<ChannelFlag.CHANNELSTATE: 65536>, "
+        "value=b'\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00'), "
+        "TDS_DeviceChannel_C(number=1, type=<ChannelType.THERMOMETER: 3034>, "
+        "action_trigger_caps=<ActionCap.NONE: 0>, default_func=<ChannelFunc.THERMOMETER: 40>, "
+        "flags=<ChannelFlag.CHANNELSTATE: 65536>, value=b'\\x00\\x00\\x00\\x00\\x000q\\xc0'), "
+        "TDS_DeviceChannel_C(number=2, type=<ChannelType.RELAY: 2900>, "
+        "action_trigger_caps=<ActionCap.TOGGLE_x5|TOGGLE_x4|TOGGLE_x3|TOGGLE_x2|TOGGLE_x1|"
+        "TURN_OFF|TURN_ON: 127>, default_func=<ChannelFunc.POWERSWITCH: 130>, "
+        "flags=<ChannelFlag.CHANNELSTATE: 65536>, "
+        "value=b'\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00')"
+        "])" in caplog.text
+    )
 
 
 @pytest.mark.asyncio
@@ -66,6 +107,7 @@ async def test_device_ping(server: Server, caplog: pytest.LogCaptureFixture) -> 
 
     assert "[suplalite.device] ping" in caplog.text
     assert "[suplalite.device] pong" in caplog.text
+    assert "[suplalite.server] server call Call.DCS_PING_SERVER None" in caplog.text
 
 
 @pytest.mark.asyncio
@@ -154,6 +196,11 @@ async def test_channel_state(server: Server, caplog: pytest.LogCaptureFixture) -
         "[suplalite.server] device[device-1] handle call Call.DSC_CHANNEL_STATE_RESULT"
         in caplog.text
     )
+    assert (
+        "[suplalite.server] server call "
+        "Call.DSC_CHANNEL_STATE_RESULT TDS_ChannelState(receiver_id=0, channel_number=0"
+        in caplog.text
+    )
 
 
 @pytest.mark.asyncio
@@ -190,6 +237,11 @@ async def test_channel_set_value(
     assert (
         "[suplalite.server] device[device-1] "
         "handle call Call.DS_DEVICE_CHANNEL_VALUE_CHANGED_C" in caplog.text
+    )
+    assert (
+        "[suplalite.server] server call Call.DS_DEVICE_CHANNEL_VALUE_CHANGED_C "
+        "TDS_DeviceChannelValue_C(channel_number=1, offline=False, validity_time_sec=0, "
+        "value=b'\\x00\\x00\\x00\\x00\\x00\\x00E@')" in caplog.text
     )
 
 
@@ -230,6 +282,16 @@ async def test_server_set_value(
     assert (
         "[suplalite.server] device[device-1] "
         "handle call Call.DS_DEVICE_CHANNEL_VALUE_CHANGED_C" in caplog.text
+    )
+    assert (
+        "[suplalite.server] server call Call.DS_DEVICE_CHANNEL_VALUE_CHANGED_C "
+        "TDS_DeviceChannelValue_C(channel_number=0, offline=False, validity_time_sec=0, "
+        "value=b'\\x01\\x00\\x00\\x00\\x00\\x00\\x00\\x00')" in caplog.text
+    )
+    assert (
+        "[suplalite.server] server call Call.DS_CHANNEL_SET_VALUE_RESULT "
+        "TDS_ChannelNewValueResult(channel_number=0, sender_id=0, success=True)"
+        in caplog.text
     )
 
 
@@ -297,6 +359,51 @@ async def test_channels(
         "device[device-5] handle call Call.DS_DEVICE_CHANNEL_VALUE_CHANGED_C"
         in caplog.text
     )
+
+    if channel_number == 0:
+        assert (
+            "[suplalite.server] server call Call.DS_DEVICE_CHANNEL_VALUE_CHANGED_C "
+            "TDS_DeviceChannelValue_C(channel_number=0, offline=False, validity_time_sec=0, "
+            "value=b'\\x01\\x00\\x00\\x00\\x00\\x00\\x00\\x00')" in caplog.text
+        )
+        assert (
+            "[suplalite.server] server call Call.DS_DEVICE_CHANNEL_VALUE_CHANGED_C "
+            "TDS_DeviceChannelValue_C(channel_number=0, offline=False, validity_time_sec=0, "
+            "value=b'\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00')" in caplog.text
+        )
+
+    if channel_number == 1:
+        assert (
+            "[suplalite.server] server call Call.DS_DEVICE_CHANNEL_VALUE_CHANGED_C "
+            "TDS_DeviceChannelValue_C(channel_number=1, offline=False, validity_time_sec=0, "
+            "value=b'\\x1f\\x85\\xebQ\\xb8\\x1e\\t@')" in caplog.text
+        )
+
+    if channel_number == 2:
+        assert (
+            "[suplalite.server] server call Call.DS_DEVICE_CHANNEL_VALUE_CHANGED_C "
+            "TDS_DeviceChannelValue_C(channel_number=2, offline=False, validity_time_sec=0, "
+            "value=b'\\xc8\\xcd\\xfb\\xff\\x10\\xa4\\x00\\x00')" in caplog.text
+        )
+
+    if channel_number == 3:
+        assert (
+            "[suplalite.server] server call Call.DS_DEVICE_CHANNEL_VALUE_CHANGED_C "
+            "TDS_DeviceChannelValue_C(channel_number=3, offline=False, validity_time_sec=0, "
+            "value=b'\\x10\\xa4\\x00\\x00\\x18\\xfc\\xff\\xff')" in caplog.text
+        )
+        assert (
+            "[suplalite.server] server call Call.DS_DEVICE_CHANNEL_VALUE_CHANGED_C "
+            "TDS_DeviceChannelValue_C(channel_number=3, offline=False, validity_time_sec=0, "
+            "value=b'\\x10\\xa4\\x00\\x00D\\x0c\\x00\\x00')" in caplog.text
+        )
+
+    if channel_number == 4:
+        assert (
+            "[suplalite.server] server call Call.DS_DEVICE_CHANNEL_VALUE_CHANGED_C "
+            "TDS_DeviceChannelValue_C(channel_number=4, offline=False, validity_time_sec=0, "
+            "value=b'X9\\xb4\\xc8v\\xbe\\xf3?')" in caplog.text
+        )
 
 
 @pytest.mark.asyncio

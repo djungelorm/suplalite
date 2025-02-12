@@ -24,6 +24,8 @@ class EventId(Enum):
     CHANNEL_SET_VALUE = 11
     DEVICE_CONFIG = 12
     DEVICE_CONFIG_RESULT = 13
+    REQUEST = 14
+    RESPONSE = 15
 
 
 Payload = tuple[Any, ...] | None

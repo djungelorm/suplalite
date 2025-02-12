@@ -152,13 +152,22 @@ class Connection:
         if handler.call_type is not None:
             call, size = encoding.decode(handler.call_type, call_data)
             assert size == len(call_data)
+            await context.server.events.add(
+                EventId.REQUEST, (context, packet.call_id, call)
+            )
             async with self._context.server.state.lock:
                 result = await handler.func(context, call)
         else:
+            await context.server.events.add(
+                EventId.REQUEST, (context, packet.call_id, None)
+            )
             async with self._context.server.state.lock:
                 result = await handler.func(context)
         if result is not None:
             assert handler.result_id is not None
+            await context.server.events.add(
+                EventId.RESPONSE, (context, handler.result_id, result)
+            )
             await self.send(handler.result_id, result)
 
     async def send(self, call_id: proto.Call, msg: Any) -> None:
