@@ -31,7 +31,7 @@ def pytest_collection_modifyitems(config, items):
 
 
 @pytest_asyncio.fixture(scope="function")
-async def server() -> AsyncIterator[Server]:
+async def server(request) -> AsyncIterator[Server]:
     server = Server(
         listen_host="localhost",
         host="localhost",
@@ -45,8 +45,10 @@ async def server() -> AsyncIterator[Server]:
         password="password123",
     )
 
-    setup_server(server)
+    with_scenes = not hasattr(request, "param") or "without-scenes" not in request.param
+    setup_server(server, with_scenes=with_scenes)
     await server.start()
+    server.with_scenes = with_scenes
     yield server
     await server.stop()
 
@@ -60,7 +62,7 @@ device_guid = {
 }
 
 
-def setup_server(server: Server) -> None:
+def setup_server(server: Server, with_scenes: bool = True) -> None:
     device_id = server.state.add_device("device-1", device_guid[1], 0, 0)
     assert device_id == 1
     server.state.add_channel(
@@ -200,3 +202,15 @@ def setup_server(server: Server) -> None:
         proto.ChannelFunc.GENERAL_PURPOSE_MEASUREMENT,
         proto.ChannelFlag.CHANNELSTATE,
     )
+
+    if with_scenes:
+        server.state.add_scene(
+            "scene-1",
+            "Scene 1",
+            [
+                state.SceneChannelState("relay", proto.ActionType.TURN_ON),
+                state.SceneChannelState("relay2", proto.ActionType.TURN_OFF),
+            ],
+        )
+        server.state.add_scene("scene-2", "Scene 2", [], alt_icon=3)
+        server.state.add_scene("scene-3", "Scene 3", [], icons=[b"icon3"])

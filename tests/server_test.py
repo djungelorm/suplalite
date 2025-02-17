@@ -494,6 +494,7 @@ async def test_register_device_twice(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("server", [[], ["without-scenes"]], indirect=True)
 @pytest.mark.parametrize("secure", (True, False))
 async def test_register_client(
     server: Server, secure: bool, caplog: pytest.LogCaptureFixture
@@ -583,7 +584,28 @@ async def test_register_client(
         assert channel_pack.items[8].user_icon == 732673
 
         # scene update
-        assert len(scene_pack.items) == 0
+        if server.with_scenes:  # type: ignore
+            assert len(scene_pack.items) == 3
+
+            assert scene_pack.items[0].id == 1
+            assert scene_pack.items[0].location_id == 1
+            assert scene_pack.items[0].alt_icon == 0
+            assert scene_pack.items[0].user_icon == 0
+            assert scene_pack.items[0].caption == "Scene 1"
+
+            assert scene_pack.items[1].id == 2
+            assert scene_pack.items[1].location_id == 1
+            assert scene_pack.items[1].alt_icon == 3
+            assert scene_pack.items[1].user_icon == 0
+            assert scene_pack.items[1].caption == "Scene 2"
+
+            assert scene_pack.items[2].id == 3
+            assert scene_pack.items[2].location_id == 1
+            assert scene_pack.items[2].alt_icon == 0
+            assert scene_pack.items[2].user_icon == 732673
+            assert scene_pack.items[2].caption == "Scene 3"
+        else:
+            assert len(scene_pack.items) == 0
 
     assert re.search(r"client\[[^\]]+\] registered", caplog.text) is not None
 
@@ -902,8 +924,7 @@ async def do_execute_action(
     client: Client,
     device: Device,
     action: proto.TCS_Action,
-    expected_channel_number: int,
-    expected_value: bytes,
+    expectation: list[tuple[int, bytes]],
 ) -> None:
     await client.stream.send(
         Packet(proto.Call.CS_EXECUTE_ACTION, encoding.encode(action))
@@ -921,15 +942,16 @@ async def do_execute_action(
     )
 
     # device receives set value
-    packet = await device.stream.recv()
-    assert packet.call_id == proto.Call.SD_CHANNEL_SET_VALUE
-    msg, _ = encoding.decode(proto.TSD_ChannelNewValue, packet.data)
-    assert msg == proto.TSD_ChannelNewValue(
-        sender_id=0,
-        channel_number=expected_channel_number,
-        duration_ms=0,
-        value=expected_value,
-    )
+    for expected_channel_number, expected_value in expectation:
+        packet = await device.stream.recv()
+        assert packet.call_id == proto.Call.SD_CHANNEL_SET_VALUE
+        msg, _ = encoding.decode(proto.TSD_ChannelNewValue, packet.data)
+        assert msg == proto.TSD_ChannelNewValue(
+            sender_id=0,
+            channel_number=expected_channel_number,
+            duration_ms=0,
+            value=expected_value,
+        )
 
 
 @pytest.mark.asyncio
@@ -947,8 +969,7 @@ async def test_client_execute_action_on(
                     subject_type=proto.ActionSubjectType.CHANNEL,
                     param=b"",
                 ),
-                2,
-                b"\x01\x00\x00\x00\x00\x00\x00\x00",
+                [(2, b"\x01\x00\x00\x00\x00\x00\x00\x00")],
             )
     assert "client[test] handle call Call.CS_EXECUTE_ACTION" in caplog.text
     assert "client[test] send Call.SC_ACTION_EXECUTION_RESULT" in caplog.text
@@ -973,8 +994,7 @@ async def test_client_execute_action_off(
                     subject_type=proto.ActionSubjectType.CHANNEL,
                     param=b"",
                 ),
-                2,
-                b"\x00\x00\x00\x00\x00\x00\x00\x00",
+                [(2, b"\x00\x00\x00\x00\x00\x00\x00\x00")],
             )
     assert "client[test] handle call Call.CS_EXECUTE_ACTION" in caplog.text
     assert "client[test] send Call.SC_ACTION_EXECUTION_RESULT" in caplog.text
@@ -999,8 +1019,7 @@ async def test_client_execute_action_toggle(
                     subject_type=proto.ActionSubjectType.CHANNEL,
                     param=b"",
                 ),
-                2,
-                b"\x01\x00\x00\x00\x00\x00\x00\x00",
+                [(2, b"\x01\x00\x00\x00\x00\x00\x00\x00")],
             )
     assert "client[test] handle call Call.CS_EXECUTE_ACTION" in caplog.text
     assert "client[test] send Call.SC_ACTION_EXECUTION_RESULT" in caplog.text
@@ -1043,8 +1062,8 @@ async def test_client_execute_action_invalid_subject(
                 ),
             )
     assert (
-        "client[test] failed to execute action; subject type not supported"
-        in caplog.text
+        "client[test] failed to execute action; "
+        "subject type ActionSubjectType.SCHEDULE not supported" in caplog.text
     )
 
 
@@ -1122,6 +1141,78 @@ async def test_client_execute_action_unsupported_channel_type(
             )
     assert (
         "client[test] failed to execute action; channel type not supported"
+        in caplog.text
+    )
+
+
+@pytest.mark.asyncio
+async def test_client_execute_scene_action(
+    server: Server, caplog: pytest.LogCaptureFixture
+) -> None:
+    async with open_device(server, 1) as device:
+        async with open_client(server, "test") as client:
+            await do_execute_action(
+                client,
+                device,
+                proto.TCS_Action(
+                    action_id=proto.ActionType.EXECUTE,
+                    subject_id=1,
+                    subject_type=proto.ActionSubjectType.SCENE,
+                    param=b"",
+                ),
+                [
+                    (0, b"\x01\x00\x00\x00\x00\x00\x00\x00"),
+                    (2, b"\x00\x00\x00\x00\x00\x00\x00\x00"),
+                ],
+            )
+
+    assert "client[test] handle call Call.CS_EXECUTE_ACTION" in caplog.text
+    assert "client[test] send Call.SC_ACTION_EXECUTION_RESULT" in caplog.text
+    assert "device[device-1] handle event EventId.CHANNEL_SET_VALUE" in caplog.text
+    assert "device[device-1] send Call.SD_CHANNEL_SET_VALUE" in caplog.text
+
+    assert "server event CHANNEL_SET_VALUE 1 0100000000000000" in caplog.text
+    assert "server event CHANNEL_SET_VALUE 3 0000000000000000" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_client_execute_scene_action_invalid_scene(
+    server: Server, caplog: pytest.LogCaptureFixture
+) -> None:
+    async with open_device(server, 1):
+        async with open_client(server, "test") as client:
+            await do_execute_action_with_error(
+                client,
+                proto.TCS_Action(
+                    action_id=proto.ActionType.EXECUTE,
+                    subject_id=42,
+                    subject_type=proto.ActionSubjectType.SCENE,
+                    param=b"",
+                ),
+            )
+    assert (
+        "client[test] failed to execute action; scene id 42 does not exist"
+        in caplog.text
+    )
+
+
+@pytest.mark.asyncio
+async def test_client_execute_scene_action_invalid_action(
+    server: Server, caplog: pytest.LogCaptureFixture
+) -> None:
+    async with open_device(server, 1):
+        async with open_client(server, "test") as client:
+            await do_execute_action_with_error(
+                client,
+                proto.TCS_Action(
+                    action_id=proto.ActionType.TURN_ON,
+                    subject_id=1,
+                    subject_type=proto.ActionSubjectType.SCENE,
+                    param=b"",
+                ),
+            )
+    assert (
+        "client[test] failed to execute action; ActionType.TURN_ON not implemented"
         in caplog.text
     )
 
@@ -1742,8 +1833,7 @@ async def test_dimmer_off_on_preserves_brightness(
                     subject_type=proto.ActionSubjectType.CHANNEL,
                     param=b"",
                 ),
-                0,
-                b"\x00\x00\x00\x00\x00\x00\x00\x00",
+                [(0, b"\x00\x00\x00\x00\x00\x00\x00\x00")],
             )
 
             # turn on
@@ -1756,8 +1846,7 @@ async def test_dimmer_off_on_preserves_brightness(
                     subject_type=proto.ActionSubjectType.CHANNEL,
                     param=b"",
                 ),
-                0,
-                b"\x32\x00\x00\x00\x00\x00\x00\x00",
+                [(0, b"\x32\x00\x00\x00\x00\x00\x00\x00")],
             )
 
 
@@ -1777,8 +1866,7 @@ async def test_dimmer_initial_on_sets_full_brightness(
                     subject_type=proto.ActionSubjectType.CHANNEL,
                     param=b"",
                 ),
-                0,
-                b"\x64\x00\x00\x00\x00\x00\x00\x00",
+                [(0, b"\x64\x00\x00\x00\x00\x00\x00\x00")],
             )
 
 
@@ -1810,6 +1898,5 @@ async def test_dimmer_already_on_preserves_brightness(
                     subject_type=proto.ActionSubjectType.CHANNEL,
                     param=b"",
                 ),
-                0,
-                b"\x32\x00\x00\x00\x00\x00\x00\x00",
+                [(0, b"\x32\x00\x00\x00\x00\x00\x00\x00")],
             )

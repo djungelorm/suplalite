@@ -30,6 +30,8 @@ class ServerState:
         self._icons: dict[str, Icon] = {}
         self._icons_by_id: dict[int, Icon] = {}
 
+        self._scenes: dict[int, SceneState] = {}
+
     def server_started(self) -> None:
         self._started = True
 
@@ -213,6 +215,31 @@ class ServerState:
     def get_device_events(self, device_id: int) -> EventQueue:
         return self._device_events[device_id]
 
+    def add_scene(
+        self,
+        name: str,
+        caption: str,
+        channels: list[SceneChannelState],
+        alt_icon: int = 0,
+        icons: list[bytes] | None = None,
+    ) -> None:
+        assert self._started is False
+        scene_id = len(self._scenes) + 1
+
+        user_icon = 0
+        if icons is not None:
+            user_icon = self.add_icons(icons)
+
+        self._scenes[scene_id] = SceneState(
+            name, scene_id, caption, alt_icon, user_icon, channels
+        )
+
+    def get_scenes(self) -> dict[int, SceneState]:
+        return copy.deepcopy(self._scenes)
+
+    def get_scene(self, scene_id: int) -> SceneState:
+        return copy.deepcopy(self._scenes[scene_id])
+
 
 @dataclass
 class ClientState:
@@ -265,6 +292,22 @@ class ChannelState:
     config: ChannelConfig | None
     value: bytes = b"\x00\x00\x00\x00\x00\x00\x00\x00"
     last_value: bytes | None = None
+
+
+@dataclass
+class SceneState:
+    name: str
+    id: int
+    caption: str
+    alt_icon: int
+    user_icon: int
+    channels: list[SceneChannelState] = field(default_factory=list)
+
+
+@dataclass
+class SceneChannelState:
+    name: str
+    action: proto.ActionType
 
 
 @dataclass

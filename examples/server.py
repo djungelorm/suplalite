@@ -10,7 +10,11 @@ from suplalite.server import Server
 from suplalite.server.context import ClientContext, DeviceContext, ServerContext
 from suplalite.server.events import EventContext, EventId
 from suplalite.server.handlers import event_handler, get_handlers
-from suplalite.server.state import GeneralPurposeMeasurementChannelConfig
+from suplalite.server.state import (
+    GeneralPurposeMeasurementChannelConfig,
+    SceneAction,
+    SceneChannelState,
+)
 
 
 @event_handler(EventContext.SERVER, EventId.CHANNEL_REGISTER_VALUE)
@@ -199,6 +203,21 @@ async def main():
         proto.ChannelType.DIMMER,
         proto.ChannelFunc.DIMMER,
         proto.ChannelFlag.CHANNELSTATE,
+    )
+
+    scene = server.state.add_scene(
+        "all-off",
+        "All Off",
+        icons=[
+            load_icon("examples/red.png"),
+        ],
+        channels=[
+            SceneChannelState("lounge-lights", proto.ActionType.TURN_OFF),
+            SceneChannelState("non-dimmable-lights", proto.ActionType.TURN_OFF),
+            SceneChannelState("fan", proto.ActionType.TURN_OFF),
+            SceneChannelState("tv", proto.ActionType.TURN_OFF),
+            SceneChannelState("relay", proto.ActionType.TURN_OFF),
+        ],
     )
 
     await server.start()

@@ -17,7 +17,7 @@ from suplalite.server.context import (
     DeviceContext,
 )
 from suplalite.server.events import EventContext, EventId
-from suplalite.server.state import GeneralPurposeMeasurementChannelConfig
+from suplalite.server.state import ChannelState, GeneralPurposeMeasurementChannelConfig
 from suplalite.utils import batched, to_hex
 
 
@@ -312,6 +312,7 @@ async def register_client(
         result_code = proto.ResultCode.TRUE
 
     channel_count = len(context.server.state.get_channels())
+    scene_count = len(context.server.state.get_scenes())
 
     return proto.TSC_RegisterClientResult_D(
         result_code=result_code,
@@ -319,7 +320,7 @@ async def register_client(
         location_count=1,
         channel_count=channel_count,
         channel_group_count=0,
-        scene_count=0,
+        scene_count=scene_count,
         activity_timeout=context.activity_timeout,
         version=proto.PROTO_VERSION,
         version_min=proto.PROTO_VERSION_MIN,
@@ -369,42 +370,19 @@ async def client_get_next(
     pass
 
 
-@call_handler(proto.Call.CS_EXECUTE_ACTION, proto.Call.SC_ACTION_EXECUTION_RESULT)
-async def client_execute_action(
-    context: ClientContext,
-    msg: proto.TCS_Action,
-) -> proto.TSC_ActionExecutionResult:
-    if msg.subject_type != proto.ActionSubjectType.CHANNEL:
-        context.log(
-            "failed to execute action; subject type not supported",
-            level=logging.WARN,
-        )
-        return proto.TSC_ActionExecutionResult(
-            proto.ResultCode.FALSE, msg.action_id, msg.subject_id, msg.subject_type
-        )
-    channel_id = msg.subject_id
-
-    try:
-        channel = context.server.state.get_channel(channel_id)
-    except KeyError:
-        context.log(
-            f"failed to execute action; channel id {channel_id} does not exist",
-            level=logging.WARN,
-        )
-        return proto.TSC_ActionExecutionResult(
-            proto.ResultCode.FALSE, msg.action_id, msg.subject_id, msg.subject_type
-        )
-
+async def execute_channel_action(
+    context: ClientContext, channel: ChannelState, action: proto.ActionType
+) -> None:
     if channel.type == proto.ChannelType.RELAY:
-        if msg.action_id == proto.ActionType.TURN_ON:
+        if action == proto.ActionType.TURN_ON:
             value = encoding.encode(
                 proto.TRelayChannel_Value(on=True, flags=proto.RelayFlag.NONE)
             )
-        elif msg.action_id == proto.ActionType.TURN_OFF:
+        elif action == proto.ActionType.TURN_OFF:
             value = encoding.encode(
                 proto.TRelayChannel_Value(on=False, flags=proto.RelayFlag.NONE)
             )
-        elif msg.action_id == proto.ActionType.TOGGLE:
+        elif action == proto.ActionType.TOGGLE:
             current_value, _ = encoding.decode(proto.TRelayChannel_Value, channel.value)
             value = encoding.encode(
                 proto.TRelayChannel_Value(
@@ -416,35 +394,87 @@ async def client_execute_action(
                 "failed to execute action; action not supported",
                 level=logging.WARN,
             )
-            return proto.TSC_ActionExecutionResult(
-                proto.ResultCode.FALSE, msg.action_id, msg.subject_id, msg.subject_type
-            )
+            raise RuntimeError
     elif channel.type == proto.ChannelType.DIMMER:
-        if msg.action_id == proto.ActionType.TURN_ON:
+        if action == proto.ActionType.TURN_ON:
             value = channel.last_value or encoding.encode(
                 proto.TDimmerChannel_Value(brightness=100)
             )
-        elif msg.action_id == proto.ActionType.TURN_OFF:
+        elif action == proto.ActionType.TURN_OFF:
             value = encoding.encode(proto.TDimmerChannel_Value(brightness=0))
         else:
             context.log(
                 "failed to execute action; action not supported",
                 level=logging.WARN,
             )
-            return proto.TSC_ActionExecutionResult(
-                proto.ResultCode.FALSE, msg.action_id, msg.subject_id, msg.subject_type
-            )
+            raise RuntimeError
     else:
         context.log(
             "failed to execute action; channel type not supported",
             level=logging.WARN,
         )
+        raise RuntimeError
+
+    context.server.state.set_channel_value(channel.id, value)
+    await context.server.events.add(EventId.CHANNEL_SET_VALUE, (channel.id, value))
+
+
+@call_handler(proto.Call.CS_EXECUTE_ACTION, proto.Call.SC_ACTION_EXECUTION_RESULT)
+async def client_execute_action(
+    context: ClientContext,
+    msg: proto.TCS_Action,
+) -> proto.TSC_ActionExecutionResult:
+
+    try:
+        if msg.subject_type == proto.ActionSubjectType.CHANNEL:
+            channel_id = msg.subject_id
+            try:
+                channel = context.server.state.get_channel(channel_id)
+            except KeyError as exc:
+                context.log(
+                    f"failed to execute action; channel id {channel_id} does not exist",
+                    level=logging.WARN,
+                )
+                raise RuntimeError from exc
+            await execute_channel_action(context, channel, msg.action_id)
+
+        elif msg.subject_type == proto.ActionSubjectType.SCENE:
+            scene_id = msg.subject_id
+            try:
+                scene = context.server.state.get_scene(scene_id)
+            except KeyError as exc:
+                context.log(
+                    f"failed to execute action; scene id {scene_id} does not exist",
+                    level=logging.WARN,
+                )
+                raise RuntimeError from exc
+
+            if msg.action_id == proto.ActionType.EXECUTE:
+                for channel_info in scene.channels:
+                    channel = context.server.state.get_channel_by_name(
+                        channel_info.name
+                    )
+                    await execute_channel_action(context, channel, channel_info.action)
+
+            else:
+                context.log(
+                    f"failed to execute action; {msg.action_id} not implemented",
+                    level=logging.WARN,
+                )
+                raise RuntimeError
+
+        else:
+            context.log(
+                f"failed to execute action; subject type {msg.subject_type} not supported",
+                level=logging.WARN,
+            )
+            raise RuntimeError
+
+    except RuntimeError:
         return proto.TSC_ActionExecutionResult(
             proto.ResultCode.FALSE, msg.action_id, msg.subject_id, msg.subject_type
         )
 
-    context.server.state.set_channel_value(channel_id, value)
-    await context.server.events.add(EventId.CHANNEL_SET_VALUE, (channel_id, value))
     return proto.TSC_ActionExecutionResult(
         proto.ResultCode.TRUE, msg.action_id, msg.subject_id, msg.subject_type
     )
@@ -565,8 +595,28 @@ async def send_channels(context: ClientContext) -> None:
 
 @event_handler(EventContext.CLIENT, EventId.SEND_SCENES)
 async def send_scenes(context: ClientContext) -> None:
-    msg = proto.TSC_ScenePack(total_left=0, items=[])
-    await context.conn.send(proto.Call.SC_SCENE_PACK_UPDATE, msg)
+    scenes = context.server.state.get_scenes()
+
+    total_left = len(scenes)
+    batches = batched(scenes.values(), proto.SCENE_PACK_MAXCOUNT)
+    for batch in batches:
+        items = []
+        for scene in batch:
+            items.append(
+                proto.TSC_Scene(
+                    eol=False,
+                    id=scene.id,
+                    location_id=1,
+                    alt_icon=scene.alt_icon,
+                    user_icon=scene.user_icon,
+                    caption=scene.caption,
+                )
+            )
+        if len(items) > 0:
+            items[-1].eol = True
+        total_left -= len(items)
+        msg = proto.TSC_ScenePack(total_left=total_left, items=items)
+        await context.conn.send(proto.Call.SC_SCENE_PACK_UPDATE, msg)
 
 
 @call_handler(
