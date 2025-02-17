@@ -13,15 +13,15 @@ def test_to_hex() -> None:
 @pytest.mark.parametrize(
     "xs,n,result",
     (
-        ([1, 2, 3, 4], 1, ((1,), (2,), (3,), (4,))),
-        ([1, 2, 3, 4], 2, ((1, 2), (3, 4))),
-        ([1, 2, 3, 4], 3, ((1, 2, 3), (4,))),
-        ([], 3, tuple(tuple())),
-        ([1, 2], 10, ((1, 2),)),
+        ([1, 2, 3, 4], 1, [(1,), (2,), (3,), (4,)]),
+        ([1, 2, 3, 4], 2, [(1, 2), (3, 4)]),
+        ([1, 2, 3, 4], 3, [(1, 2, 3), (4,)]),
+        ([], 3, [tuple()]),
+        ([1, 2], 10, [(1, 2)]),
     ),
 )
 def test_batched(xs: Iterable[Any], n: int, result: Iterable[tuple[Any, ...]]) -> None:
-    assert tuple(batched(xs, n)) == result
+    assert list(batched(xs, n)) == result
 
 
 def test_batched_n_too_small() -> None:

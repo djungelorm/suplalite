@@ -18,8 +18,12 @@ def batched(iterable: Iterable[T], n: int = 1) -> Iterable[tuple[T, ...]]:
     if n < 1:
         raise ValueError("n must be at least one")
     it = iter(iterable)
+    num_batches = 0
     while batch := tuple(islice(it, n)):
+        num_batches += 1
         yield batch
+    if num_batches == 0:
+        yield tuple()
 
 
 # Customize IntFlag to print human-readable string when f-strings/format

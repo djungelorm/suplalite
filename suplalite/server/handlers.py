@@ -528,7 +528,7 @@ async def send_channels(context: ClientContext) -> None:
     devices = context.server.state.get_devices()
     channels = context.server.state.get_channels()
 
-    total_left = len(channels.values())
+    total_left = len(channels)
     batches = batched(channels.values(), proto.CHANNELPACK_MAXCOUNT)
     for batch in batches:
         items = []
