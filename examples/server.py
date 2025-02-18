@@ -12,7 +12,6 @@ from suplalite.server.events import EventContext, EventId
 from suplalite.server.handlers import event_handler, get_handlers
 from suplalite.server.state import (
     GeneralPurposeMeasurementChannelConfig,
-    SceneAction,
     SceneChannelState,
 )
 
