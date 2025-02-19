@@ -786,6 +786,16 @@ class TCS_Action:
 
 
 @dataclass
+class TAction_RGBW_Parameters:
+    brightness: int = field(metadata=c_uint8())
+    color_brightness: int = field(metadata=c_uint8())
+    color: int = field(metadata=c_int32())
+    color_random: bool = field(metadata=c_uint8())
+    on_off: bool = field(metadata=c_uint8())
+    padding: bytes = field(repr=False, init=False, metadata=c_bytes(size=8))
+
+
+@dataclass
 class TSC_ActionExecutionResult:
     result_code: ResultCode = field(metadata=c_enum(ctypes.c_uint8))
     action_id: ActionType = field(metadata=c_enum(ctypes.c_uint32))

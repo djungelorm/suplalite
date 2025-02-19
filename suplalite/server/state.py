@@ -308,6 +308,7 @@ class SceneState:
 class SceneChannelState:
     name: str
     action: proto.ActionType
+    params: bytes | None = None
 
 
 @dataclass

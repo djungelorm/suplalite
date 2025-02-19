@@ -371,7 +371,10 @@ async def client_get_next(
 
 
 async def execute_channel_action(
-    context: ClientContext, channel: ChannelState, action: proto.ActionType
+    context: ClientContext,
+    channel: ChannelState,
+    action: proto.ActionType,
+    params: bytes | None = None,
 ) -> None:
     if channel.type == proto.ChannelType.RELAY:
         if action == proto.ActionType.TURN_ON:
@@ -391,7 +394,7 @@ async def execute_channel_action(
             )
         else:
             context.log(
-                "failed to execute action; action not supported",
+                f"failed to execute action; relay action {action} not supported",
                 level=logging.WARN,
             )
             raise RuntimeError
@@ -402,15 +405,21 @@ async def execute_channel_action(
             )
         elif action == proto.ActionType.TURN_OFF:
             value = encoding.encode(proto.TDimmerChannel_Value(brightness=0))
+        elif action == proto.ActionType.SET_RGBW_PARAMETERS:
+            assert params is not None
+            rgbw_params, _ = encoding.decode(proto.TAction_RGBW_Parameters, params)
+            value = encoding.encode(
+                proto.TDimmerChannel_Value(brightness=rgbw_params.brightness)
+            )
         else:
             context.log(
-                "failed to execute action; action not supported",
+                f"failed to execute action; dimmer action {action} not supported",
                 level=logging.WARN,
             )
             raise RuntimeError
     else:
         context.log(
-            "failed to execute action; channel type not supported",
+            f"failed to execute action; channel type {channel.type} not supported",
             level=logging.WARN,
         )
         raise RuntimeError
@@ -454,7 +463,9 @@ async def client_execute_action(
                     channel = context.server.state.get_channel_by_name(
                         channel_info.name
                     )
-                    await execute_channel_action(context, channel, channel_info.action)
+                    await execute_channel_action(
+                        context, channel, channel_info.action, channel_info.params
+                    )
 
             else:
                 context.log(

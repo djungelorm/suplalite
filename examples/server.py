@@ -3,7 +3,7 @@ import logging
 import signal
 import struct
 
-from suplalite import proto
+from suplalite import encoding, proto
 from suplalite.device import channels
 from suplalite.logging import configure_logging
 from suplalite.server import Server
@@ -211,7 +211,19 @@ async def main():
             load_icon("examples/red.png"),
         ],
         channels=[
-            SceneChannelState("lounge-lights", proto.ActionType.TURN_OFF),
+            SceneChannelState(
+                "lounge-lights",
+                proto.ActionType.SET_RGBW_PARAMETERS,
+                encoding.encode(
+                    proto.TAction_RGBW_Parameters(
+                        brightness=10,
+                        color_brightness=-1,
+                        color=0,
+                        color_random=False,
+                        on_off=False,
+                    )
+                ),
+            ),
             SceneChannelState("non-dimmable-lights", proto.ActionType.TURN_OFF),
             SceneChannelState("fan", proto.ActionType.TURN_OFF),
             SceneChannelState("tv", proto.ActionType.TURN_OFF),

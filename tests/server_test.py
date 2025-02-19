@@ -1103,7 +1103,10 @@ async def test_client_execute_action_invalid_relay_action(
                     param=b"",
                 ),
             )
-    assert "client[test] failed to execute action; action not supported" in caplog.text
+    assert (
+        "client[test] failed to execute action; "
+        "relay action ActionType.OPEN not supported" in caplog.text
+    )
 
 
 @pytest.mark.asyncio
@@ -1121,7 +1124,10 @@ async def test_client_execute_action_invalid_dimmer_action(
                     param=b"",
                 ),
             )
-    assert "client[test] failed to execute action; action not supported" in caplog.text
+    assert (
+        "client[test] failed to execute action; "
+        "dimmer action ActionType.INTERRUPT not supported" in caplog.text
+    )
 
 
 @pytest.mark.asyncio
@@ -1140,8 +1146,8 @@ async def test_client_execute_action_unsupported_channel_type(
                 ),
             )
     assert (
-        "client[test] failed to execute action; channel type not supported"
-        in caplog.text
+        "client[test] failed to execute action; "
+        "channel type ChannelType.THERMOMETER not supported" in caplog.text
     )
 
 
@@ -1173,6 +1179,34 @@ async def test_client_execute_scene_action(
 
     assert "server event CHANNEL_SET_VALUE 1 0100000000000000" in caplog.text
     assert "server event CHANNEL_SET_VALUE 3 0000000000000000" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_client_execute_scene_action_with_dimmer_brightness(
+    server: Server, caplog: pytest.LogCaptureFixture
+) -> None:
+    async with open_device(server, 2) as device:
+        async with open_client(server, "test") as client:
+            await do_execute_action(
+                client,
+                device,
+                proto.TCS_Action(
+                    action_id=proto.ActionType.EXECUTE,
+                    subject_id=2,
+                    subject_type=proto.ActionSubjectType.SCENE,
+                    param=b"",
+                ),
+                [
+                    (0, b"\x0a\x00\x00\x00\x00\x00\x00\x00"),
+                ],
+            )
+
+    assert "client[test] handle call Call.CS_EXECUTE_ACTION" in caplog.text
+    assert "client[test] send Call.SC_ACTION_EXECUTION_RESULT" in caplog.text
+    assert "device[device-2] handle event EventId.CHANNEL_SET_VALUE" in caplog.text
+    assert "device[device-2] send Call.SD_CHANNEL_SET_VALUE" in caplog.text
+
+    assert "server event CHANNEL_SET_VALUE 4 0a00000000000000" in caplog.text
 
 
 @pytest.mark.asyncio

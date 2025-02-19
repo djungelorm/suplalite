@@ -6,7 +6,7 @@ from collections.abc import AsyncIterator
 import pytest
 import pytest_asyncio
 
-from suplalite import proto
+from suplalite import encoding, proto
 from suplalite.server import Server, state
 
 
@@ -212,5 +212,24 @@ def setup_server(server: Server, with_scenes: bool = True) -> None:
                 state.SceneChannelState("relay2", proto.ActionType.TURN_OFF),
             ],
         )
-        server.state.add_scene("scene-2", "Scene 2", [], alt_icon=3)
+        server.state.add_scene(
+            "scene-2",
+            "Scene 2",
+            [
+                state.SceneChannelState(
+                    "lights",
+                    proto.ActionType.SET_RGBW_PARAMETERS,
+                    encoding.encode(
+                        proto.TAction_RGBW_Parameters(
+                            brightness=10,
+                            color_brightness=-1,
+                            color=0,
+                            color_random=False,
+                            on_off=False,
+                        )
+                    ),
+                ),
+            ],
+            alt_icon=3,
+        )
         server.state.add_scene("scene-3", "Scene 3", [], icons=[b"icon3"])
