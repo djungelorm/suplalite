@@ -537,20 +537,11 @@ async def channel_set_value(
 
 @call_handler(proto.Call.DS_CHANNEL_SET_VALUE_RESULT)
 async def channel_set_value_result(
-    context: DeviceContext, msg: proto.TDS_ChannelNewValueResult
-) -> None:
-    device = context.server.state.get_device(context.device_id)
-    if msg.channel_number >= len(device.channel_ids):
-        context.log(
-            "failed to handle set value result; "
-            f"channel number {msg.channel_number} does not exist",
-            level=logging.ERROR,
-        )
-        return
-    channel_id = device.channel_ids[msg.channel_number]
-    channel = context.server.state.get_channel(channel_id)
-    value = channel.value
-    await context.server.events.add(EventId.CHANNEL_VALUE_CHANGED, (channel_id, value))
+    context: DeviceContext,  # pylint: disable=unused-argument
+    msg: proto.TDS_ChannelNewValueResult,  # pylint: disable=unused-argument
+) -> None:  # pragma: no cover
+    # Note: ignore this, device should also send a CHANNEL_VALUE_CHANGED message
+    pass
 
 
 @event_handler(EventContext.CLIENT, EventId.SEND_LOCATIONS)

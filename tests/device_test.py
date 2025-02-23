@@ -290,11 +290,6 @@ async def test_server_set_value(
         "TDS_DeviceChannelValue_C(channel_number=0, offline=False, validity_time_sec=0, "
         "value=b'\\x01\\x00\\x00\\x00\\x00\\x00\\x00\\x00')" in caplog.text
     )
-    assert (
-        "[suplalite.server] server call Call.DS_CHANNEL_SET_VALUE_RESULT "
-        "TDS_ChannelNewValueResult(channel_number=0, sender_id=0, success=True)"
-        in caplog.text
-    )
 
 
 @pytest.mark.parametrize("channel_number", (0, 1, 2, 3, 4))

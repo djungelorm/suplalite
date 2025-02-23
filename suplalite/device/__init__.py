@@ -299,28 +299,27 @@ class Device:
 
         success = False
         if msg.channel_number < len(self._channels):  # pragma: no cover
+            # Note: this sends a DS_DEVICE_CHANNEL_VALUE_CHANGED_C message
+            # if the value is sucessfully set
             success = await self._channels[msg.channel_number].set_encoded_value(
                 msg.value
             )
 
-        # Note: this sends a DS_DEVICE_CHANNEL_VALUE_CHANGED_C packet followed
-        # by a DS_CHANNEL_SET_VALUE_RESULT packet. This is swapped compared to
-        # the supla linux example device, but still appears to work correctly.
-
-        result = proto.TDS_ChannelNewValueResult(
-            channel_number=msg.channel_number,
-            sender_id=msg.sender_id,
-            success=success,
-        )
-
-        async with self._lock:
-            assert self._packets is not None
-            await self._packets.send(
-                Packet(
-                    proto.Call.DS_CHANNEL_SET_VALUE_RESULT,
-                    encoding.encode(result),
+        if not success:  # pragma: no cover
+            async with self._lock:
+                assert self._packets is not None
+                await self._packets.send(
+                    Packet(
+                        proto.Call.DS_CHANNEL_SET_VALUE_RESULT,
+                        encoding.encode(
+                            proto.TDS_ChannelNewValueResult(
+                                channel_number=msg.channel_number,
+                                sender_id=msg.sender_id,
+                                success=success,
+                            )
+                        ),
+                    )
                 )
-            )
 
     async def set_value(self, channel_number: int, value: bytes) -> None:
         if self._state != DeviceState.CONNECTED:  # pragma: no cover
