@@ -5,9 +5,9 @@ import inspect
 import logging
 import random
 import time
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Any, TypeVar
+from typing import Any, Concatenate, ParamSpec, TypeVar
 
 from suplalite import encoding, proto
 from suplalite.server.context import (
@@ -20,10 +20,18 @@ from suplalite.server.events import EventContext, EventId
 from suplalite.server.state import ChannelState, GeneralPurposeMeasurementChannelConfig
 from suplalite.utils import batched, to_hex
 
+HandlerArgs = ParamSpec("HandlerArgs")
+
 
 @dataclass
 class Handler:
-    func: Any  # TODO: correct typing
+    func: Callable[Concatenate[BaseContext, HandlerArgs], Awaitable[Any]]
+
+
+@dataclass
+class EventHandler(Handler):
+    event_context: EventContext
+    event_id: EventId
 
     async def handle_event(self, context: BaseContext, payload: Any) -> None:
         num_params = len(inspect.signature(self.func).parameters) - 1
@@ -34,16 +42,10 @@ class Handler:
 
 
 @dataclass
-class EventHandler(Handler):
-    event_context: EventContext
-    event_id: EventId
-
-
-@dataclass
 class CallHandler(Handler):
     call_id: proto.Call
     result_id: proto.Call | None
-    call_type: type[Any] | None  # TODO: correct typing
+    call_type: type[Any] | None
 
 
 _handlers: list[Handler] = []
@@ -53,9 +55,7 @@ def get_handlers() -> list[Handler]:
     return _handlers
 
 
-CallHandlerFunc = TypeVar(
-    "CallHandlerFunc", bound=Callable[..., Any]  # FIXME: avoid Any and ... here
-)
+CallHandlerFunc = TypeVar("CallHandlerFunc", bound=Callable[..., Any])
 
 
 def call_handler(
@@ -72,9 +72,7 @@ def call_handler(
     return func
 
 
-EventHandlerFunc = TypeVar(
-    "EventHandlerFunc", bound=Callable[..., Any]  # FIXME: avoid Any and ... here
-)
+EventHandlerFunc = TypeVar("EventHandlerFunc", bound=Callable[..., Any])
 
 
 def event_handler(
