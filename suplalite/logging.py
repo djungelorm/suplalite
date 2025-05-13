@@ -18,9 +18,12 @@ def get_config(show_time: bool = True, level: str = "DEBUG") -> dict[str, Any]:
                 "level": level,
             },
             "uvicorn": {
-                "level": "INFO",
+                "level": level,
             },
             "uvicorn.access": {
+                "level": "WARN",
+            },
+            "uvicorn.error": {
                 "level": "WARN",
             },
         },
