@@ -52,7 +52,7 @@ class Connection:
         return self._packets.proto_version
 
     async def __call__(self) -> None:
-        self._context.log("connected")
+        self._context.log("connected", logging.DEBUG)
 
         self._packets = PacketStream(self._reader, self._writer)
 
@@ -67,7 +67,7 @@ class Connection:
             pass
 
         finally:
-            self._context.log("disconnected")
+            self._context.log("disconnected", logging.DEBUG)
 
             # stop the event loop
             self._event_task.cancel()
@@ -84,7 +84,7 @@ class Connection:
                     await self._context.server.events.add(
                         EventId.DEVICE_DISCONNECTED, (device_id,)
                     )
-                self._context.log("device removed")
+                self._context.log("device removed", logging.DEBUG)
 
             if isinstance(self._context, ClientContext):
                 client_id = self._context.client_id
@@ -93,7 +93,7 @@ class Connection:
                     await self._context.server.events.add(
                         EventId.CLIENT_DISCONNECTED, (client_id,)
                     )
-                self._context.log("client removed")
+                self._context.log("client removed", logging.DEBUG)
 
             self._context.log("closed")
 
@@ -125,7 +125,7 @@ class Connection:
                     if self._context.should_replace:
                         self._context = self._context.replacement
                 if self._context.error:
-                    self._context.log("error; closing connection")
+                    self._context.log("error; closing connection", logging.WARN)
                     break
         except network.NetworkError as exc:
             self._context.log(f"network error: {exc}", logging.ERROR)
@@ -134,7 +134,7 @@ class Connection:
             raise
         finally:
             await self._packets.close()
-            self._context.log("call task stopped")
+            self._context.log("call task stopped", logging.DEBUG)
 
     async def _event(self) -> None:
         try:
@@ -145,7 +145,7 @@ class Connection:
             logger.error(str(exc), exc_info=exc)
             raise
         finally:
-            self._context.log("event task stopped")
+            self._context.log("event task stopped", logging.DEBUG)
 
     async def _handle_call(self, context: BaseContext, packet: Packet) -> None:
         handler = self._context.server.get_call_handler(packet.call_id)
@@ -392,7 +392,7 @@ class Server:
 
     async def _event_loop(self) -> None:
         try:
-            logger.info("event loop started")
+            logger.debug("event loop started")
             while True:
                 event_id, payload = await self._events.get()
 
@@ -400,7 +400,7 @@ class Server:
                 for handler in handlers:
                     self._context.log(
                         f"handle event {event_id} {handler.func.__name__}",
-                        level=logging.DEBUG,
+                        logging.DEBUG,
                     )
                     try:
                         async with self._context.server.state.lock:
@@ -430,29 +430,29 @@ class Server:
             logger.error(str(exc), exc_info=exc)
             raise
         finally:
-            logger.info("event loop stopped")
+            logger.debug("event loop stopped")
 
     async def _server_loop(self) -> None:
         try:
-            logger.info("server started")
+            logger.debug("server started")
             assert self._server is not None
             await self._server.serve_forever()
         except Exception as exc:  # pragma: no cover
             logger.error(str(exc), exc_info=exc)
             raise
         finally:
-            logger.info("server stopped")
+            logger.debug("server stopped")
 
     async def _secure_server_loop(self) -> None:
         try:
-            logger.info("secure server started")
+            logger.debug("secure server started")
             assert self._secure_server is not None
             await self._secure_server.serve_forever()
         except Exception as exc:  # pragma: no cover
             logger.error(str(exc), exc_info=exc)
             raise
         finally:
-            logger.info("secure server stopped")
+            logger.debug("secure server stopped")
 
     async def _client_connected(
         self, secure: bool, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
