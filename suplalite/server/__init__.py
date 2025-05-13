@@ -77,8 +77,6 @@ class Connection:
                 pass
 
             # clean up server state
-            # FIXME: issues here if the handler stays alive, but the device reconnects
-            # prevent the new connection until the old one is cleaned up?
             if isinstance(self._context, DeviceContext):
                 device_id = self._context.device_id
                 async with self._context.server.state.lock:
