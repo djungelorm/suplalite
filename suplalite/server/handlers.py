@@ -557,9 +557,10 @@ async def send_locations(context: ClientContext) -> None:
 async def send_channels(context: ClientContext) -> None:
     devices = context.server.state.get_devices()
     channels = context.server.state.get_channels()
+    channels_list = [channels[id] for id in sorted(channels.keys())]
 
-    total_left = len(channels)
-    batches = batched(channels.values(), proto.CHANNELPACK_MAXCOUNT)
+    total_left = len(channels_list)
+    batches = batched(channels_list, proto.CHANNELPACK_MAXCOUNT)
     for batch in batches:
         items = []
         for channel in batch:
@@ -596,9 +597,10 @@ async def send_channels(context: ClientContext) -> None:
 @event_handler(EventContext.CLIENT, EventId.SEND_SCENES)
 async def send_scenes(context: ClientContext) -> None:
     scenes = context.server.state.get_scenes()
+    scenes_list = [scenes[id] for id in sorted(scenes.keys())]
 
-    total_left = len(scenes)
-    batches = batched(scenes.values(), proto.SCENE_PACK_MAXCOUNT)
+    total_left = len(scenes_list)
+    batches = batched(scenes_list, proto.SCENE_PACK_MAXCOUNT)
     for batch in batches:
         items = []
         for scene in batch:
