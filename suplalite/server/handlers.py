@@ -689,7 +689,15 @@ def get_channel_config(
     config = channel.config
 
     config_result: bytes | None = None
-    if isinstance(config, GeneralPurposeMeasurementChannelConfig):
+    if channel.type in (
+        proto.ChannelType.THERMOMETER,
+        proto.ChannelType.HUMIDITYSENSOR,
+        proto.ChannelType.HUMIDITYANDTEMPSENSOR,
+    ):
+        config_result = encoding.encode(
+            proto.TChannelConfig_TemperatureAndHumidity(0, 0, False, 0, 0, 0, 0)
+        )
+    elif isinstance(config, GeneralPurposeMeasurementChannelConfig):
         config_result = encoding.encode(
             proto.TChannelConfig_GeneralPurposeMeasurement(
                 value_divider=config.value_divider,

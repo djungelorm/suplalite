@@ -550,7 +550,7 @@ async def test_register_client(
         assert channel_packs[0].items[1].type == proto.ChannelType.THERMOMETER
         assert channel_packs[0].items[1].alt_icon == 0
         assert channel_packs[0].items[1].user_icon == 0
-        assert channel_packs[0].items[1].default_config_crc32 == 0
+        assert channel_packs[0].items[1].default_config_crc32 == 420107693
 
         assert channel_packs[0].items[2].caption == "Relay2"
         assert channel_packs[0].items[2].id == 3

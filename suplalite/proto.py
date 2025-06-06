@@ -1085,6 +1085,20 @@ class TSC_ChannelConfigUpdateOrResult:
     config: TSCS_ChannelConfig
 
 
+@dataclass
+class TChannelConfig_TemperatureAndHumidity:
+    temperature_adjustment: int = field(metadata=c_int16())
+    humidity_adjustment: int = field(metadata=c_int16())
+    adjustment_applied_by_device: bool = field(metadata=c_uint8())
+
+    min_temperature_adjustment: int = field(metadata=c_int16())
+    max_temperature_adjustment: int = field(metadata=c_int16())
+    min_humidity_adjustment: int = field(metadata=c_int16())
+    max_humidity_adjustment: int = field(metadata=c_int16())
+
+    reserved: bytes = field(repr=False, init=False, metadata=c_bytes(size=19))
+
+
 class GeneralPurposeMeasurementChartType(Enum):
     LINEAR = 0
     BAR = 1
