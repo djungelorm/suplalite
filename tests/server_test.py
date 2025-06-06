@@ -133,7 +133,7 @@ async def open_device(
 class Client(Connection):
     client_id: int
     location_pack: proto.TSC_LocationPack
-    channel_packs: list[proto.TSC_ChannelPack_D]
+    channel_packs: list[proto.TSC_ChannelPack_E]
     scene_pack: proto.TSC_ScenePack
 
 
@@ -279,7 +279,7 @@ async def register_device(stream: PacketStream, device_id: int) -> int:
 async def register_client(stream: PacketStream, name: str) -> tuple[
     int,
     proto.TSC_LocationPack,
-    list[proto.TSC_ChannelPack_D],
+    list[proto.TSC_ChannelPack_E],
     proto.TSC_ScenePack,
 ]:
     hsh = hashlib.sha256(name.encode()).digest()
@@ -314,8 +314,8 @@ async def register_client(stream: PacketStream, name: str) -> tuple[
 
         # channel update
         packet = await stream.recv()
-        assert packet.call_id == proto.Call.SC_CHANNELPACK_UPDATE_D
-        channel_pack, _ = encoding.decode(proto.TSC_ChannelPack_D, packet.data)
+        assert packet.call_id == proto.Call.SC_CHANNELPACK_UPDATE_E
+        channel_pack, _ = encoding.decode(proto.TSC_ChannelPack_E, packet.data)
         channel_packs.append(channel_pack)
         if channel_pack.total_left == 0:
             break
@@ -535,6 +535,7 @@ async def test_register_client(
         assert channel_packs[0].items[0].type == proto.ChannelType.RELAY
         assert channel_packs[0].items[0].alt_icon == 0
         assert channel_packs[0].items[0].user_icon == 0
+        assert channel_packs[0].items[0].default_config_crc32 == 0
 
         assert channel_packs[0].items[1].caption == "Thermometer"
         assert channel_packs[0].items[1].id == 2
@@ -542,6 +543,7 @@ async def test_register_client(
         assert channel_packs[0].items[1].type == proto.ChannelType.THERMOMETER
         assert channel_packs[0].items[1].alt_icon == 0
         assert channel_packs[0].items[1].user_icon == 0
+        assert channel_packs[0].items[1].default_config_crc32 == 0
 
         assert channel_packs[0].items[2].caption == "Relay2"
         assert channel_packs[0].items[2].id == 3
@@ -549,6 +551,7 @@ async def test_register_client(
         assert channel_packs[0].items[2].type == proto.ChannelType.RELAY
         assert channel_packs[0].items[2].alt_icon == 0
         assert channel_packs[0].items[2].user_icon == 0
+        assert channel_packs[0].items[2].default_config_crc32 == 0
 
         assert channel_packs[0].items[3].caption == "Lights"
         assert channel_packs[0].items[3].id == 4
@@ -556,6 +559,7 @@ async def test_register_client(
         assert channel_packs[0].items[3].type == proto.ChannelType.DIMMER
         assert channel_packs[0].items[3].alt_icon == 1
         assert channel_packs[0].items[3].user_icon == 0
+        assert channel_packs[0].items[3].default_config_crc32 == 0
 
         assert channel_packs[0].items[4].caption == "Measurement 1"
         assert channel_packs[0].items[4].id == 5
@@ -566,6 +570,7 @@ async def test_register_client(
         )
         assert channel_packs[0].items[4].alt_icon == 0
         assert channel_packs[0].items[4].user_icon == 0
+        assert channel_packs[0].items[4].default_config_crc32 == 3093446211
 
         assert channel_packs[1].items[0].caption == "Measurement 2"
         assert channel_packs[1].items[0].id == 6
@@ -576,6 +581,7 @@ async def test_register_client(
         )
         assert channel_packs[1].items[0].alt_icon == 0
         assert channel_packs[1].items[0].user_icon == 0
+        assert channel_packs[1].items[0].default_config_crc32 == 2592235365
 
         assert channel_packs[1].items[1].caption == "Lights 2"
         assert channel_packs[1].items[1].id == 7
@@ -583,6 +589,7 @@ async def test_register_client(
         assert channel_packs[1].items[1].type == proto.ChannelType.RELAY
         assert channel_packs[1].items[1].alt_icon == 0
         assert channel_packs[1].items[1].user_icon == 15666345
+        assert channel_packs[1].items[1].default_config_crc32 == 0
 
         assert channel_packs[1].items[2].caption == "Measurement 3"
         assert channel_packs[1].items[2].id == 8
@@ -593,6 +600,7 @@ async def test_register_client(
         )
         assert channel_packs[1].items[2].alt_icon == 0
         assert channel_packs[1].items[2].user_icon == 732673
+        assert channel_packs[1].items[2].default_config_crc32 == 3093446211
 
         assert channel_packs[1].items[3].caption == "Measurement 4"
         assert channel_packs[1].items[3].id == 9
@@ -603,6 +611,7 @@ async def test_register_client(
         )
         assert channel_packs[1].items[3].alt_icon == 0
         assert channel_packs[1].items[3].user_icon == 732673
+        assert channel_packs[1].items[3].default_config_crc32 == 3093446211
 
         # scene update
         if server.with_scenes:  # type: ignore

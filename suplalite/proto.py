@@ -657,7 +657,7 @@ class TSC_Channel:
 
 
 @dataclass
-class TSC_Channel_D:
+class TSC_Channel_E:
     eol: bool = field(metadata=c_uint8())
     id: int = field(metadata=c_int32())
     device_id: int = field(metadata=c_int32())
@@ -668,7 +668,8 @@ class TSC_Channel_D:
     user_icon: int = field(metadata=c_int32())
     manufacturer_id: int = field(metadata=c_int16())
     product_id: int = field(metadata=c_int16())
-    flags: int = field(metadata=c_uint32())
+    default_config_crc32: int = field(metadata=c_uint32())
+    flags: int = field(metadata=c_uint64())
     protocol_version: int = field(metadata=c_uint8())
     online: bool = field(metadata=c_uint8())
     value: ChannelValue_B
@@ -678,9 +679,9 @@ class TSC_Channel_D:
 
 
 @dataclass
-class TSC_ChannelPack_D:
+class TSC_ChannelPack_E:
     total_left: int = field(metadata=c_int32())
-    items: list[TSC_Channel_D] = field(
+    items: list[TSC_Channel_E] = field(
         metadata=c_packed_array(
             size_ctype=ctypes.c_int32,
             size_field_offset=-1,  # size field is before total_left

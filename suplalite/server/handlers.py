@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import binascii
 import inspect
 import logging
 import random
@@ -588,9 +589,11 @@ async def send_channels(context: ClientContext) -> None:
     channels = context.server.state.get_channels()
     channels_list = [channels[id] for id in sorted(channels.keys())]
 
-    def build_item(channel: ChannelState) -> proto.TSC_Channel_D:
+    def build_item(channel: ChannelState) -> proto.TSC_Channel_E:
         device = devices[channel.device_id]
-        return proto.TSC_Channel_D(
+        config = get_channel_config(context, channel.id)
+        crc32 = binascii.crc32(config.config)
+        return proto.TSC_Channel_E(
             eol=False,
             id=channel.id,
             device_id=channel.device_id,
@@ -601,6 +604,7 @@ async def send_channels(context: ClientContext) -> None:
             user_icon=channel.user_icon,
             manufacturer_id=device.manufacturer_id,
             product_id=device.product_id,
+            default_config_crc32=crc32,
             flags=channel.flags,
             protocol_version=device.proto_version,
             online=device.online,
@@ -615,9 +619,10 @@ async def send_channels(context: ClientContext) -> None:
     total_left, items = build_pack_message(
         channels_list, client.next_channel_batch, build_item
     )
-    msg = proto.TSC_ChannelPack_D(total_left=total_left, items=items)
-    await context.conn.send(proto.Call.SC_CHANNELPACK_UPDATE_D, msg)
+    msg = proto.TSC_ChannelPack_E(total_left=total_left, items=items)
+    await context.conn.send(proto.Call.SC_CHANNELPACK_UPDATE_E, msg)
     context.server.state.set_client_next_channel_batch(context.client_id)
+
     if total_left == 0:
         context.server.state.set_client_sent_channels(context.client_id)
 
@@ -651,27 +656,21 @@ async def send_scenes(context: ClientContext) -> None:
         context.server.state.set_client_sent_scenes(context.client_id)
 
 
-@call_handler(
-    proto.Call.CS_GET_CHANNEL_CONFIG, proto.Call.SC_CHANNEL_CONFIG_UPDATE_OR_RESULT
-)
-async def client_get_channel_config(
-    context: ClientContext, msg: proto.TCS_GetChannelConfigRequest
-) -> proto.TSC_ChannelConfigUpdateOrResult:
+def get_channel_config(
+    context: ClientContext, channel_id: int
+) -> proto.TSCS_ChannelConfig:
     try:
-        channel = context.server.state.get_channel(msg.channel_id)
+        channel = context.server.state.get_channel(channel_id)
     except KeyError:
         context.log(
-            f"failed to get channel config; channel id {msg.channel_id} does not exist",
+            f"failed to get channel config; channel id {channel_id} does not exist",
             level=logging.ERROR,
         )
-        return proto.TSC_ChannelConfigUpdateOrResult(
-            result=proto.ConfigResult.FALSE,
-            config=proto.TSCS_ChannelConfig(
-                channel_id=msg.channel_id,
-                func=proto.ChannelFunc.NONE,
-                config_type=proto.ConfigType.DEFAULT,
-                config=b"",
-            ),
+        return proto.TSCS_ChannelConfig(
+            channel_id=channel_id,
+            func=proto.ChannelFunc.NONE,
+            config_type=proto.ConfigType.DEFAULT,
+            config=b"",
         )
 
     config = channel.config
@@ -699,18 +698,29 @@ async def client_get_channel_config(
                 default_unit_after_value=config.unit_after_value,
             )
         )
+
+    return proto.TSCS_ChannelConfig(
+        channel_id=channel_id,
+        func=channel.func,
+        config_type=proto.ConfigType.DEFAULT,
+        config=config_result or b"",
+    )
+
+
+@call_handler(
+    proto.Call.CS_GET_CHANNEL_CONFIG, proto.Call.SC_CHANNEL_CONFIG_UPDATE_OR_RESULT
+)
+async def client_get_channel_config(
+    context: ClientContext, msg: proto.TCS_GetChannelConfigRequest
+) -> proto.TSC_ChannelConfigUpdateOrResult:
+    config = get_channel_config(context, msg.channel_id)
     return proto.TSC_ChannelConfigUpdateOrResult(
         result=(
             proto.ConfigResult.TRUE
-            if config_result is not None
+            if len(config.config) > 0
             else proto.ConfigResult.FALSE
         ),
-        config=proto.TSCS_ChannelConfig(
-            channel_id=msg.channel_id,
-            func=channel.func,
-            config_type=proto.ConfigType.DEFAULT,
-            config=config_result or b"",
-        ),
+        config=config,
     )
 
 

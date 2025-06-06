@@ -401,17 +401,18 @@ def test_partial_decode() -> None:
             68,
         ),
         (
-            proto.TSC_ChannelPack_D,
+            proto.TSC_ChannelPack_E,
             (
                 1,
                 [
-                    proto.TSC_Channel_D(
+                    proto.TSC_Channel_E(
                         False,
                         1,
                         1,
                         1,
                         proto.ChannelType.DIMMER,
                         proto.ChannelFunc.LIGHTSWITCH,
+                        0,
                         0,
                         0,
                         0,
@@ -426,13 +427,14 @@ def test_partial_decode() -> None:
                         ),
                         "Channel 1",
                     ),
-                    proto.TSC_Channel_D(
+                    proto.TSC_Channel_E(
                         True,
                         2,
                         1,
                         1,
                         proto.ChannelType.DIMMER,
                         proto.ChannelFunc.LIGHTSWITCH,
+                        0,
                         0,
                         0,
                         0,
@@ -449,7 +451,7 @@ def test_partial_decode() -> None:
                     ),
                 ],
             ),
-            148,
+            164,
         ),
         (
             proto.TCS_SuperUserAuthorizationRequest,
