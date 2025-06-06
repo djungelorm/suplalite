@@ -25,6 +25,8 @@ from suplalite.utils import to_hex
 
 from .conftest import device_guid  # type: ignore
 
+proto.CHANNELPACK_MAXCOUNT = 5
+
 
 @event_handler(EventContext.SERVER, EventId.DEVICE_CONNECTED)
 async def device_connected(
@@ -131,7 +133,7 @@ async def open_device(
 class Client(Connection):
     client_id: int
     location_pack: proto.TSC_LocationPack
-    channel_pack: proto.TSC_ChannelPack_D
+    channel_packs: list[proto.TSC_ChannelPack_D]
     scene_pack: proto.TSC_ScenePack
 
 
@@ -140,10 +142,10 @@ async def open_client(
     server: Server, name: str, secure: bool = True
 ) -> AsyncIterator[Client]:
     async with open_connection(server, secure) as stream:
-        client_id, location_pack, channel_pack, scene_pack = await register_client(
+        client_id, location_pack, channel_packs, scene_pack = await register_client(
             stream, name
         )
-        yield Client(stream, client_id, location_pack, channel_pack, scene_pack)
+        yield Client(stream, client_id, location_pack, channel_packs, scene_pack)
 
 
 def register_device_message(device_id: int) -> proto.TDS_RegisterDevice_E:
@@ -277,7 +279,7 @@ async def register_device(stream: PacketStream, device_id: int) -> int:
 async def register_client(stream: PacketStream, name: str) -> tuple[
     int,
     proto.TSC_LocationPack,
-    proto.TSC_ChannelPack_D,
+    list[proto.TSC_ChannelPack_D],
     proto.TSC_ScenePack,
 ]:
     hsh = hashlib.sha256(name.encode()).digest()
@@ -304,17 +306,29 @@ async def register_client(stream: PacketStream, name: str) -> tuple[
     assert packet.call_id == proto.Call.SC_LOCATIONPACK_UPDATE
     location_pack, _ = encoding.decode(proto.TSC_LocationPack, packet.data)
 
-    # channel update
-    packet = await stream.recv()
-    assert packet.call_id == proto.Call.SC_CHANNELPACK_UPDATE_D
-    channel_pack, _ = encoding.decode(proto.TSC_ChannelPack_D, packet.data)
+    # get channels
+    channel_packs = []
+    while True:
+        # send get next
+        await stream.send(Packet(proto.Call.CS_GET_NEXT))
+
+        # channel update
+        packet = await stream.recv()
+        assert packet.call_id == proto.Call.SC_CHANNELPACK_UPDATE_D
+        channel_pack, _ = encoding.decode(proto.TSC_ChannelPack_D, packet.data)
+        channel_packs.append(channel_pack)
+        if channel_pack.total_left == 0:
+            break
+
+    # send get next
+    await stream.send(Packet(proto.Call.CS_GET_NEXT))
 
     # scene update
     packet = await stream.recv()
     assert packet.call_id == proto.Call.SC_SCENE_PACK_UPDATE
     scene_pack, _ = encoding.decode(proto.TSC_ScenePack, packet.data)
 
-    return client_id, location_pack, channel_pack, scene_pack
+    return client_id, location_pack, channel_packs, scene_pack
 
 
 @pytest.mark.asyncio
@@ -378,7 +392,7 @@ async def test_register_device_invalid_guid(
 ) -> None:
     async with open_connection(server) as stream:
         call = register_device_message(1)
-        call.guid = b"\xFF" * 16
+        call.guid = b"\xff" * 16
         await do_register_device_invalid(stream, call)
     assert "device not found with guid ffffffffffffffffffffffffffffffff" in caplog.text
     assert "error; closing connection" in caplog.text
@@ -500,7 +514,7 @@ async def test_register_client(
     server: Server, secure: bool, caplog: pytest.LogCaptureFixture
 ) -> None:
     async with open_connection(server, secure) as client:
-        _, location_pack, channel_pack, scene_pack = await register_client(
+        _, location_pack, channel_packs, scene_pack = await register_client(
             client, "Test Client"
         )
 
@@ -510,78 +524,85 @@ async def test_register_client(
         assert location_pack.items[0].caption == "Test"
 
         # channel update
-        assert len(channel_pack.items) == 14
+        assert len(channel_packs) == 3
+        assert len(channel_packs[0].items) == 5
+        assert len(channel_packs[1].items) == 5
+        assert len(channel_packs[2].items) == 4
 
-        assert channel_pack.items[0].caption == "Relay"
-        assert channel_pack.items[0].id == 1
-        assert channel_pack.items[0].device_id == 1
-        assert channel_pack.items[0].type == proto.ChannelType.RELAY
-        assert channel_pack.items[0].alt_icon == 0
-        assert channel_pack.items[0].user_icon == 0
+        assert channel_packs[0].items[0].caption == "Relay"
+        assert channel_packs[0].items[0].id == 1
+        assert channel_packs[0].items[0].device_id == 1
+        assert channel_packs[0].items[0].type == proto.ChannelType.RELAY
+        assert channel_packs[0].items[0].alt_icon == 0
+        assert channel_packs[0].items[0].user_icon == 0
 
-        assert channel_pack.items[1].caption == "Thermometer"
-        assert channel_pack.items[1].id == 2
-        assert channel_pack.items[1].device_id == 1
-        assert channel_pack.items[1].type == proto.ChannelType.THERMOMETER
-        assert channel_pack.items[1].alt_icon == 0
-        assert channel_pack.items[1].user_icon == 0
+        assert channel_packs[0].items[1].caption == "Thermometer"
+        assert channel_packs[0].items[1].id == 2
+        assert channel_packs[0].items[1].device_id == 1
+        assert channel_packs[0].items[1].type == proto.ChannelType.THERMOMETER
+        assert channel_packs[0].items[1].alt_icon == 0
+        assert channel_packs[0].items[1].user_icon == 0
 
-        assert channel_pack.items[2].caption == "Relay2"
-        assert channel_pack.items[2].id == 3
-        assert channel_pack.items[2].device_id == 1
-        assert channel_pack.items[2].type == proto.ChannelType.RELAY
-        assert channel_pack.items[2].alt_icon == 0
-        assert channel_pack.items[2].user_icon == 0
+        assert channel_packs[0].items[2].caption == "Relay2"
+        assert channel_packs[0].items[2].id == 3
+        assert channel_packs[0].items[2].device_id == 1
+        assert channel_packs[0].items[2].type == proto.ChannelType.RELAY
+        assert channel_packs[0].items[2].alt_icon == 0
+        assert channel_packs[0].items[2].user_icon == 0
 
-        assert channel_pack.items[3].caption == "Lights"
-        assert channel_pack.items[3].id == 4
-        assert channel_pack.items[3].device_id == 2
-        assert channel_pack.items[3].type == proto.ChannelType.DIMMER
-        assert channel_pack.items[3].alt_icon == 1
-        assert channel_pack.items[3].user_icon == 0
+        assert channel_packs[0].items[3].caption == "Lights"
+        assert channel_packs[0].items[3].id == 4
+        assert channel_packs[0].items[3].device_id == 2
+        assert channel_packs[0].items[3].type == proto.ChannelType.DIMMER
+        assert channel_packs[0].items[3].alt_icon == 1
+        assert channel_packs[0].items[3].user_icon == 0
 
-        assert channel_pack.items[4].caption == "Measurement 1"
-        assert channel_pack.items[4].id == 5
-        assert channel_pack.items[4].device_id == 3
+        assert channel_packs[0].items[4].caption == "Measurement 1"
+        assert channel_packs[0].items[4].id == 5
+        assert channel_packs[0].items[4].device_id == 3
         assert (
-            channel_pack.items[4].type == proto.ChannelType.GENERAL_PURPOSE_MEASUREMENT
+            channel_packs[0].items[4].type
+            == proto.ChannelType.GENERAL_PURPOSE_MEASUREMENT
         )
-        assert channel_pack.items[4].alt_icon == 0
-        assert channel_pack.items[4].user_icon == 0
+        assert channel_packs[0].items[4].alt_icon == 0
+        assert channel_packs[0].items[4].user_icon == 0
 
-        assert channel_pack.items[5].caption == "Measurement 2"
-        assert channel_pack.items[5].id == 6
-        assert channel_pack.items[5].device_id == 3
+        assert channel_packs[1].items[0].caption == "Measurement 2"
+        assert channel_packs[1].items[0].id == 6
+        assert channel_packs[1].items[0].device_id == 3
         assert (
-            channel_pack.items[5].type == proto.ChannelType.GENERAL_PURPOSE_MEASUREMENT
+            channel_packs[1].items[0].type
+            == proto.ChannelType.GENERAL_PURPOSE_MEASUREMENT
         )
-        assert channel_pack.items[5].alt_icon == 0
-        assert channel_pack.items[5].user_icon == 0
+        assert channel_packs[1].items[0].alt_icon == 0
+        assert channel_packs[1].items[0].user_icon == 0
 
-        assert channel_pack.items[6].caption == "Lights 2"
-        assert channel_pack.items[6].id == 7
-        assert channel_pack.items[6].device_id == 4
-        assert channel_pack.items[6].type == proto.ChannelType.RELAY
-        assert channel_pack.items[6].alt_icon == 0
-        assert channel_pack.items[6].user_icon == 15666345
+        assert channel_packs[1].items[1].caption == "Lights 2"
+        assert channel_packs[1].items[1].id == 7
+        assert channel_packs[1].items[1].device_id == 4
+        assert channel_packs[1].items[1].type == proto.ChannelType.RELAY
+        assert channel_packs[1].items[1].alt_icon == 0
+        assert channel_packs[1].items[1].user_icon == 15666345
 
-        assert channel_pack.items[7].caption == "Measurement 3"
-        assert channel_pack.items[7].id == 8
-        assert channel_pack.items[7].device_id == 4
+        assert channel_packs[1].items[2].caption == "Measurement 3"
+        assert channel_packs[1].items[2].id == 8
+        assert channel_packs[1].items[2].device_id == 4
         assert (
-            channel_pack.items[7].type == proto.ChannelType.GENERAL_PURPOSE_MEASUREMENT
+            channel_packs[1].items[2].type
+            == proto.ChannelType.GENERAL_PURPOSE_MEASUREMENT
         )
-        assert channel_pack.items[7].alt_icon == 0
-        assert channel_pack.items[7].user_icon == 732673
+        assert channel_packs[1].items[2].alt_icon == 0
+        assert channel_packs[1].items[2].user_icon == 732673
 
-        assert channel_pack.items[8].caption == "Measurement 4"
-        assert channel_pack.items[8].id == 9
-        assert channel_pack.items[8].device_id == 4
+        assert channel_packs[1].items[3].caption == "Measurement 4"
+        assert channel_packs[1].items[3].id == 9
+        assert channel_packs[1].items[3].device_id == 4
         assert (
-            channel_pack.items[8].type == proto.ChannelType.GENERAL_PURPOSE_MEASUREMENT
+            channel_packs[1].items[3].type
+            == proto.ChannelType.GENERAL_PURPOSE_MEASUREMENT
         )
-        assert channel_pack.items[8].alt_icon == 0
-        assert channel_pack.items[8].user_icon == 732673
+        assert channel_packs[1].items[3].alt_icon == 0
+        assert channel_packs[1].items[3].user_icon == 732673
 
         # scene update
         if server.with_scenes:  # type: ignore

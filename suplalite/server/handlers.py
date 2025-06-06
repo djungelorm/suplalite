@@ -17,7 +17,11 @@ from suplalite.server.context import (
     DeviceContext,
 )
 from suplalite.server.events import EventContext, EventId
-from suplalite.server.state import ChannelState, GeneralPurposeMeasurementChannelConfig
+from suplalite.server.state import (
+    ChannelState,
+    GeneralPurposeMeasurementChannelConfig,
+    SceneState,
+)
 from suplalite.utils import batched, to_hex
 
 HandlerArgs = ParamSpec("HandlerArgs")
@@ -305,8 +309,6 @@ async def register_client(
         context.log(f"registered; proto={context.conn.proto_version}")
         await context.server.events.add(EventId.CLIENT_CONNECTED, (client_id,))
         await context.events.add(EventId.SEND_LOCATIONS)
-        await context.events.add(EventId.SEND_CHANNELS)
-        await context.events.add(EventId.SEND_SCENES)
         result_code = proto.ResultCode.TRUE
 
     channel_count = len(context.server.state.get_channels())
@@ -362,10 +364,11 @@ async def oauth_token_request(
 async def client_get_next(
     context: ClientContext,  # pylint:disable=unused-argument
 ) -> None:  # pragma: no cover
-    # Note: This appears to be used by clients to prompt the server to
-    # send location/channel/scene information. But this is proactively
-    # sent by the server, so these requests do not need to be handled.
-    pass
+    client = context.server.state.get_client(context.client_id)
+    if not client.sent_channels:
+        await context.events.add(EventId.SEND_CHANNELS)
+    elif not client.sent_scenes:
+        await context.events.add(EventId.SEND_SCENES)
 
 
 async def execute_channel_action(
@@ -553,72 +556,99 @@ async def send_locations(context: ClientContext) -> None:
     await context.conn.send(proto.Call.SC_LOCATIONPACK_UPDATE, msg)
 
 
+def build_pack_message(
+    items: list[Any], batch_idx: int, build_item: Callable[[Any], Any]
+) -> tuple[int, list[Any]]:
+    total_left = len(items)
+    batches = list(batched(items, proto.CHANNELPACK_MAXCOUNT))
+    assert batch_idx < len(batches)
+
+    for idx, batch in enumerate(batches):  # pragma: no branch
+        total_left -= len(batch)
+        if idx == batch_idx:
+            break
+
+    pack = []
+    for item in batches[batch_idx]:
+        pack.append(build_item(item))
+
+    if total_left == 0 and len(pack) > 0:
+        pack[-1].eol = True
+
+    return total_left, pack
+
+
 @event_handler(EventContext.CLIENT, EventId.SEND_CHANNELS)
 async def send_channels(context: ClientContext) -> None:
+    client = context.server.state.get_client(context.client_id)
+    if client.sent_channels:  # pragma: no cover
+        return
+
     devices = context.server.state.get_devices()
     channels = context.server.state.get_channels()
     channels_list = [channels[id] for id in sorted(channels.keys())]
 
-    total_left = len(channels_list)
-    batches = batched(channels_list, proto.CHANNELPACK_MAXCOUNT)
-    for batch in batches:
-        items = []
-        for channel in batch:
-            device = devices[channel.device_id]
-            items.append(
-                proto.TSC_Channel_D(
-                    eol=False,
-                    id=channel.id,
-                    device_id=channel.device_id,
-                    location_id=1,
-                    type=channel.type,
-                    func=channel.func,
-                    alt_icon=channel.alt_icon,
-                    user_icon=channel.user_icon,
-                    manufacturer_id=device.manufacturer_id,
-                    product_id=device.product_id,
-                    flags=channel.flags,
-                    protocol_version=device.proto_version,
-                    online=device.online,
-                    value=proto.ChannelValue_B(
-                        channel.value,
-                        b"\x00\x00\x00\x00\x00\x00\x00\x00",
-                        0,
-                    ),
-                    caption=channel.caption,
-                )
-            )
-        items[-1].eol = True
-        total_left -= len(items)
-        msg = proto.TSC_ChannelPack_D(total_left=total_left, items=items)
-        await context.conn.send(proto.Call.SC_CHANNELPACK_UPDATE_D, msg)
+    def build_item(channel: ChannelState) -> proto.TSC_Channel_D:
+        device = devices[channel.device_id]
+        return proto.TSC_Channel_D(
+            eol=False,
+            id=channel.id,
+            device_id=channel.device_id,
+            location_id=1,
+            type=channel.type,
+            func=channel.func,
+            alt_icon=channel.alt_icon,
+            user_icon=channel.user_icon,
+            manufacturer_id=device.manufacturer_id,
+            product_id=device.product_id,
+            flags=channel.flags,
+            protocol_version=device.proto_version,
+            online=device.online,
+            value=proto.ChannelValue_B(
+                channel.value,
+                b"\x00\x00\x00\x00\x00\x00\x00\x00",
+                0,
+            ),
+            caption=channel.caption,
+        )
+
+    total_left, items = build_pack_message(
+        channels_list, client.next_channel_batch, build_item
+    )
+    msg = proto.TSC_ChannelPack_D(total_left=total_left, items=items)
+    await context.conn.send(proto.Call.SC_CHANNELPACK_UPDATE_D, msg)
+    context.server.state.set_client_next_channel_batch(context.client_id)
+    if total_left == 0:
+        context.server.state.set_client_sent_channels(context.client_id)
 
 
 @event_handler(EventContext.CLIENT, EventId.SEND_SCENES)
 async def send_scenes(context: ClientContext) -> None:
+    client = context.server.state.get_client(context.client_id)
+    if client.sent_scenes:  # pragma: no cover
+        return
+
     scenes = context.server.state.get_scenes()
     scenes_list = [scenes[id] for id in sorted(scenes.keys())]
 
-    total_left = len(scenes_list)
-    batches = batched(scenes_list, proto.SCENE_PACK_MAXCOUNT)
-    for batch in batches:
-        items = []
-        for scene in batch:
-            items.append(
-                proto.TSC_Scene(
-                    eol=False,
-                    id=scene.id,
-                    location_id=1,
-                    alt_icon=scene.alt_icon,
-                    user_icon=scene.user_icon,
-                    caption=scene.caption,
-                )
-            )
-        if len(items) > 0:
-            items[-1].eol = True
-        total_left -= len(items)
-        msg = proto.TSC_ScenePack(total_left=total_left, items=items)
-        await context.conn.send(proto.Call.SC_SCENE_PACK_UPDATE, msg)
+    def build_item(scene: SceneState) -> proto.TSC_Scene:
+        return proto.TSC_Scene(
+            eol=False,
+            id=scene.id,
+            location_id=1,
+            alt_icon=scene.alt_icon,
+            user_icon=scene.user_icon,
+            caption=scene.caption,
+        )
+
+    total_left, items = build_pack_message(
+        scenes_list, client.next_scene_batch, build_item
+    )
+    msg = proto.TSC_ScenePack(total_left=total_left, items=items)
+    await context.conn.send(proto.Call.SC_SCENE_PACK_UPDATE, msg)
+    context.server.state.set_client_next_scene_batch(context.client_id)
+    if total_left == 0:  # pragma: no branch
+        context.server.state.set_client_sent_scenes(context.client_id)
 
 
 @call_handler(

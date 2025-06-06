@@ -63,8 +63,25 @@ class ServerState:
         self._clients[client_id].online = False
         self._clients[client_id].authorized = False
 
+        self._clients[client_id].sent_channels = False
+        self._clients[client_id].next_channel_batch = 0
+        self._clients[client_id].sent_scenes = False
+        self._clients[client_id].next_scene_batch = 0
+
     def set_client_authorized(self, client_id: int) -> None:
         self._clients[client_id].authorized = True
+
+    def set_client_sent_channels(self, client_id: int) -> None:
+        self._clients[client_id].sent_channels = True
+
+    def set_client_next_channel_batch(self, client_id: int) -> None:
+        self._clients[client_id].next_channel_batch += 1
+
+    def set_client_sent_scenes(self, client_id: int) -> None:
+        self._clients[client_id].sent_scenes = True
+
+    def set_client_next_scene_batch(self, client_id: int) -> None:
+        self._clients[client_id].next_scene_batch += 1
 
     def get_clients(self) -> dict[int, ClientState]:
         return copy.deepcopy(self._clients)
@@ -247,6 +264,10 @@ class ClientState:
     guid: bytes
     online: bool
     authorized: bool = False
+    sent_channels: bool = False
+    next_channel_batch: int = 0
+    sent_scenes: bool = False
+    next_scene_batch: int = 0
 
 
 @dataclass
