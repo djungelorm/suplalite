@@ -26,6 +26,7 @@ from suplalite.utils import to_hex
 from .conftest import device_guid  # type: ignore
 
 proto.CHANNELPACK_MAXCOUNT = 5
+proto.ACTIVITY_TIMEOUT_DEFAULT = 30
 
 
 @event_handler(EventContext.SERVER, EventId.DEVICE_CONNECTED)
