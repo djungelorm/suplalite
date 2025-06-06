@@ -62,9 +62,9 @@ class ServerState:
         del self._client_events[client_id]
         self._clients[client_id].online = False
         self._clients[client_id].authorized = False
-
         self._clients[client_id].sent_channels = False
         self._clients[client_id].next_channel_batch = 0
+        self._clients[client_id].sent_channel_relations = False
         self._clients[client_id].sent_scenes = False
         self._clients[client_id].next_scene_batch = 0
 
@@ -76,6 +76,9 @@ class ServerState:
 
     def set_client_next_channel_batch(self, client_id: int) -> None:
         self._clients[client_id].next_channel_batch += 1
+
+    def set_client_sent_channel_relations(self, client_id: int) -> None:
+        self._clients[client_id].sent_channel_relations = True
 
     def set_client_sent_scenes(self, client_id: int) -> None:
         self._clients[client_id].sent_scenes = True
@@ -266,6 +269,7 @@ class ClientState:
     authorized: bool = False
     sent_channels: bool = False
     next_channel_batch: int = 0
+    sent_channel_relations: bool = False
     sent_scenes: bool = False
     next_scene_batch: int = 0
 

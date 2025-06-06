@@ -64,11 +64,11 @@ CALCFG_DATA_MAXSIZE = 128  # ver. >= 10
 TIMEZONE_MAXSIZE = 51  # ver. >= 11
 ACTION_PARAM_MAXSIZE = 500  # ver. >= 18
 
-CHANNELGROUP_RELATION_PACK_MAXCOUNT = 100  # ver. >= 9
-
 SCENE_CAPTION_MAXSIZE = CAPTION_MAXSIZE  #  ver. >= 18
 SCENE_PACK_MAXCOUNT = 20  #  ver. >= 18
 SCENE_STATE_PACK_MAXCOUNT = 20  #  ver. >= 18
+
+CHANNEL_RELATION_PACK_MAXCOUNT = 100  #  ver. >= 21
 
 DEVICE_NAME_MAXSIZE = 201
 CLIENT_NAME_MAXSIZE = 201
@@ -686,6 +686,41 @@ class TSC_ChannelPack_E:
             size_ctype=ctypes.c_int32,
             size_field_offset=-1,  # size field is before total_left
             max_size=CHANNELPACK_MAXCOUNT,
+        )
+    )
+
+
+class ChannelRelationType(Enum):
+    DEFAULT = 0
+    OPENING_SENSOR = 1
+    PARTIAL_OPENING_SENSOR = 2
+    METER = 3
+    MAIN_TERMOMETER = 4
+    AUX_THERMOMETER_FLOOR = 5
+    AUX_THERMOMETER_WATER = 6
+    AUX_THERMOMETER_GENERIC_HEATER = 7
+    AUX_THERMOMETER_GENERIC_COOLER = 8
+    MASTER_THERMOSTAT = 20
+    HEAT_OR_COLD_SOURCE_SWITCH = 21
+    PUMP_SWITCH = 22
+
+
+@dataclass
+class TSC_ChannelRelation:
+    eol: bool = field(metadata=c_uint8())
+    id: int = field(metadata=c_int32())
+    parent_id: int = field(metadata=c_int32())
+    type: ChannelRelationType = field(metadata=c_enum(ctypes.c_uint16))
+
+
+@dataclass
+class TSC_ChannelRelationPack:
+    total_left: int = field(metadata=c_int32())
+    items: list[TSC_ChannelRelation] = field(
+        metadata=c_packed_array(
+            size_ctype=ctypes.c_int32,
+            size_field_offset=-1,  # size field is before total_left
+            max_size=CHANNEL_RELATION_PACK_MAXCOUNT,
         )
     )
 

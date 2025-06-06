@@ -323,6 +323,13 @@ async def register_client(stream: PacketStream, name: str) -> tuple[
     # send get next
     await stream.send(Packet(proto.Call.CS_GET_NEXT))
 
+    # channel relations update
+    packet = await stream.recv()
+    assert packet.call_id == proto.Call.SC_CHANNEL_RELATION_PACK_UPDATE
+
+    # send get next
+    await stream.send(Packet(proto.Call.CS_GET_NEXT))
+
     # scene update
     packet = await stream.recv()
     assert packet.call_id == proto.Call.SC_SCENE_PACK_UPDATE

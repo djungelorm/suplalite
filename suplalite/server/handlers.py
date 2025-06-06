@@ -368,6 +368,8 @@ async def client_get_next(
     client = context.server.state.get_client(context.client_id)
     if not client.sent_channels:
         await context.events.add(EventId.SEND_CHANNELS)
+    elif not client.sent_channel_relations:
+        await context.events.add(EventId.SEND_CHANNEL_RELATIONS)
     elif not client.sent_scenes:
         await context.events.add(EventId.SEND_SCENES)
 
@@ -625,6 +627,17 @@ async def send_channels(context: ClientContext) -> None:
 
     if total_left == 0:
         context.server.state.set_client_sent_channels(context.client_id)
+
+
+@event_handler(EventContext.CLIENT, EventId.SEND_CHANNEL_RELATIONS)
+async def send_channel_relations(context: ClientContext) -> None:
+    client = context.server.state.get_client(context.client_id)
+    if client.sent_channel_relations:  # pragma: no cover
+        return
+
+    msg = proto.TSC_ChannelRelationPack(total_left=0, items=[])
+    await context.conn.send(proto.Call.SC_CHANNEL_RELATION_PACK_UPDATE, msg)
+    context.server.state.set_client_sent_channel_relations(context.client_id)
 
 
 @event_handler(EventContext.CLIENT, EventId.SEND_SCENES)
