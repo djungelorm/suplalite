@@ -888,8 +888,9 @@ async def device_connected(context: ClientContext, device_id: int) -> None:
                     ),
                 )
             )
-        items[-1].eol = True
         total_left -= len(items)
+        if total_left == 0 and len(items) > 0:  # pragma: no branch
+            items[-1].eol = True
         msg = proto.TSC_ChannelValuePack_B(total_left=total_left, items=items)
         await context.conn.send(proto.Call.SC_CHANNELVALUE_PACK_UPDATE_B, msg)
 
