@@ -61,26 +61,33 @@ async def register_result_d(context: Context, msg: proto.TSC_RegisterClientResul
         raise RuntimeError(f"Register failed: {result_code.name}")
     logging.debug("registered")
     context.client._ping_timeout = msg.activity_timeout / 2
-    context.client._state = context.client.State.CONNECTED
+    context.client._state = context.client.State.AUTHENTICATING
     await oauth_request(context)
 
 
 @supla_call(proto.Call.SC_LOCATIONPACK_UPDATE)
 async def locationpack_update(context: Context, msg: proto.TSC_LocationPack):
     logging.debug("location pack update")
-    context.client._got_locations = True
+    context.client._got_locations = msg.total_left == 0
 
 
-@supla_call(proto.Call.SC_CHANNELPACK_UPDATE_D)
-async def channelpack_update(context: Context, msg: proto.TSC_ChannelPack_D):
+@supla_call(proto.Call.SC_CHANNELPACK_UPDATE_E)
+async def channelpack_update(context: Context, msg: proto.TSC_ChannelPack_E):
     logging.debug("channel pack update")
-    context.client._got_channels = True
+    context.client._got_channels = msg.total_left == 0
+
+
+@supla_call(proto.Call.SC_CHANNEL_RELATION_PACK_UPDATE)
+async def channelrelationpack_update(
+    context: Context, msg: proto.TSC_ChannelRelationPack
+):
+    logging.debug("channel relation pack update")
 
 
 @supla_call(proto.Call.SC_SCENE_PACK_UPDATE)
 async def scenepack_update(context: Context, msg: proto.TSC_ScenePack):
     logging.debug(f"scene pack update")
-    context.client._got_scenes = True
+    context.client._got_scenes = msg.total_left == 0
 
 
 @supla_call(proto.Call.SC_CHANNELVALUE_PACK_UPDATE_B)
@@ -97,6 +104,7 @@ async def oauth_request(context):
 @supla_call(proto.Call.SC_OAUTH_TOKEN_REQUEST_RESULT)
 async def oauth_result(context: Context, msg: proto.TSC_OAuthTokenRequestResult):
     logging.debug("oauth result")
+    context.client._state = context.client.State.CONNECTED
 
 
 ##############################################################
@@ -106,7 +114,8 @@ class Client:
     class State(Enum):
         CONNECTING = 1
         REGISTERING = 2
-        CONNECTED = 3
+        AUTHENTICATING = 3
+        CONNECTED = 4
 
     def __init__(
         self,
@@ -131,12 +140,13 @@ class Client:
 
         self._stream = None
         self._state = self.State.CONNECTING
-        self._last_get_next = time.time()
+        self._last_get_next = 0
         self._last_ping = time.time()
         self._ping_timeout = proto.ACTIVITY_TIMEOUT_MIN / 2
         self._got_locations = False
         self._got_channels = False
         self._got_scenes = False
+        self._extra_get_next = 3
 
     async def connect(self):
         if not self._secure:
@@ -163,16 +173,16 @@ class Client:
             self._state = self.State.REGISTERING
             return
 
-        if (
-            self._state == self.State.CONNECTED
-            and any(
-                [not self._got_locations, not self._got_channels, not self._got_scenes]
-            )
-            and time.time() - self._last_get_next > 3
-        ):
-            self._last_get_next = time.time()
-            await self._get_next()
-            return
+        not_got_all = any(
+            [not self._got_locations, not self._got_channels, self._extra_get_next > 0]
+        )
+        if self._state == self.State.CONNECTED and not_got_all:
+            if time.time() - self._last_get_next > 0.5:
+                if self._got_locations and self._got_channels:
+                    self._extra_get_next -= 1
+                self._last_get_next = time.time()
+                await self._get_next()
+                return
 
         if (
             self._state == self.State.CONNECTED
@@ -182,8 +192,19 @@ class Client:
             await self._ping()
             return
 
-        packet = await self._stream.recv()
-        await self._handle_packet(packet)
+        if not_got_all:
+            packet = None
+            try:
+                async with asyncio.timeout(0.5):
+                    packet = await self._stream.recv()
+            except TimeoutError:
+                pass
+            if packet is not None:
+                await self._handle_packet(packet)
+
+        else:
+            packet = await self._stream.recv()
+            await self._handle_packet(packet)
 
     async def _register(self):
         logging.debug("registering")
@@ -236,8 +257,8 @@ async def main():
     client = Client(
         "127.0.0.1",
         "email@email.com",
-        b"\xDD\xDD\xDD\xDD\x4A\xD3\xB8\xAA\x36\x66\x21\x6F\x2A\x86\x42\x23",
-        b"\xCC\xCC\xCC\xCC\xE5\x34\xD1\xA7\x06\xAC\x5F\x41\x67\x19\x89\x9E",
+        b"\xdd\xdd\xdd\xdd\x4a\xd3\xb8\xaa\x36\x66\x21\x6f\x2a\x86\x42\x23",
+        b"\xcc\xcc\xcc\xcc\xe5\x34\xd1\xa7\x06\xac\x5f\x41\x67\x19\x89\x9e",
         "Test Client",
         port=2016,
         secure=True,
