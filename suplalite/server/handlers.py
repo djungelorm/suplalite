@@ -145,7 +145,7 @@ async def register_device(
         context.error = True
         return proto.TSD_RegisterDeviceResult(
             proto.ResultCode.FALSE,
-            proto.ACTIVITY_TIMEOUT_MIN,
+            proto.ACTIVITY_TIMEOUT_DEFAULT,
             proto.PROTO_VERSION,
             proto.PROTO_VERSION_MIN,
         )
@@ -161,7 +161,7 @@ async def register_device(
         context.error = True
         return proto.TSD_RegisterDeviceResult(
             proto.ResultCode.FALSE,
-            proto.ACTIVITY_TIMEOUT_MIN,
+            proto.ACTIVITY_TIMEOUT_DEFAULT,
             proto.PROTO_VERSION,
             proto.PROTO_VERSION_MIN,
         )
@@ -175,7 +175,7 @@ async def register_device(
         context.error = True
         return proto.TSD_RegisterDeviceResult(
             proto.ResultCode.FALSE,
-            proto.ACTIVITY_TIMEOUT_MIN,
+            proto.ACTIVITY_TIMEOUT_DEFAULT,
             proto.PROTO_VERSION,
             proto.PROTO_VERSION_MIN,
         )
@@ -214,7 +214,7 @@ async def register_device(
         context.error = True
         return proto.TSD_RegisterDeviceResult(
             proto.ResultCode.FALSE,
-            proto.ACTIVITY_TIMEOUT_MIN,
+            proto.ACTIVITY_TIMEOUT_DEFAULT,
             proto.PROTO_VERSION,
             proto.PROTO_VERSION_MIN,
         )
@@ -228,7 +228,7 @@ async def register_device(
         context.error = True
         return proto.TSD_RegisterDeviceResult(
             proto.ResultCode.FALSE,
-            proto.ACTIVITY_TIMEOUT_MIN,
+            proto.ACTIVITY_TIMEOUT_DEFAULT,
             proto.PROTO_VERSION,
             proto.PROTO_VERSION_MIN,
         )

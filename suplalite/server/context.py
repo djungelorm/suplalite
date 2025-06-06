@@ -48,7 +48,7 @@ class ConnectionContext(BaseContext):
     ) -> None:
         super().__init__(server, events, name)
         self.conn = conn
-        self.activity_timeout = proto.ACTIVITY_TIMEOUT_MIN
+        self.activity_timeout = proto.ACTIVITY_TIMEOUT_DEFAULT
         self.error = False
 
         self._replacement: ClientContext | DeviceContext | None = None
