@@ -153,7 +153,7 @@ class Temperature(Channel):
     def flags(self) -> proto.ChannelFlag:
         return proto.ChannelFlag.CHANNELSTATE
 
-    async def set_value(self, value: float) -> bool:
+    async def set_value(self, value: float | None) -> bool:
         self._value = value
         await self.update()
         return True
@@ -163,9 +163,8 @@ class Temperature(Channel):
         return self.encode(self._value)
 
     async def set_encoded_value(self, data: bytes) -> bool:
-        self._value = self.decode(data)
-        await self.update()
-        return True
+        value = self.decode(data)
+        return await self.set_value(value)
 
     @staticmethod
     def encode(value: float | None) -> bytes:
@@ -213,7 +212,7 @@ class Humidity(Channel):
     def flags(self) -> proto.ChannelFlag:
         return proto.ChannelFlag.CHANNELSTATE
 
-    async def set_value(self, value: float) -> bool:
+    async def set_value(self, value: float | None) -> bool:
         self._value = value
         await self.update()
         return True
@@ -223,9 +222,8 @@ class Humidity(Channel):
         return self.encode(self._value)
 
     async def set_encoded_value(self, data: bytes) -> bool:
-        self._value = self.decode(data)
-        await self.update()
-        return True
+        value = self.decode(data)
+        return await self.set_value(value)
 
     @staticmethod
     def encode(value: float | None) -> bytes:
@@ -279,12 +277,12 @@ class TemperatureAndHumidity(Channel):
     def flags(self) -> proto.ChannelFlag:
         return proto.ChannelFlag.CHANNELSTATE
 
-    async def set_temperature(self, value: float) -> bool:
+    async def set_temperature(self, value: float | None) -> bool:
         self._temperature = value
         await self.update()
         return True
 
-    async def set_humidity(self, value: float) -> bool:
+    async def set_humidity(self, value: float | None) -> bool:
         self._humidity = value
         await self.update()
         return True
