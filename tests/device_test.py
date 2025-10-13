@@ -292,7 +292,7 @@ async def test_server_set_value(
     )
 
 
-@pytest.mark.parametrize("channel_number", (0, 1, 2, 3, 4, 5))
+@pytest.mark.parametrize("channel_number", (0, 1, 2, 3, 4, 5, 6))
 @pytest.mark.asyncio
 async def test_channels(
     server: Server, caplog: pytest.LogCaptureFixture, channel_number: int
@@ -320,18 +320,26 @@ async def test_channels(
         values.append(value)
         await channel.do_set_value(value)
 
+    async def rgb_on_change(
+        channel: channels.RGBDimmer, value: tuple[int, int, int, int]
+    ) -> None:
+        values.append(value)
+        await channel.do_set_value(value)
+
     relay = channels.Relay(on_change=relay_on_change)
     temp = channels.Temperature()
     humi = channels.Humidity()
     tempandhumi = channels.TemperatureAndHumidity()
     gpm = channels.GeneralPurposeMeasurement()
     dimmer = channels.Dimmer(on_change=dimmer_on_change)
+    rgb = channels.RGBDimmer(on_change=rgb_on_change)
     device.add(relay)
     device.add(temp)
     device.add(humi)
     device.add(tempandhumi)
     device.add(gpm)
     device.add(dimmer)
+    device.add(rgb)
 
     await device.start()
     await device.connected.wait()
@@ -357,6 +365,10 @@ async def test_channels(
     if channel_number == 5:
         await dimmer.set_value(42)
         assert values == [42]
+
+    if channel_number == 6:
+        await rgb.set_value((42, 83, 14, 90))
+        assert values == [(42, 83, 14, 90)]
 
     await asyncio.sleep(0.5)
     await device.stop()
@@ -529,6 +541,20 @@ async def test_dimmer() -> None:
     assert channel.value == 50
 
     assert channels.Dimmer.decode(b"*\xff\xff\xff\xff\xff\xff\xff") == 42
+
+
+@pytest.mark.asyncio
+async def test_rgb_dimmer() -> None:
+    channel = channels.RGBDimmer()
+    assert channel.value == (0, 0, 0, 0)
+    assert channel.encoded_value == b"\x00\x00\x00\x00\x00\x00\x00\x00"
+
+    await channel.set_value((1, 2, 3, 4))
+    assert channel.value == (1, 2, 3, 4)
+    assert channel.encoded_value == b"\x00\x01\x04\x03\x02\x00\x00\x00"
+
+    await channel.set_encoded_value(b"\x002/01\x00\x00\x00")
+    assert channel.value == (50, 49, 48, 47)
 
 
 async def sub_task() -> None:

@@ -444,3 +444,81 @@ class Dimmer(Channel):
     def decode(data: bytes) -> int:
         msg, _ = encoding.decode(proto.TDimmerChannel_Value, data)
         return msg.brightness
+
+
+class RGBDimmer(Channel):
+    def __init__(
+        self,
+        on_change: (
+            Callable[[RGBDimmer, tuple[int, int, int, int]], Awaitable[None]] | None
+        ) = None,
+    ):
+        super().__init__()
+        self._value = (0, 0, 0, 0)
+        self._on_change = on_change
+
+    @property
+    def value(self) -> tuple[int, int, int, int]:
+        return self._value
+
+    @property
+    def type(self) -> proto.ChannelType:
+        return proto.ChannelType.RGBLEDCONTROLLER
+
+    @property
+    def action_trigger_caps(self) -> proto.ActionCap:
+        return (
+            proto.ActionCap.TURN_ON
+            | proto.ActionCap.TURN_OFF
+            | proto.ActionCap.TOGGLE_x1
+            | proto.ActionCap.TOGGLE_x2
+            | proto.ActionCap.TOGGLE_x3
+            | proto.ActionCap.TOGGLE_x4
+            | proto.ActionCap.TOGGLE_x5
+        )
+
+    @property
+    def func(self) -> proto.ChannelFunc:
+        return proto.ChannelFunc.RGBLIGHTING
+
+    @property
+    def flags(self) -> proto.ChannelFlag:
+        return proto.ChannelFlag.CHANNELSTATE
+
+    async def do_set_value(self, value: tuple[int, int, int, int]) -> None:
+        self._value = value
+        await self.update()
+
+    async def set_value(self, value: tuple[int, int, int, int]) -> bool:
+        if self._on_change is None:
+            await self.do_set_value(value)
+        else:
+            await self._on_change(self, value)
+        return True
+
+    @property
+    def encoded_value(self) -> bytes:
+        return self.encode(self._value)
+
+    async def set_encoded_value(self, data: bytes) -> bool:
+        value = self.decode(data)
+        return await self.set_value(value)
+
+    @staticmethod
+    def encode(value: tuple[int, int, int, int]) -> bytes:
+        return encoding.encode(
+            proto.TRGBDimmerChannel_Value(
+                brightness=0,
+                colorBrightness=value[0],
+                r=value[1],
+                g=value[2],
+                b=value[3],
+                onOff=False,
+                command=0,
+            )
+        )
+
+    @staticmethod
+    def decode(data: bytes) -> tuple[int, int, int, int]:
+        msg, _ = encoding.decode(proto.TRGBDimmerChannel_Value, data)
+        return msg.colorBrightness, msg.r, msg.g, msg.b

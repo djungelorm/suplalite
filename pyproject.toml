@@ -77,6 +77,7 @@ reports = "no"
 [tool.pylint.design]
 max-positional-arguments = 12
 max-statements = 100
+max-branches = 20
 
 [tool.coverage.run]
 branch = true
