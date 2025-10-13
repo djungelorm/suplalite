@@ -535,7 +535,7 @@ async def test_register_client(
         assert len(channel_packs) == 3
         assert len(channel_packs[0].items) == 5
         assert len(channel_packs[1].items) == 5
-        assert len(channel_packs[2].items) == 4
+        assert len(channel_packs[2].items) == 5
 
         assert channel_packs[0].items[0].caption == "Relay"
         assert channel_packs[0].items[0].id == 1

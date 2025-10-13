@@ -380,7 +380,63 @@ class GeneralPurposeMeasurement(Channel):
         return msg.value
 
 
-class Dimmer:
+class Dimmer(Channel):
+    def __init__(
+        self,
+        default: int = 0,
+        on_change: Callable[[Dimmer, int], Awaitable[None]] | None = None,
+    ):
+        super().__init__()
+        self._value = default
+        self._on_change = on_change
+
+    @property
+    def value(self) -> int:
+        return self._value
+
+    @property
+    def type(self) -> proto.ChannelType:
+        return proto.ChannelType.DIMMER
+
+    @property
+    def action_trigger_caps(self) -> proto.ActionCap:
+        return (
+            proto.ActionCap.TURN_ON
+            | proto.ActionCap.TURN_OFF
+            | proto.ActionCap.TOGGLE_x1
+            | proto.ActionCap.TOGGLE_x2
+            | proto.ActionCap.TOGGLE_x3
+            | proto.ActionCap.TOGGLE_x4
+            | proto.ActionCap.TOGGLE_x5
+        )
+
+    @property
+    def func(self) -> proto.ChannelFunc:
+        return proto.ChannelFunc.DIMMER
+
+    @property
+    def flags(self) -> proto.ChannelFlag:
+        return proto.ChannelFlag.CHANNELSTATE
+
+    async def do_set_value(self, value: int) -> None:
+        self._value = value
+        await self.update()
+
+    async def set_value(self, value: int) -> bool:
+        if self._on_change is None:
+            await self.do_set_value(value)
+        else:
+            await self._on_change(self, value)
+        return True
+
+    @property
+    def encoded_value(self) -> bytes:
+        return self.encode(self._value)
+
+    async def set_encoded_value(self, data: bytes) -> bool:
+        value = self.decode(data)
+        return await self.set_value(value)
+
     @staticmethod
     def encode(value: int) -> bytes:
         return encoding.encode(proto.TDimmerChannel_Value(brightness=value))

@@ -30,7 +30,7 @@ async def test_device(server: Server, caplog: pytest.LogCaptureFixture) -> None:
         email="email@email.com",
         name="device",
         version="1.0.0",
-        authkey=b"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x00\x0A\x0B\x0C\x0D\x0E\x0F",
+        authkey=b"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x00\x0a\x0b\x0c\x0d\x0e\x0f",
         guid=device_guid[1],
     )
     channel_a = channels.Relay()
@@ -93,7 +93,7 @@ async def test_device_ping(server: Server, caplog: pytest.LogCaptureFixture) -> 
         email="email@email.com",
         name="device",
         version="1.0.0",
-        authkey=b"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x00\x0A\x0B\x0C\x0D\x0E\x0F",
+        authkey=b"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x00\x0a\x0b\x0c\x0d\x0e\x0f",
         guid=device_guid[1],
     )
     device.add(channels.Relay())
@@ -123,7 +123,7 @@ async def test_no_channels(server: Server) -> None:
         email="email@email.com",
         name="device",
         version="1.0.0",
-        authkey=b"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x00\x0A\x0B\x0C\x0D\x0E\x0F",
+        authkey=b"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x00\x0a\x0b\x0c\x0d\x0e\x0f",
         guid=device_guid[1],
     )
 
@@ -144,7 +144,7 @@ async def test_wrong_channels(server: Server, caplog: pytest.LogCaptureFixture) 
         email="email@email.com",
         name="device",
         version="1.0.0",
-        authkey=b"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x00\x0A\x0B\x0C\x0D\x0E\x0F",
+        authkey=b"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x00\x0a\x0b\x0c\x0d\x0e\x0f",
         guid=device_guid[1],
     )
     device.add(channels.Relay())
@@ -174,7 +174,7 @@ async def test_channel_state(server: Server, caplog: pytest.LogCaptureFixture) -
         email="email@email.com",
         name="device",
         version="1.0.0",
-        authkey=b"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x00\x0A\x0B\x0C\x0D\x0E\x0F",
+        authkey=b"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x00\x0a\x0b\x0c\x0d\x0e\x0f",
         guid=device_guid[1],
     )
     device.add(channels.Relay())
@@ -218,7 +218,7 @@ async def test_channel_set_value(
         email="email@email.com",
         name="device",
         version="1.0.0",
-        authkey=b"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x00\x0A\x0B\x0C\x0D\x0E\x0F",
+        authkey=b"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x00\x0a\x0b\x0c\x0d\x0e\x0f",
         guid=device_guid[1],
     )
     channel = channels.Temperature()
@@ -260,7 +260,7 @@ async def test_server_set_value(
         email="email@email.com",
         name="device",
         version="1.0.0",
-        authkey=b"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x00\x0A\x0B\x0C\x0D\x0E\x0F",
+        authkey=b"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x00\x0a\x0b\x0c\x0d\x0e\x0f",
         guid=device_guid[1],
     )
     channel = channels.Relay()
@@ -292,7 +292,7 @@ async def test_server_set_value(
     )
 
 
-@pytest.mark.parametrize("channel_number", (0, 1, 2, 3, 4))
+@pytest.mark.parametrize("channel_number", (0, 1, 2, 3, 4, 5))
 @pytest.mark.asyncio
 async def test_channels(
     server: Server, caplog: pytest.LogCaptureFixture, channel_number: int
@@ -306,26 +306,32 @@ async def test_channels(
         email="email@email.com",
         name="device",
         version="1.0.0",
-        authkey=b"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x00\x0A\x0B\x0C\x0D\x0E\x0F",
+        authkey=b"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x00\x0a\x0b\x0c\x0d\x0e\x0f",
         guid=device_guid[5],
     )
 
-    values = []
+    values: list[Any] = []
 
-    async def on_change(channel: channels.Relay, value: bool) -> None:
+    async def relay_on_change(channel: channels.Relay, value: bool) -> None:
         values.append(value)
         await channel.do_set_value(value)
 
-    relay = channels.Relay(on_change=on_change)
+    async def dimmer_on_change(channel: channels.Dimmer, value: int) -> None:
+        values.append(value)
+        await channel.do_set_value(value)
+
+    relay = channels.Relay(on_change=relay_on_change)
     temp = channels.Temperature()
     humi = channels.Humidity()
     tempandhumi = channels.TemperatureAndHumidity()
     gpm = channels.GeneralPurposeMeasurement()
+    dimmer = channels.Dimmer(on_change=dimmer_on_change)
     device.add(relay)
     device.add(temp)
     device.add(humi)
     device.add(tempandhumi)
     device.add(gpm)
+    device.add(dimmer)
 
     await device.start()
     await device.connected.wait()
@@ -347,6 +353,10 @@ async def test_channels(
 
     if channel_number == 4:
         await gpm.set_value(1.234)
+
+    if channel_number == 5:
+        await dimmer.set_value(42)
+        assert values == [42]
 
     await asyncio.sleep(0.5)
     await device.stop()
@@ -400,6 +410,13 @@ async def test_channels(
             "[suplalite.server] server call Call.DS_DEVICE_CHANNEL_VALUE_CHANGED_C "
             "TDS_DeviceChannelValue_C(channel_number=4, offline=False, validity_time_sec=0, "
             "value=b'X9\\xb4\\xc8v\\xbe\\xf3?')" in caplog.text
+        )
+
+    if channel_number == 5:
+        assert (
+            "[suplalite.server] server call Call.DS_DEVICE_CHANNEL_VALUE_CHANGED_C "
+            "TDS_DeviceChannelValue_C(channel_number=5, offline=False, validity_time_sec=0, "
+            "value=b'*\\x00\\x00\\x00\\x00\\x00\\x00\\x00')" in caplog.text
         )
 
 
@@ -496,13 +513,20 @@ async def test_general_purpose_measurement() -> None:
 
 @pytest.mark.asyncio
 async def test_dimmer() -> None:
-    assert channels.Dimmer.encode(0) == b"\x00\x00\x00\x00\x00\x00\x00\x00"
-    assert channels.Dimmer.encode(42) == b"*\x00\x00\x00\x00\x00\x00\x00"
-    assert channels.Dimmer.encode(100) == b"d\x00\x00\x00\x00\x00\x00\x00"
+    channel = channels.Dimmer()
+    assert channel.value == 0
+    assert channel.encoded_value == b"\x00\x00\x00\x00\x00\x00\x00\x00"
 
-    assert channels.Dimmer.decode(b"\x00\x00\x00\x00\x00\x00\x00\x00") == 0
-    assert channels.Dimmer.decode(b"*\x00\x00\x00\x00\x00\x00\x00") == 42
-    assert channels.Dimmer.decode(b"d\x00\x00\x00\x00\x00\x00\x00") == 100
+    await channel.set_value(50)
+    assert channel.value == 50
+    assert channel.encoded_value == b"2\x00\x00\x00\x00\x00\x00\x00"
+
+    await channel.set_value(10)
+    assert channel.value == 10
+    assert channel.encoded_value == b"\n\x00\x00\x00\x00\x00\x00\x00"
+
+    await channel.set_encoded_value(b"2\x00\x00\x00\x00\x00\x00\x00")
+    assert channel.value == 50
 
     assert channels.Dimmer.decode(b"*\xff\xff\xff\xff\xff\xff\xff") == 42
 
@@ -523,7 +547,7 @@ async def test_task(server: Server) -> None:
         email="email@email.com",
         name="device",
         version="1.0.0",
-        authkey=b"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x00\x0A\x0B\x0C\x0D\x0E\x0F",
+        authkey=b"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x00\x0a\x0b\x0c\x0d\x0e\x0f",
         guid=device_guid[1],
     )
     device.add(channels.Relay())
