@@ -364,9 +364,8 @@ class GeneralPurposeMeasurement(Channel):
         return self.encode(self._value)
 
     async def set_encoded_value(self, data: bytes) -> bool:
-        self._value = self.decode(data)
-        await self.update()
-        return True
+        value = self.decode(data)
+        return await self.set_value(value)
 
     @staticmethod
     def encode(value: float) -> bytes:
