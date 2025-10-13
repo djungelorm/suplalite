@@ -32,9 +32,11 @@ suplalite.device
 Provides functionality necessary to create a SUPLA device using Python.
 
 Currently supports the following kinds of channel:
- * Relay/switch
- * Temperature sensor
- * Humidity sensor
- * General purpose measurement
+ - Relay/switch
+ - Temperature sensor
+ - Humidity sensor
+ - General purpose measurement
+ - Dimmer
+ - RGB dimmer
 
 See `examples/device.py` for an example.
