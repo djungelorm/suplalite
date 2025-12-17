@@ -449,7 +449,7 @@ async def client_execute_action(
                     level=logging.WARN,
                 )
                 raise RuntimeError from exc
-            await execute_channel_action(context, channel, msg.action_id)
+            await execute_channel_action(context, channel, msg.action_id, msg.param)
 
         elif msg.subject_type == proto.ActionSubjectType.SCENE:
             scene_id = msg.subject_id

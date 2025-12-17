@@ -1068,6 +1068,39 @@ async def test_client_execute_action_toggle(
     assert "server event CHANNEL_SET_VALUE 3 0100000000000000" in caplog.text
 
 
+@pytest.mark.asyncio
+async def test_client_execute_action_set_rgbw_parameters(
+    server: Server, caplog: pytest.LogCaptureFixture
+) -> None:
+    async with open_device(server, 2) as device:
+        async with open_client(server, "test") as client:
+            await do_execute_action(
+                client,
+                device,
+                proto.TCS_Action(
+                    action_id=proto.ActionType.SET_RGBW_PARAMETERS,
+                    subject_id=4,
+                    subject_type=proto.ActionSubjectType.CHANNEL,
+                    param=encoding.encode(
+                        proto.TAction_RGBW_Parameters(
+                            brightness=10,
+                            color_brightness=-1,
+                            color=0,
+                            color_random=False,
+                            on_off=False,
+                        )
+                    ),
+                ),
+                [(0, b"\x0a\x00\x00\x00\x00\x00\x00\x00")],
+            )
+    assert "client[test] handle call Call.CS_EXECUTE_ACTION" in caplog.text
+    assert "client[test] send Call.SC_ACTION_EXECUTION_RESULT" in caplog.text
+    assert "device[device-2] handle event EventId.CHANNEL_SET_VALUE" in caplog.text
+    assert "device[device-2] send Call.SD_CHANNEL_SET_VALUE" in caplog.text
+
+    assert "server event CHANNEL_SET_VALUE 4 0a00000000000000" in caplog.text
+
+
 async def do_execute_action_with_error(
     client: Client, action: proto.TCS_Action
 ) -> None:
