@@ -101,7 +101,7 @@ class TLSProtocol(asyncio.StreamReaderProtocol):
         # that wraps the raw socket
         raw_sock = transport.get_extra_info("socket")
         if isinstance(raw_sock, asyncio.trsock.TransportSocket):  # pragma: no cover
-            raw_sock = raw_sock._sock
+            raw_sock = raw_sock._sock  # noqa: SLF001
         ssl_sock = TLSSocket(
             raw_sock,
             self._ssl_cert,
@@ -109,7 +109,7 @@ class TLSProtocol(asyncio.StreamReaderProtocol):
             self._ssl_session_cache,
             self._ssl_settings,
         )
-        transport._sock = ssl_sock
+        transport._sock = ssl_sock  # noqa: SLF001
         super().connection_made(transport)
 
 

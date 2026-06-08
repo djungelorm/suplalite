@@ -102,7 +102,8 @@ async def test_device_ping(server: Server, caplog: pytest.LogCaptureFixture) -> 
 
         await device.start()
         await device.connected.wait()
-        device._ping_timeout = 3
+        device.ping_timeout = 3
+        assert device.ping_timeout == 3
         await asyncio.sleep(4)
 
         await device.stop()

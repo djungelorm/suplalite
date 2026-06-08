@@ -104,6 +104,14 @@ class Device:
     def connected(self) -> asyncio.Event:
         return self._connected
 
+    @property
+    def ping_timeout(self) -> float:
+        return self._ping_timeout
+
+    @ping_timeout.setter
+    def ping_timeout(self, value: float) -> None:
+        self._ping_timeout = value
+
     async def loop_forever(self) -> None:  # pragma: no cover
         for task in self._tasks:
             await task

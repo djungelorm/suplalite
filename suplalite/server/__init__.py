@@ -467,7 +467,7 @@ class Server:
             self._connection_count += 1
         try:
             if secure:
-                await writer.transport._sock.do_handshake()
+                await writer.transport._sock.do_handshake()  # noqa: SLF001
             await Connection(self, reader, writer)()
         except Exception as exc:  # pragma: no cover
             logger.error(str(exc), exc_info=exc)

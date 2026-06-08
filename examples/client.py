@@ -58,21 +58,21 @@ async def register_result_d(context: Context, msg: proto.TSC_RegisterClientResul
     if result_code != proto.ResultCode.TRUE:
         raise RuntimeError(f"Register failed: {result_code.name}")
     logging.debug("registered")
-    context.client._ping_timeout = msg.activity_timeout / 2
-    context.client._state = context.client.State.AUTHENTICATING
+    context.client.ping_timeout = msg.activity_timeout / 2
+    context.client.state = context.client.State.AUTHENTICATING
     await oauth_request(context)
 
 
 @supla_call(proto.Call.SC_LOCATIONPACK_UPDATE)
 async def locationpack_update(context: Context, msg: proto.TSC_LocationPack):
     logging.debug("location pack update")
-    context.client._got_locations = msg.total_left == 0
+    context.client.got_locations = msg.total_left == 0
 
 
 @supla_call(proto.Call.SC_CHANNELPACK_UPDATE_E)
 async def channelpack_update(context: Context, msg: proto.TSC_ChannelPack_E):
     logging.debug("channel pack update")
-    context.client._got_channels = msg.total_left == 0
+    context.client.got_channels = msg.total_left == 0
 
 
 @supla_call(proto.Call.SC_CHANNEL_RELATION_PACK_UPDATE)
@@ -85,7 +85,7 @@ async def channelrelationpack_update(
 @supla_call(proto.Call.SC_SCENE_PACK_UPDATE)
 async def scenepack_update(context: Context, msg: proto.TSC_ScenePack):
     logging.debug("scene pack update")
-    context.client._got_scenes = msg.total_left == 0
+    context.client.got_scenes = msg.total_left == 0
 
 
 @supla_call(proto.Call.SC_CHANNELVALUE_PACK_UPDATE_B)
@@ -94,7 +94,7 @@ async def channelvaluepack_update(context: Context, msg: proto.TSC_ChannelValueP
 
 
 async def oauth_request(context):
-    await context.client._stream.send(
+    await context.client.stream.send(
         packets.Packet(proto.Call.CS_OAUTH_TOKEN_REQUEST, b"")
     )
 
@@ -102,7 +102,7 @@ async def oauth_request(context):
 @supla_call(proto.Call.SC_OAUTH_TOKEN_REQUEST_RESULT)
 async def oauth_result(context: Context, msg: proto.TSC_OAuthTokenRequestResult):
     logging.debug("oauth result")
-    context.client._state = context.client.State.CONNECTED
+    context.client.state = context.client.State.CONNECTED
 
 
 ##############################################################
@@ -136,14 +136,14 @@ class Client:
         self._authkey = authkey
         self._channels = []
 
-        self._stream = None
-        self._state = self.State.CONNECTING
+        self.stream = None
+        self.state = self.State.CONNECTING
         self._last_get_next = 0
         self._last_ping = time.time()
-        self._ping_timeout = proto.ACTIVITY_TIMEOUT_MIN / 2
-        self._got_locations = False
-        self._got_channels = False
-        self._got_scenes = False
+        self.ping_timeout = proto.ACTIVITY_TIMEOUT_MIN / 2
+        self.got_locations = False
+        self.got_channels = False
+        self.got_scenes = False
         self._extra_get_next = 3
 
     async def connect(self):
@@ -156,9 +156,9 @@ class Client:
             reader, writer = await asyncio.open_connection(
                 self._server, self._port, ssl=ssl_context
             )
-        self._stream = packets.PacketStream(reader, writer)
+        self.stream = packets.PacketStream(reader, writer)
 
-        while self._state != self.State.CONNECTED:
+        while self.state != self.State.CONNECTED:
             await self._update()
 
     async def loop_forever(self):
@@ -166,28 +166,28 @@ class Client:
             await self._update()
 
     async def _update(self):
-        if self._state == self.State.CONNECTING:
+        if self.state == self.State.CONNECTING:
             await self._register()
-            self._state = self.State.REGISTERING
+            self.state = self.State.REGISTERING
             return
 
         not_got_all = any(
-            [not self._got_locations, not self._got_channels, self._extra_get_next > 0]
+            [not self.got_locations, not self.got_channels, self._extra_get_next > 0]
         )
         if (
-            self._state == self.State.CONNECTED
+            self.state == self.State.CONNECTED
             and not_got_all
             and time.time() - self._last_get_next > 0.5
         ):
-            if self._got_locations and self._got_channels:
+            if self.got_locations and self.got_channels:
                 self._extra_get_next -= 1
             self._last_get_next = time.time()
             await self._get_next()
             return
 
         if (
-            self._state == self.State.CONNECTED
-            and time.time() - self._last_ping > self._ping_timeout
+            self.state == self.State.CONNECTED
+            and time.time() - self._last_ping > self.ping_timeout
         ):
             self._last_ping = time.time()
             await self._ping()
@@ -197,19 +197,19 @@ class Client:
             packet = None
             try:
                 async with asyncio.timeout(0.5):
-                    packet = await self._stream.recv()
+                    packet = await self.stream.recv()
             except TimeoutError:
                 pass
             if packet is not None:
                 await self._handle_packet(packet)
 
         else:
-            packet = await self._stream.recv()
+            packet = await self.stream.recv()
             await self._handle_packet(packet)
 
     async def _register(self):
         logging.debug("registering")
-        await self._stream.send(
+        await self.stream.send(
             packets.Packet(
                 proto.Call.CS_REGISTER_CLIENT_D,
                 encoding.encode(
@@ -232,13 +232,13 @@ class Client:
         msg = proto.TDCS_PingServer(
             proto.TimeVal(int(now), int((now - int(now)) * 1000000))
         )
-        await self._stream.send(
+        await self.stream.send(
             packets.Packet(proto.Call.DCS_PING_SERVER, encoding.encode(msg))
         )
 
     async def _get_next(self):
         logging.debug("get next")
-        await self._stream.send(packets.Packet(proto.Call.CS_GET_NEXT, b""))
+        await self.stream.send(packets.Packet(proto.Call.CS_GET_NEXT, b""))
 
     async def _handle_packet(self, packet):
         if packet.call_id not in _handlers:
