@@ -101,10 +101,10 @@ ignore = [
     "B",
     "G",
     "PTH",
-    "N",
 ]
 
 [tool.ruff.lint.per-file-ignores]
+"suplalite/proto.py" = ["N801"] # protocol class names match C implementation
 "examples/**" = ["S"] # security
 "tests/**" = ["S"] # security
 

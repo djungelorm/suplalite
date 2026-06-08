@@ -424,33 +424,33 @@ async def execute_channel_action(
             value = channel.last_value or encoding.encode(
                 proto.TRGBDimmerChannel_Value(
                     brightness=0,
-                    colorBrightness=100,
+                    color_brightness=100,
                     r=0,
                     g=0,
                     b=0,
-                    onOff=True,
+                    on_off=True,
                     command=0,
                 )
             )
             message, _ = encoding.decode(proto.TRGBDimmerChannel_Value, value)
-            message.onOff = True
+            message.on_off = True
             value = encoding.encode(message)
         elif action == proto.ActionType.TURN_OFF:
             value = channel.last_value or encoding.encode(
                 proto.TRGBDimmerChannel_Value(
                     brightness=0,
-                    colorBrightness=0,
+                    color_brightness=0,
                     r=0,
                     g=0,
                     b=0,
-                    onOff=True,
+                    on_off=True,
                     command=0,
                 )
             )
             message, _ = encoding.decode(proto.TRGBDimmerChannel_Value, value)
             message.brightness = 0
-            message.colorBrightness = 0
-            message.onOff = True
+            message.color_brightness = 0
+            message.on_off = True
             value = encoding.encode(message)
         elif action == proto.ActionType.SET_RGBW_PARAMETERS:
             assert params is not None
@@ -458,11 +458,11 @@ async def execute_channel_action(
             value = encoding.encode(
                 proto.TRGBDimmerChannel_Value(
                     brightness=rgbw_params.brightness,
-                    colorBrightness=rgbw_params.color_brightness,
+                    color_brightness=rgbw_params.color_brightness,
                     r=(rgbw_params.color >> 16) & 0xFF,
                     g=(rgbw_params.color >> 8) & 0xFF,
                     b=rgbw_params.color & 0xFF,
-                    onOff=rgbw_params.on_off,
+                    on_off=rgbw_params.on_off,
                     command=0,
                 )
             )
@@ -479,33 +479,33 @@ async def execute_channel_action(
             value = channel.last_value or encoding.encode(
                 proto.TRGBDimmerChannel_Value(
                     brightness=100,
-                    colorBrightness=100,
+                    color_brightness=100,
                     r=0,
                     g=0,
                     b=0,
-                    onOff=True,
+                    on_off=True,
                     command=0,
                 )
             )
             message, _ = encoding.decode(proto.TRGBDimmerChannel_Value, value)
-            message.onOff = True
+            message.on_off = True
             value = encoding.encode(message)
         elif action == proto.ActionType.TURN_OFF:
             value = channel.last_value or encoding.encode(
                 proto.TRGBDimmerChannel_Value(
                     brightness=0,
-                    colorBrightness=0,
+                    color_brightness=0,
                     r=0,
                     g=0,
                     b=0,
-                    onOff=True,
+                    on_off=True,
                     command=0,
                 )
             )
             message, _ = encoding.decode(proto.TRGBDimmerChannel_Value, value)
             message.brightness = 0
-            message.colorBrightness = 0
-            message.onOff = True
+            message.color_brightness = 0
+            message.on_off = True
             value = encoding.encode(message)
         elif action == proto.ActionType.SET_RGBW_PARAMETERS:
             assert params is not None
@@ -513,11 +513,11 @@ async def execute_channel_action(
             value = encoding.encode(
                 proto.TRGBDimmerChannel_Value(
                     brightness=rgbw_params.brightness,
-                    colorBrightness=rgbw_params.color_brightness,
+                    color_brightness=rgbw_params.color_brightness,
                     r=(rgbw_params.color >> 16) & 0xFF,
                     g=(rgbw_params.color >> 8) & 0xFF,
                     b=rgbw_params.color & 0xFF,
-                    onOff=rgbw_params.on_off,
+                    on_off=rgbw_params.on_off,
                     command=0,
                 )
             )

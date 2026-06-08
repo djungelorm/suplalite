@@ -509,11 +509,11 @@ class RGBDimmer(Channel):
         return encoding.encode(
             proto.TRGBDimmerChannel_Value(
                 brightness=0,
-                colorBrightness=value[0],
+                color_brightness=value[0],
                 r=value[1],
                 g=value[2],
                 b=value[3],
-                onOff=False,
+                on_off=False,
                 command=0,
             )
         )
@@ -521,7 +521,7 @@ class RGBDimmer(Channel):
     @staticmethod
     def decode(data: bytes) -> tuple[int, int, int, int]:
         msg, _ = encoding.decode(proto.TRGBDimmerChannel_Value, data)
-        return msg.colorBrightness, msg.r, msg.g, msg.b
+        return msg.color_brightness, msg.r, msg.g, msg.b
 
 
 class RGBWDimmer(Channel):
@@ -588,11 +588,11 @@ class RGBWDimmer(Channel):
         return encoding.encode(
             proto.TRGBDimmerChannel_Value(
                 brightness=value[0],
-                colorBrightness=value[1],
+                color_brightness=value[1],
                 r=value[2],
                 g=value[3],
                 b=value[4],
-                onOff=False,
+                on_off=False,
                 command=0,
             )
         )
@@ -600,4 +600,4 @@ class RGBWDimmer(Channel):
     @staticmethod
     def decode(data: bytes) -> tuple[int, int, int, int, int]:
         msg, _ = encoding.decode(proto.TRGBDimmerChannel_Value, data)
-        return msg.brightness, msg.colorBrightness, msg.r, msg.g, msg.b
+        return msg.brightness, msg.color_brightness, msg.r, msg.g, msg.b

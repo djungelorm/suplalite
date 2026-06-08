@@ -998,11 +998,11 @@ class TDimmerChannel_Value:
 @dataclass
 class TRGBDimmerChannel_Value:
     brightness: int = field(metadata=c_uint8())
-    colorBrightness: int = field(metadata=c_uint8())
+    color_brightness: int = field(metadata=c_uint8())
     b: int = field(metadata=c_uint8())
     g: int = field(metadata=c_uint8())
     r: int = field(metadata=c_uint8())
-    onOff: bool = field(metadata=c_uint8())
+    on_off: bool = field(metadata=c_uint8())
     command: int = field(metadata=c_uint8())
     padding: bytes = field(repr=False, init=False, metadata=c_bytes(size=1))
 

@@ -231,13 +231,11 @@ class ServerState:
         if channel_type == proto.ChannelType.DIMMER:
             return encoding.decode(proto.TDimmerChannel_Value, value)[0].brightness > 0
         if channel_type == proto.ChannelType.RGBLEDCONTROLLER:
-            return (
-                encoding.decode(proto.TRGBDimmerChannel_Value, value)[0].colorBrightness
-                > 0
-            )
+            msg = encoding.decode(proto.TRGBDimmerChannel_Value, value)[0]
+            return msg.color_brightness > 0
         if channel_type == proto.ChannelType.DIMMERANDRGBLED:
             msg = encoding.decode(proto.TRGBDimmerChannel_Value, value)[0]
-            return msg.brightness > 0 or msg.colorBrightness > 0
+            return msg.brightness > 0 or msg.color_brightness > 0
         return False
 
     def get_device_events(self, device_id: int) -> EventQueue:
