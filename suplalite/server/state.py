@@ -165,7 +165,7 @@ class ServerState:
         # to provide a unique id based on the content of the image.
         # The SUPLA app caches images based on id number, so the id number
         # needs to change if the image content changes
-        icon_id = int(hashlib.sha1(key.encode("utf-8")).hexdigest()[:6], 16)
+        icon_id = int(hashlib.sha1(key.encode("utf-8")).hexdigest()[:6], 16)  # noqa: S324
         icon = Icon(icon_id, data)
         self._icons[key] = icon
         self._icons_by_id[icon.id] = icon

@@ -346,7 +346,7 @@ async def oauth_token_request(
 ) -> proto.TSC_OAuthTokenRequestResult:
 
     # Generate a random token (we don't actually do proper oauth, just allow all)
-    key = "".join(random.choice("0123456789abcdef") for i in range(86))
+    key = "".join(random.choice("0123456789abcdef") for i in range(86))  # noqa: S311
     # Include URL for API
     url = f"https://{context.server.host}:{context.server.api_port}"
     token = key.encode() + b"." + base64.b64encode(url.encode()) + b"\x00"
