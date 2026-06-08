@@ -69,6 +69,10 @@ async def update(context, action, channel_id, value):
         value = channels.RGBDimmer.decode(channel.value)
         print(topic, value)
 
+    elif channel.type == proto.ChannelType.DIMMERANDRGBLED:
+        value = channels.RGBWDimmer.decode(channel.value)
+        print(topic, value)
+
     else:
         print(topic, "unknown value")
 
@@ -199,6 +203,15 @@ async def main():
         "RGB Lights",
         proto.ChannelType.RGBLEDCONTROLLER,
         proto.ChannelFunc.RGBLIGHTING,
+        proto.ChannelFlag.CHANNELSTATE,
+    )
+
+    server.state.add_channel(
+        device_id,
+        "rgbw-lights",
+        "RGBW Lights",
+        proto.ChannelType.DIMMERANDRGBLED,
+        proto.ChannelFunc.DIMMERANDRGBLIGHTING,
         proto.ChannelFlag.CHANNELSTATE,
     )
 

@@ -475,6 +475,61 @@ async def execute_channel_action(
                 level=logging.WARN,
             )
             raise RuntimeError
+
+    elif channel.type == proto.ChannelType.DIMMERANDRGBLED:
+        if action == proto.ActionType.TURN_ON:
+            value = channel.last_value or encoding.encode(
+                proto.TRGBDimmerChannel_Value(
+                    brightness=100,
+                    colorBrightness=100,
+                    r=0,
+                    g=0,
+                    b=0,
+                    onOff=True,
+                    command=0,
+                )
+            )
+            message, _ = encoding.decode(proto.TRGBDimmerChannel_Value, value)
+            message.onOff = True
+            value = encoding.encode(message)
+        elif action == proto.ActionType.TURN_OFF:
+            value = channel.last_value or encoding.encode(
+                proto.TRGBDimmerChannel_Value(
+                    brightness=0,
+                    colorBrightness=0,
+                    r=0,
+                    g=0,
+                    b=0,
+                    onOff=True,
+                    command=0,
+                )
+            )
+            message, _ = encoding.decode(proto.TRGBDimmerChannel_Value, value)
+            message.brightness = 0
+            message.colorBrightness = 0
+            message.onOff = True
+            value = encoding.encode(message)
+        elif action == proto.ActionType.SET_RGBW_PARAMETERS:
+            assert params is not None
+            rgbw_params, _ = encoding.decode(proto.TAction_RGBW_Parameters, params)
+            value = encoding.encode(
+                proto.TRGBDimmerChannel_Value(
+                    brightness=rgbw_params.brightness,
+                    colorBrightness=rgbw_params.color_brightness,
+                    r=(rgbw_params.color >> 16) & 0xFF,
+                    g=(rgbw_params.color >> 8) & 0xFF,
+                    b=rgbw_params.color & 0xFF,
+                    onOff=rgbw_params.on_off,
+                    command=0,
+                )
+            )
+        else:
+            context.log(
+                f"failed to execute action; rgbw dimmer action {action} not supported",
+                level=logging.WARN,
+            )
+            raise RuntimeError
+
     else:
         context.log(
             f"failed to execute action; channel type {channel.type} not supported",

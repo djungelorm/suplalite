@@ -292,7 +292,7 @@ async def test_server_set_value(
     )
 
 
-@pytest.mark.parametrize("channel_number", (0, 1, 2, 3, 4, 5, 6))
+@pytest.mark.parametrize("channel_number", (0, 1, 2, 3, 4, 5, 6, 7))
 @pytest.mark.asyncio
 async def test_channels(
     server: Server, caplog: pytest.LogCaptureFixture, channel_number: int
@@ -326,6 +326,12 @@ async def test_channels(
         values.append(value)
         await channel.do_set_value(value)
 
+    async def rgbw_on_change(
+        channel: channels.RGBWDimmer, value: tuple[int, int, int, int, int]
+    ) -> None:
+        values.append(value)
+        await channel.do_set_value(value)
+
     relay = channels.Relay(on_change=relay_on_change)
     temp = channels.Temperature()
     humi = channels.Humidity()
@@ -333,6 +339,7 @@ async def test_channels(
     gpm = channels.GeneralPurposeMeasurement()
     dimmer = channels.Dimmer(on_change=dimmer_on_change)
     rgb = channels.RGBDimmer(on_change=rgb_on_change)
+    rgbw = channels.RGBWDimmer(on_change=rgbw_on_change)
     device.add(relay)
     device.add(temp)
     device.add(humi)
@@ -340,6 +347,7 @@ async def test_channels(
     device.add(gpm)
     device.add(dimmer)
     device.add(rgb)
+    device.add(rgbw)
 
     await device.start()
     await device.connected.wait()
@@ -369,6 +377,10 @@ async def test_channels(
     if channel_number == 6:
         await rgb.set_value((42, 83, 14, 90))
         assert values == [(42, 83, 14, 90)]
+
+    if channel_number == 7:
+        await rgbw.set_value((10, 50, 128, 64, 192))
+        assert values == [(10, 50, 128, 64, 192)]
 
     await asyncio.sleep(0.5)
     await device.stop()
@@ -429,6 +441,20 @@ async def test_channels(
             "[suplalite.server] server call Call.DS_DEVICE_CHANNEL_VALUE_CHANGED_C "
             "TDS_DeviceChannelValue_C(channel_number=5, offline=False, validity_time_sec=0, "
             "value=b'*\\x00\\x00\\x00\\x00\\x00\\x00\\x00')" in caplog.text
+        )
+
+    if channel_number == 6:
+        assert (
+            "[suplalite.server] server call Call.DS_DEVICE_CHANNEL_VALUE_CHANGED_C "
+            "TDS_DeviceChannelValue_C(channel_number=6, offline=False, validity_time_sec=0, "
+            "value=b'\\x00*Z\\x0eS\\x00\\x00\\x00')" in caplog.text
+        )
+
+    if channel_number == 7:
+        assert (
+            "[suplalite.server] server call Call.DS_DEVICE_CHANNEL_VALUE_CHANGED_C "
+            "TDS_DeviceChannelValue_C(channel_number=7, offline=False, validity_time_sec=0, "
+            "value=b'\\n2\\xc0@\\x80\\x00\\x00\\x00')" in caplog.text
         )
 
 
@@ -555,6 +581,20 @@ async def test_rgb_dimmer() -> None:
 
     await channel.set_encoded_value(b"\x002/01\x00\x00\x00")
     assert channel.value == (50, 49, 48, 47)
+
+
+@pytest.mark.asyncio
+async def test_rgbw_dimmer() -> None:
+    channel = channels.RGBWDimmer()
+    assert channel.value == (0, 0, 0, 0, 0)
+    assert channel.encoded_value == b"\x00\x00\x00\x00\x00\x00\x00\x00"
+
+    await channel.set_value((1, 2, 3, 4, 5))
+    assert channel.value == (1, 2, 3, 4, 5)
+    assert channel.encoded_value == b"\x01\x02\x05\x04\x03\x00\x00\x00"
+
+    await channel.set_encoded_value(b"\x0a\x32\xc0\x40\x80\x00\x00\x00")
+    assert channel.value == (10, 50, 128, 64, 192)
 
 
 async def sub_task() -> None:

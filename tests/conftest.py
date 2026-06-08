@@ -218,6 +218,14 @@ def setup_server(server: Server, with_scenes: bool = True) -> None:
         proto.ChannelFunc.RGBLIGHTING,
         proto.ChannelFlag.CHANNELSTATE,
     )
+    server.state.add_channel(
+        device_id,
+        "rgbw",
+        "RGBW",
+        proto.ChannelType.DIMMERANDRGBLED,
+        proto.ChannelFunc.DIMMERANDRGBLIGHTING,
+        proto.ChannelFlag.CHANNELSTATE,
+    )
 
     if with_scenes:
         server.state.add_scene(

@@ -61,6 +61,7 @@ async def main():
     )
     car = channels.GeneralPurposeMeasurement()
     rgb_lights = channels.RGBDimmer(on_change=handle_change)
+    rgbw_lights = channels.RGBWDimmer(on_change=handle_change)
 
     device.add(relay)
     device.add(temperature)
@@ -72,6 +73,7 @@ async def main():
     device.add(traffic_light)
     device.add(car)
     device.add(rgb_lights)
+    device.add(rgbw_lights)
 
     await device.start()
     device.add_task(asyncio.create_task(update_loop(device)))

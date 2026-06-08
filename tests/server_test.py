@@ -320,6 +320,16 @@ def register_device_message(device_id: int) -> proto.TDS_RegisterDevice_E:
                 value=b"\x00\x00\x00\x00\x00\x00\x00\x00",
             )
         )
+        channels.append(
+            proto.TDS_DeviceChannel_C(
+                number=7,
+                type=proto.ChannelType.DIMMERANDRGBLED,
+                action_trigger_caps=proto.ActionCap.NONE,
+                default_func=proto.ChannelFunc.DIMMERANDRGBLIGHTING,
+                flags=proto.ChannelFlag.CHANNELSTATE,
+                value=b"\x00\x00\x00\x00\x00\x00\x00\x00",
+            )
+        )
     else:
         raise NotImplementedError  # pragma: no cover
 
@@ -607,7 +617,7 @@ async def test_register_client(
         assert len(channel_packs[0].items) == 5
         assert len(channel_packs[1].items) == 5
         assert len(channel_packs[2].items) == 5
-        assert len(channel_packs[3].items) == 1
+        assert len(channel_packs[3].items) == 2
 
         assert channel_packs[0].items[0].caption == "Relay"
         assert channel_packs[0].items[0].id == 1
@@ -1144,6 +1154,7 @@ async def test_client_execute_action_toggle(
     (
         (2, 4, 0, b"\x0a\x00\x00\x00\x00\x00\x00\x00"),
         (5, 16, 6, b"\n\xff\x00\x00\x00\x00\x00\x00"),
+        (5, 17, 7, b"\x0a\xff\x00\x00\x00\x00\x00\x00"),
     ),
 )
 @pytest.mark.asyncio
@@ -1307,6 +1318,27 @@ async def test_client_execute_action_invalid_rgb_dimmer_action(
     assert (
         "client[test] failed to execute action; "
         "rgb dimmer action ActionType.INTERRUPT not supported" in caplog.text
+    )
+
+
+@pytest.mark.asyncio
+async def test_client_execute_action_invalid_rgbw_dimmer_action(
+    server: Server, caplog: pytest.LogCaptureFixture
+) -> None:
+    async with open_device(server, 5):
+        async with open_client(server, "test") as client:
+            await do_execute_action_with_error(
+                client,
+                proto.TCS_Action(
+                    action_id=proto.ActionType.INTERRUPT,
+                    subject_id=17,
+                    subject_type=proto.ActionSubjectType.CHANNEL,
+                    param=b"",
+                ),
+            )
+    assert (
+        "client[test] failed to execute action; "
+        "rgbw dimmer action ActionType.INTERRUPT not supported" in caplog.text
     )
 
 
@@ -2126,4 +2158,101 @@ async def test_rgb_dimmer_already_on_preserves_brightness_and_color(
                     param=b"",
                 ),
                 [(6, b"\x00\x32\xc0\x40\x80\x01\x00\x00")],
+            )
+
+
+@pytest.mark.asyncio
+async def test_rgbw_dimmer_off_on_preserves_brightness_and_color(
+    server: Server, caplog: pytest.LogCaptureFixture
+) -> None:
+    async with open_device(server, 5) as device:
+        async with open_client(server, "test") as client:
+            # set brightness=20, colorBrightness=50, purple (r=128, g=64, b=192), onOff=False
+            await do_set_value(
+                client,
+                device,
+                proto.TCS_NewValue(
+                    value_id=17,
+                    target=proto.Target.CHANNEL,
+                    value=b"\x14\x32\xc0\x40\x80\x00\x00\x00",
+                ),
+                7,
+            )
+
+            # turn off (brightness=0, colorBrightness=0, color unchanged, onOff=True)
+            await do_execute_action(
+                client,
+                device,
+                proto.TCS_Action(
+                    action_id=proto.ActionType.TURN_OFF,
+                    subject_id=17,
+                    subject_type=proto.ActionSubjectType.CHANNEL,
+                    param=b"",
+                ),
+                [(7, b"\x00\x00\xc0\x40\x80\x01\x00\x00")],
+            )
+
+            # turn on (brightness=20, colorBrightness=50, color unchanged, onOff=True)
+            await do_execute_action(
+                client,
+                device,
+                proto.TCS_Action(
+                    action_id=proto.ActionType.TURN_ON,
+                    subject_id=17,
+                    subject_type=proto.ActionSubjectType.CHANNEL,
+                    param=b"",
+                ),
+                [(7, b"\x14\x32\xc0\x40\x80\x01\x00\x00")],
+            )
+
+
+@pytest.mark.asyncio
+async def test_rgbw_dimmer_initial_on_sets_full_brightness_and_white(
+    server: Server, caplog: pytest.LogCaptureFixture
+) -> None:
+    async with open_device(server, 5) as device:
+        async with open_client(server, "test") as client:
+            # turn on with no previous value: brightness=100, colorBrightness=100
+            await do_execute_action(
+                client,
+                device,
+                proto.TCS_Action(
+                    action_id=proto.ActionType.TURN_ON,
+                    subject_id=17,
+                    subject_type=proto.ActionSubjectType.CHANNEL,
+                    param=b"",
+                ),
+                [(7, b"\x64\x64\x00\x00\x00\x01\x00\x00")],
+            )
+
+
+@pytest.mark.asyncio
+async def test_rgbw_dimmer_already_on_preserves_brightness_and_color(
+    server: Server, caplog: pytest.LogCaptureFixture
+) -> None:
+    async with open_device(server, 5) as device:
+        async with open_client(server, "test") as client:
+            # set brightness=20, colorBrightness=50, purple (r=128, g=64, b=192)
+            await do_set_value(
+                client,
+                device,
+                proto.TCS_NewValue(
+                    value_id=17,
+                    target=proto.Target.CHANNEL,
+                    value=b"\x14\x32\xc0\x40\x80\x00\x00\x00",
+                ),
+                7,
+            )
+
+            # turn on
+            await do_execute_action(
+                client,
+                device,
+                proto.TCS_Action(
+                    action_id=proto.ActionType.TURN_ON,
+                    subject_id=17,
+                    subject_type=proto.ActionSubjectType.CHANNEL,
+                    param=b"",
+                ),
+                [(7, b"\x14\x32\xc0\x40\x80\x01\x00\x00")],
             )
