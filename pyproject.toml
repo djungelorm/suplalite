@@ -7,7 +7,7 @@ name = "suplalite"
 dynamic = ['version']
 description = "A lightweight implementation of SUPLA server and devices"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
@@ -97,9 +97,8 @@ ignore = [
     "LOG",
     "T",
     "ASYNC",
-    # HERE
     "ANN",
-    "YTT",
+    # HERE
     "A",
     "PERF",
     "TRY",
