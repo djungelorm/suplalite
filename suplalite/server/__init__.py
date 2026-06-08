@@ -265,6 +265,8 @@ class Server:
 
         self._connection_lock = asyncio.Lock()
         self._connection_count = 0
+        self._no_connections = asyncio.Event()
+        self._no_connections.set()
 
     @staticmethod
     def _load_cert(certfile: str) -> tlslite.api.X509CertChain:
@@ -314,10 +316,6 @@ class Server:
     def events(self) -> EventQueue:
         return self._events
 
-    async def has_connections(self) -> bool:
-        async with self._connection_lock:
-            return self._connection_count > 0
-
     async def start(self) -> None:
         self._state.server_started()
 
@@ -344,14 +342,13 @@ class Server:
             )
         )
 
-        while not self._api_server.started:
+        while not self._api_server.started:  # noqa: ASYNC110
             await asyncio.sleep(0)
 
         logger.info("started")
 
     async def stop(self) -> None:
-        while await self.has_connections():
-            await asyncio.sleep(0.1)
+        await self._no_connections.wait()
         assert self._server is not None
         assert self._secure_server is not None
         assert self._api_server is not None
@@ -462,6 +459,7 @@ class Server:
     ) -> None:
         async with self._connection_lock:
             self._connection_count += 1
+            self._no_connections.clear()
         try:
             if secure:
                 await writer.transport._sock.do_handshake()  # noqa: SLF001
@@ -473,3 +471,5 @@ class Server:
             # Note: coverage bug means it thinks this is not covered?!?
             async with self._connection_lock:  # pragma: no cover
                 self._connection_count -= 1
+                if self._connection_count == 0:
+                    self._no_connections.set()

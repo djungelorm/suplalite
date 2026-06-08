@@ -607,8 +607,7 @@ async def test_rgbw_dimmer() -> None:
 
 
 async def sub_task() -> None:
-    while True:
-        await asyncio.sleep(0)
+    await asyncio.Event().wait()
 
 
 @pytest.mark.asyncio

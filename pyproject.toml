@@ -90,17 +90,21 @@ ignore = [
     "TD003", # TODO links
     "TRY003", # messages outside exception class
     # FIX THE FOLLOWING
+    # Complexity
     "PLR",
     "C",
+    # Typing
     "PT",
-    "FBT",
-    "LOG",
     "T",
-    "ASYNC",
     "ANN",
-    "B",
-    "G",
+    # Paths
     "PTH",
+    # Logging
+    "LOG",
+    "G",
+    # General
+    "FBT",
+    "B",
 ]
 
 [tool.ruff.lint.per-file-ignores]
