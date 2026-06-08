@@ -6,6 +6,7 @@ import contextlib
 import functools
 import inspect
 import logging
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import Any, cast
 
@@ -383,9 +384,19 @@ class Server:
     def check_authorized(self, email: str, password: str) -> bool:
         return self._email == email and self._password == password
 
-    async def serve_forever(self) -> None:  # pragma: no cover
-        for task in self._tasks:
+    async def serve_forever(self) -> None:
+        for task in self._tasks:  # pragma: no branch
             await task
+
+    @contextlib.asynccontextmanager
+    async def running(self) -> AsyncIterator[None]:
+        task = asyncio.create_task(self.serve_forever())
+        try:
+            yield
+        finally:
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
 
     async def _event_loop(self) -> None:
         try:

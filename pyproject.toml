@@ -96,9 +96,8 @@ ignore = [
     "FBT",
     "LOG",
     "T",
-    # HERE
     "ASYNC",
-    "RUF",
+    # HERE
     "SLF",
     "ANN",
     "YTT",
