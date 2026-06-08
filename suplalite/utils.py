@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import sys
 from collections.abc import Iterable
 from enum import IntFlag as _IntFlag
 from itertools import islice
-from typing import TypeVar, cast
+from typing import TypeVar
 
 
 def to_hex(data: bytes) -> str:

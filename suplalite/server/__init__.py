@@ -1,13 +1,10 @@
 from __future__ import annotations
 
 import asyncio
-import base64
 import contextlib
 import functools
-import inspect
 import logging
 from collections.abc import AsyncIterator
-from dataclasses import dataclass
 from typing import Any, cast
 
 import tlslite
@@ -224,7 +221,7 @@ class Server:
         self._password = password
 
         # Import here to break cyclic dependency
-        from suplalite.server.handlers import (
+        from suplalite.server.handlers import (  # noqa: PLC0415
             get_handlers,
         )
 

@@ -293,7 +293,7 @@ Fields = list[tuple[str | None, type, bool, dict[str, Any]]]
 
 
 def fields(cls: type[T]) -> Fields:
-    """Expand the dataclass fields into full field specifications"""
+    """Expand the dataclass fields into full field specifications."""
     result: Fields = []
 
     # Note: we import the module that cls is defined in, so that when resolving

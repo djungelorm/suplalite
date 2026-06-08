@@ -37,7 +37,6 @@ async def channel_value_changed(
 
 async def update(context, action, channel_id, value):
     channel = context.server.state.get_channel(channel_id)
-    device = context.server.state.get_device(channel.device_id)
     topic = f"supla/{channel.name}/{action}"
     if channel.type == proto.ChannelType.THERMOMETER:
         value = channels.Temperature.decode(channel.value)
@@ -228,7 +227,7 @@ async def main():
         proto.ChannelFlag.CHANNELSTATE,
     )
 
-    scene = server.state.add_scene(
+    server.state.add_scene(
         "all-off",
         "All Off",
         icons=[

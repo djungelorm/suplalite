@@ -97,10 +97,9 @@ def event_handler(
 @call_handler(proto.Call.DCS_PING_SERVER, proto.Call.SDC_PING_SERVER_RESULT)
 async def ping(context: ConnectionContext) -> proto.TSDC_PingServerResult:
     now = time.time()
-    result = proto.TSDC_PingServerResult(
+    return proto.TSDC_PingServerResult(
         proto.TimeVal(tv_sec=int(now), tv_usec=int((now - int(now)) * 1000000))
     )
-    return result
 
 
 @call_handler(
@@ -679,10 +678,7 @@ def build_pack_message(
         if idx == batch_idx:
             break
 
-    pack = []
-    for item in batches[batch_idx]:
-        pack.append(build_item(item))
-
+    pack = [build_item(item) for item in batches[batch_idx]]
     if total_left == 0 and len(pack) > 0:
         pack[-1].eol = True
 
@@ -697,7 +693,7 @@ async def send_channels(context: ClientContext) -> None:
 
     devices = context.server.state.get_devices()
     channels = context.server.state.get_channels()
-    channels_list = [channels[id] for id in sorted(channels.keys())]
+    channels_list = [channels[idx] for idx in sorted(channels.keys())]
 
     def build_item(channel: ChannelState) -> proto.TSC_Channel_E:
         device = devices[channel.device_id]
@@ -755,7 +751,7 @@ async def send_scenes(context: ClientContext) -> None:
         return
 
     scenes = context.server.state.get_scenes()
-    scenes_list = [scenes[id] for id in sorted(scenes.keys())]
+    scenes_list = [scenes[idx] for idx in sorted(scenes.keys())]
 
     def build_item(scene: SceneState) -> proto.TSC_Scene:
         return proto.TSC_Scene(

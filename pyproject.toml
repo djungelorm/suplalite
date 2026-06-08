@@ -71,6 +71,7 @@ ignore = [
     "D103", # function docstrings
     "D104", # package docstrings
     "D105", # magic method docstrings
+    "D106", # nested class docstrings
     "D107", # __init__ docstrings
     "D203", # docstring format (conflicts with D211)
     "D213", # docstring format (conflicts with D212)
@@ -98,20 +99,13 @@ ignore = [
     "T",
     "ASYNC",
     "ANN",
-    # HERE
-    "A",
-    "PERF",
     "TRY",
+    # HERE
     "B",
-    "RET",
     "G",
     "PTH",
-    "PLC",
-    "F",
     "N",
     "ERA",
-    "D",
-    "INP",
 ]
 
 [tool.pyright]
