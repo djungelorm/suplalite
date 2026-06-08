@@ -17,7 +17,6 @@ async def handle_change(channel, value):
 async def update_loop(device):
     try:
         logging.debug("update loop started")
-
         while True:
             await device.get(1).set_value(random.uniform(10, 30))
             await device.get(2).set_value(random.uniform(50, 80))
@@ -25,10 +24,6 @@ async def update_loop(device):
             await device.get(3).set_humidity(random.uniform(50, 80))
             await device.get(8).set_value(random.uniform(-100, 100))
             await asyncio.sleep(3)
-
-    except Exception as exc:
-        logging.exception(str(exc), exc_info=exc)
-        raise
     finally:
         logging.debug("update loop stopped")
 

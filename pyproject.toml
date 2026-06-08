@@ -99,8 +99,6 @@ ignore = [
     "T",
     "ASYNC",
     "ANN",
-    "TRY",
-    # HERE
     "B",
     "G",
     "PTH",

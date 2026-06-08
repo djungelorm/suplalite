@@ -583,7 +583,7 @@ async def client_execute_action(
                     f"failed to execute action; {msg.action_id} not implemented",
                     level=logging.WARNING,
                 )
-                raise RuntimeError
+                raise RuntimeError  # noqa: TRY301
 
         else:
             context.log(
@@ -591,7 +591,7 @@ async def client_execute_action(
                 f" {msg.subject_type} not supported",
                 level=logging.WARNING,
             )
-            raise RuntimeError
+            raise RuntimeError  # noqa: TRY301
 
     except RuntimeError:
         return proto.TSC_ActionExecutionResult(

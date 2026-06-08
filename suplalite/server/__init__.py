@@ -126,8 +126,8 @@ class Connection:
                     break
         except network.NetworkError as exc:
             self._context.log(f"network error: {exc}", logging.ERROR)
-        except Exception as exc:  # pragma no cover
-            logger.error(str(exc), exc_info=exc)
+        except Exception:  # pragma no cover
+            logger.exception("unexpected error")
             raise
         finally:
             await self._packets.close()
@@ -138,8 +138,8 @@ class Connection:
             while True:
                 event = await self._context.events.get()
                 await self._handle_event(*event)
-        except Exception as exc:  # pragma no cover
-            logger.error(str(exc), exc_info=exc)
+        except Exception:  # pragma no cover
+            logger.exception("unexpected error")
             raise
         finally:
             self._context.log("event task stopped", logging.DEBUG)
@@ -190,8 +190,8 @@ class Connection:
             try:
                 async with self._context.server.state.lock:
                     await handler.handle_event(self._context, payload)
-            except Exception as exc:
-                logger.error("event handler failed", exc_info=exc)
+            except Exception:
+                logger.exception("event handler failed")
 
 
 class Server:
@@ -410,8 +410,8 @@ class Server:
                     try:
                         async with self._context.server.state.lock:
                             await handler.handle_event(self._context, payload)
-                    except Exception as exc:  # pragma: no cover
-                        logger.error("event handler failed", exc_info=exc)
+                    except Exception:  # pragma: no cover
+                        logger.exception("event handler failed")
                 async with self._state.lock:
                     clients = self._state.get_clients()
                     for client in clients.values():
@@ -429,8 +429,8 @@ class Server:
                             continue
                         await events.add(event_id, payload)
 
-        except Exception as exc:  # pragma: no cover
-            logger.error(str(exc), exc_info=exc)
+        except Exception:  # pragma: no cover
+            logger.exception("unexpected error")
             raise
         finally:
             logger.debug("event loop stopped")
@@ -440,8 +440,8 @@ class Server:
             logger.debug("server started")
             assert self._server is not None
             await self._server.serve_forever()
-        except Exception as exc:  # pragma: no cover
-            logger.error(str(exc), exc_info=exc)
+        except Exception:  # pragma: no cover
+            logger.exception("unexpected error")
             raise
         finally:
             logger.debug("server stopped")
@@ -451,8 +451,8 @@ class Server:
             logger.debug("secure server started")
             assert self._secure_server is not None
             await self._secure_server.serve_forever()
-        except Exception as exc:  # pragma: no cover
-            logger.error(str(exc), exc_info=exc)
+        except Exception:  # pragma: no cover
+            logger.exception("unexpected error")
             raise
         finally:
             logger.debug("secure server stopped")
@@ -466,8 +466,8 @@ class Server:
             if secure:
                 await writer.transport._sock.do_handshake()  # noqa: SLF001
             await Connection(self, reader, writer)()
-        except Exception as exc:  # pragma: no cover
-            logger.error(str(exc), exc_info=exc)
+        except Exception:  # pragma: no cover
+            logger.exception("unexpected error")
             raise
         finally:
             # Note: coverage bug means it thinks this is not covered?!?

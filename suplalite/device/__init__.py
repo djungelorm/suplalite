@@ -128,8 +128,8 @@ class Device:
                 packet = await self._packets.recv()
                 await self._handle_message(packet)
 
-        except Exception as exc:  # pragma: no cover
-            logger.error(str(exc), exc_info=exc)
+        except Exception:  # pragma: no cover
+            logger.exception("unexpected error")
             raise
         finally:
             logger.debug("message loop stopped")
@@ -151,8 +151,8 @@ class Device:
 
                 await asyncio.sleep(1)
 
-        except Exception as exc:
-            logger.error(str(exc), exc_info=exc)
+        except Exception:
+            logger.exception("unexpected error")
             raise
         finally:
             logger.debug("task loop stopped")
