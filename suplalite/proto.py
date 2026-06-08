@@ -1051,7 +1051,6 @@ class TDS_DeviceCalCfgResult:
     )
 
 
-# CHANNEL_CONFIG_MAXSIZE = 128  # v. <= 19
 CHANNEL_CONFIG_MAXSIZE = 512  # v. >= 21
 
 

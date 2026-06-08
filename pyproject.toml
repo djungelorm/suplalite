@@ -103,7 +103,6 @@ ignore = [
     "G",
     "PTH",
     "N",
-    "ERA",
 ]
 
 [tool.pyright]

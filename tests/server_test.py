@@ -2137,8 +2137,7 @@ async def test_rgbw_dimmer_off_on_preserves_brightness_and_color(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
     async with open_device(server, 5) as device, open_client(server, "test") as client:
-        # set brightness=20, colorBrightness=50, purple (r=128, g=64, b=192),
-        # onOff=False
+        # set brightness=20, colorBrightness=50, r=128, g=64, b=192, onOff=False
         await do_set_value(
             client,
             device,
