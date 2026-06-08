@@ -54,7 +54,7 @@ load-plugins = [
     "pylint.extensions.typing",
     "pylint_pytest",
 ]
-max-module-lines=2000
+max-module-lines=5000
 
 [tool.pylint."MESSAGES CONTROL"]
 disable = [

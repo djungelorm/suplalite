@@ -65,6 +65,10 @@ async def update(context, action, channel_id, value):
         value = channels.GeneralPurposeMeasurement.decode(channel.value)
         print(topic, value)
 
+    elif channel.type == proto.ChannelType.RGBLEDCONTROLLER:
+        value = channels.RGBDimmer.decode(channel.value)
+        print(topic, value)
+
     else:
         print(topic, "unknown value")
 
@@ -187,6 +191,15 @@ async def main():
             value_precision=1,
         ),
         icons=[load_icon("examples/car.png")],
+    )
+
+    server.state.add_channel(
+        device_id,
+        "rgb-lights",
+        "RGB Lights",
+        proto.ChannelType.RGBLEDCONTROLLER,
+        proto.ChannelFunc.RGBLIGHTING,
+        proto.ChannelFlag.CHANNELSTATE,
     )
 
     device_id = server.state.add_device(

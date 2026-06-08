@@ -249,6 +249,77 @@ def register_device_message(device_id: int) -> proto.TDS_RegisterDevice_E:
                 value=b"\x00\x00\x00\x00\x00\x00\x00\x00",
             )
         )
+    elif device_id == 5:
+        channels.append(
+            proto.TDS_DeviceChannel_C(
+                number=0,
+                type=proto.ChannelType.RELAY,
+                action_trigger_caps=proto.ActionCap.NONE,
+                default_func=proto.ChannelFunc.POWERSWITCH,
+                flags=proto.ChannelFlag.CHANNELSTATE,
+                value=b"\x00\x00\x00\x00\x00\x00\x00\x00",
+            )
+        )
+        channels.append(
+            proto.TDS_DeviceChannel_C(
+                number=1,
+                type=proto.ChannelType.THERMOMETER,
+                action_trigger_caps=proto.ActionCap.NONE,
+                default_func=proto.ChannelFunc.THERMOMETER,
+                flags=proto.ChannelFlag.CHANNELSTATE,
+                value=b"\x00\x00\x00\x00\x00\x00\x00\x00",
+            )
+        )
+        channels.append(
+            proto.TDS_DeviceChannel_C(
+                number=2,
+                type=proto.ChannelType.HUMIDITYSENSOR,
+                action_trigger_caps=proto.ActionCap.NONE,
+                default_func=proto.ChannelFunc.HUMIDITY,
+                flags=proto.ChannelFlag.CHANNELSTATE,
+                value=b"\x00\x00\x00\x00\x00\x00\x00\x00",
+            )
+        )
+        channels.append(
+            proto.TDS_DeviceChannel_C(
+                number=3,
+                type=proto.ChannelType.HUMIDITYANDTEMPSENSOR,
+                action_trigger_caps=proto.ActionCap.NONE,
+                default_func=proto.ChannelFunc.HUMIDITYANDTEMPERATURE,
+                flags=proto.ChannelFlag.CHANNELSTATE,
+                value=b"\x00\x00\x00\x00\x00\x00\x00\x00",
+            )
+        )
+        channels.append(
+            proto.TDS_DeviceChannel_C(
+                number=4,
+                type=proto.ChannelType.GENERAL_PURPOSE_MEASUREMENT,
+                action_trigger_caps=proto.ActionCap.NONE,
+                default_func=proto.ChannelFunc.GENERAL_PURPOSE_MEASUREMENT,
+                flags=proto.ChannelFlag.CHANNELSTATE,
+                value=b"\x00\x00\x00\x00\x00\x00\x00\x00",
+            )
+        )
+        channels.append(
+            proto.TDS_DeviceChannel_C(
+                number=5,
+                type=proto.ChannelType.DIMMER,
+                action_trigger_caps=proto.ActionCap.NONE,
+                default_func=proto.ChannelFunc.DIMMER,
+                flags=proto.ChannelFlag.CHANNELSTATE,
+                value=b"\x00\x00\x00\x00\x00\x00\x00\x00",
+            )
+        )
+        channels.append(
+            proto.TDS_DeviceChannel_C(
+                number=6,
+                type=proto.ChannelType.RGBLEDCONTROLLER,
+                action_trigger_caps=proto.ActionCap.NONE,
+                default_func=proto.ChannelFunc.RGBLIGHTING,
+                flags=proto.ChannelFlag.CHANNELSTATE,
+                value=b"\x00\x00\x00\x00\x00\x00\x00\x00",
+            )
+        )
     else:
         raise NotImplementedError  # pragma: no cover
 
@@ -1068,18 +1139,27 @@ async def test_client_execute_action_toggle(
     assert "server event CHANNEL_SET_VALUE 3 0100000000000000" in caplog.text
 
 
+@pytest.mark.parametrize(
+    "device_and_channel",
+    (
+        (2, 4, 0, b"\x0a\x00\x00\x00\x00\x00\x00\x00"),
+        (5, 16, 6, b"\n\xff\x00\x00\x00\x00\x00\x00"),
+    ),
+)
 @pytest.mark.asyncio
 async def test_client_execute_action_set_rgbw_parameters(
-    server: Server, caplog: pytest.LogCaptureFixture
+    device_and_channel: tuple[int, int, int, bytes],
+    server: Server,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
-    async with open_device(server, 2) as device:
+    async with open_device(server, device_and_channel[0]) as device:
         async with open_client(server, "test") as client:
             await do_execute_action(
                 client,
                 device,
                 proto.TCS_Action(
                     action_id=proto.ActionType.SET_RGBW_PARAMETERS,
-                    subject_id=4,
+                    subject_id=device_and_channel[1],
                     subject_type=proto.ActionSubjectType.CHANNEL,
                     param=encoding.encode(
                         proto.TAction_RGBW_Parameters(
@@ -1091,14 +1171,21 @@ async def test_client_execute_action_set_rgbw_parameters(
                         )
                     ),
                 ),
-                [(0, b"\x0a\x00\x00\x00\x00\x00\x00\x00")],
+                [(device_and_channel[2], device_and_channel[3])],
             )
     assert "client[test] handle call Call.CS_EXECUTE_ACTION" in caplog.text
     assert "client[test] send Call.SC_ACTION_EXECUTION_RESULT" in caplog.text
-    assert "device[device-2] handle event EventId.CHANNEL_SET_VALUE" in caplog.text
-    assert "device[device-2] send Call.SD_CHANNEL_SET_VALUE" in caplog.text
+    assert (
+        f"device[device-{device_and_channel[0]}] handle event EventId.CHANNEL_SET_VALUE"
+    ) in caplog.text
+    assert (
+        f"device[device-{device_and_channel[0]}] send Call.SD_CHANNEL_SET_VALUE"
+    ) in caplog.text
 
-    assert "server event CHANNEL_SET_VALUE 4 0a00000000000000" in caplog.text
+    assert (
+        "server event CHANNEL_SET_VALUE "
+        f"{device_and_channel[1]} {device_and_channel[3].hex()}"
+    ) in caplog.text
 
 
 async def do_execute_action_with_error(
@@ -1199,6 +1286,27 @@ async def test_client_execute_action_invalid_dimmer_action(
     assert (
         "client[test] failed to execute action; "
         "dimmer action ActionType.INTERRUPT not supported" in caplog.text
+    )
+
+
+@pytest.mark.asyncio
+async def test_client_execute_action_invalid_rgb_dimmer_action(
+    server: Server, caplog: pytest.LogCaptureFixture
+) -> None:
+    async with open_device(server, 5):
+        async with open_client(server, "test") as client:
+            await do_execute_action_with_error(
+                client,
+                proto.TCS_Action(
+                    action_id=proto.ActionType.INTERRUPT,
+                    subject_id=16,
+                    subject_type=proto.ActionSubjectType.CHANNEL,
+                    param=b"",
+                ),
+            )
+    assert (
+        "client[test] failed to execute action; "
+        "rgb dimmer action ActionType.INTERRUPT not supported" in caplog.text
     )
 
 
@@ -1921,4 +2029,101 @@ async def test_dimmer_already_on_preserves_brightness(
                     param=b"",
                 ),
                 [(0, b"\x32\x00\x00\x00\x00\x00\x00\x00")],
+            )
+
+
+@pytest.mark.asyncio
+async def test_rgb_dimmer_off_on_preserves_brightness_and_color(
+    server: Server, caplog: pytest.LogCaptureFixture
+) -> None:
+    async with open_device(server, 5) as device:
+        async with open_client(server, "test") as client:
+            # set colorBrightness=50, purple (r=128, g=64, b=192), onOff=False
+            await do_set_value(
+                client,
+                device,
+                proto.TCS_NewValue(
+                    value_id=16,
+                    target=proto.Target.CHANNEL,
+                    value=b"\x00\x32\xc0\x40\x80\x00\x00\x00",
+                ),
+                6,
+            )
+
+            # turn off (colorBrightness=0, color unchanged, onOff=True)
+            await do_execute_action(
+                client,
+                device,
+                proto.TCS_Action(
+                    action_id=proto.ActionType.TURN_OFF,
+                    subject_id=16,
+                    subject_type=proto.ActionSubjectType.CHANNEL,
+                    param=b"",
+                ),
+                [(6, b"\x00\x00\xc0\x40\x80\x01\x00\x00")],
+            )
+
+            # turn on (colorBrightness=50, color unchanged, onOff=True)
+            await do_execute_action(
+                client,
+                device,
+                proto.TCS_Action(
+                    action_id=proto.ActionType.TURN_ON,
+                    subject_id=16,
+                    subject_type=proto.ActionSubjectType.CHANNEL,
+                    param=b"",
+                ),
+                [(6, b"\x00\x32\xc0\x40\x80\x01\x00\x00")],
+            )
+
+
+@pytest.mark.asyncio
+async def test_rgb_dimmer_initial_on_sets_full_brightness_and_white(
+    server: Server, caplog: pytest.LogCaptureFixture
+) -> None:
+    async with open_device(server, 5) as device:
+        async with open_client(server, "test") as client:
+            # turn on
+            await do_execute_action(
+                client,
+                device,
+                proto.TCS_Action(
+                    action_id=proto.ActionType.TURN_ON,
+                    subject_id=16,
+                    subject_type=proto.ActionSubjectType.CHANNEL,
+                    param=b"",
+                ),
+                [(6, b"\x00\x64\x00\x00\x00\x01\x00\x00")],
+            )
+
+
+@pytest.mark.asyncio
+async def test_rgb_dimmer_already_on_preserves_brightness_and_color(
+    server: Server, caplog: pytest.LogCaptureFixture
+) -> None:
+    async with open_device(server, 5) as device:
+        async with open_client(server, "test") as client:
+            # set colorBrightness=50, purple (r=128, g=64, b=192)
+            await do_set_value(
+                client,
+                device,
+                proto.TCS_NewValue(
+                    value_id=16,
+                    target=proto.Target.CHANNEL,
+                    value=b"\x00\x32\xc0\x40\x80\x00\x00\x00",
+                ),
+                6,
+            )
+
+            # turn on
+            await do_execute_action(
+                client,
+                device,
+                proto.TCS_Action(
+                    action_id=proto.ActionType.TURN_ON,
+                    subject_id=16,
+                    subject_type=proto.ActionSubjectType.CHANNEL,
+                    param=b"",
+                ),
+                [(6, b"\x00\x32\xc0\x40\x80\x01\x00\x00")],
             )

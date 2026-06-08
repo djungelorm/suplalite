@@ -230,6 +230,11 @@ class ServerState:
     def _should_set_last(self, channel_type: proto.ChannelType, value: bytes) -> bool:
         if channel_type == proto.ChannelType.DIMMER:
             return encoding.decode(proto.TDimmerChannel_Value, value)[0].brightness > 0
+        if channel_type == proto.ChannelType.RGBLEDCONTROLLER:
+            return (
+                encoding.decode(proto.TRGBDimmerChannel_Value, value)[0].colorBrightness
+                > 0
+            )
         return False
 
     def get_device_events(self, device_id: int) -> EventQueue:

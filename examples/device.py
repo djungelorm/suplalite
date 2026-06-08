@@ -10,8 +10,10 @@ from suplalite.device import Device, channels
 from suplalite.logging import configure_logging
 
 
-def handle_change(channel, value):
+async def handle_change(channel, value):
     print("handle change", channel, value)
+    if channel.value != value:
+        await channel.do_set_value(value)
 
 
 async def update_loop(device):
@@ -58,6 +60,7 @@ async def main():
         func=proto.ChannelFunc.LIGHTSWITCH, on_change=handle_change
     )
     car = channels.GeneralPurposeMeasurement()
+    rgb_lights = channels.RGBDimmer(on_change=handle_change)
 
     device.add(relay)
     device.add(temperature)
@@ -68,6 +71,7 @@ async def main():
     device.add(lights)
     device.add(traffic_light)
     device.add(car)
+    device.add(rgb_lights)
 
     await device.start()
     device.add_task(asyncio.create_task(update_loop(device)))
