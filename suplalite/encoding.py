@@ -157,9 +157,9 @@ def _encode_ctype(value: Any, metadata: dict[str, Any]) -> Any:
 def _decode_ctype(
     data: bytes,
     offset: int,
-    name: str,  # pylint: disable=unused-argument
-    typ: type,  # pylint: disable=unused-argument
-    sizes: dict[str, int],  # pylint: disable=unused-argument
+    name: str,
+    typ: type,
+    sizes: dict[str, int],
     metadata: dict[str, Any],
 ) -> tuple[Any, int]:
     ctype = metadata["ctype"]
@@ -187,7 +187,7 @@ def _decode_string(
     data: bytes,
     offset: int,
     name: str,
-    typ: type,  # pylint: disable=unused-argument
+    typ: type,
     sizes: dict[str, int],
     metadata: dict[str, Any],
 ) -> tuple[Any, int]:
@@ -225,8 +225,8 @@ def _encode_bytes(value: Any, metadata: dict[str, Any]) -> Any:
 def _decode_bytes(
     data: bytes,
     offset: int,
-    name: str,  # pylint: disable=unused-argument
-    typ: type,  # pylint: disable=unused-argument
+    name: str,
+    typ: type,
     sizes: dict[str, int],
     metadata: dict[str, Any],
 ) -> tuple[Any, int]:
@@ -268,7 +268,7 @@ def _decode_packed_array(
     metadata: dict[str, Any],
 ) -> tuple[Any, int]:
     assert name is not None
-    assert typing.get_origin(typ) == list
+    assert typing.get_origin(typ) is list
     typ_args = typing.get_args(typ)
     assert len(typ_args) == 1
     item_type = typ_args[0]
@@ -284,7 +284,7 @@ def _decode_packed_array(
     return items, size
 
 
-class MessageProtocol(Protocol):  # pylint: disable=too-few-public-methods
+class MessageProtocol(Protocol):
     def __init__(self, *args: Any) -> None: ...  # pragma: no cover
 
 
@@ -302,7 +302,7 @@ def fields(cls: type[T]) -> Fields:
     module = importlib.import_module(module_name)
     types = typing.get_type_hints(cls, localns=module.__dict__)
 
-    for field in dataclasses.fields(cls):  # type: ignore
+    for field in dataclasses.fields(cls):
         # Note: don't use field.type as it is an unresolved string
         # Use typing.get_type_hints instead
         typ = types[field.name]
@@ -425,7 +425,7 @@ def _decode_field(
 ) -> tuple[Any, int]:
     if "decoder" in metadata:
         return cast(
-            tuple[Any, int],
+            "tuple[Any, int]",
             metadata["decoder"](data, offset, name, typ, sizes, metadata),
         )
     return decode(typ, data[offset:])

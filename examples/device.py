@@ -1,8 +1,6 @@
 import asyncio
 import logging
 import random
-import select
-import signal
 import time
 
 from suplalite import device, network, proto
@@ -29,7 +27,7 @@ async def update_loop(device):
             await asyncio.sleep(3)
 
     except Exception as exc:
-        logging.error(str(exc), exc_info=exc)
+        logging.exception(str(exc), exc_info=exc)
         raise
     finally:
         logging.debug("update loop stopped")

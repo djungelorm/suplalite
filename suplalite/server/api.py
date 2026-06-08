@@ -53,7 +53,7 @@ def handle_error(
 
 
 async def handle_404(request: Request, _: Any) -> JSONResponse:
-    return handle_error(request, 404, "Not found", logging.WARN)
+    return handle_error(request, 404, "Not found", logging.WARNING)
 
 
 async def handle_500(request: Request, _: Any) -> JSONResponse:  # pragma: no cover

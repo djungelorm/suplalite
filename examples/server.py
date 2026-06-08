@@ -1,15 +1,13 @@
 import asyncio
-import logging
-import signal
-import struct
+import contextlib
 
 from suplalite import encoding, proto
 from suplalite.device import channels
 from suplalite.logging import configure_logging
 from suplalite.server import Server
-from suplalite.server.context import ClientContext, DeviceContext, ServerContext
+from suplalite.server.context import ServerContext
 from suplalite.server.events import EventContext, EventId
-from suplalite.server.handlers import event_handler, get_handlers
+from suplalite.server.handlers import event_handler
 from suplalite.server.state import (
     GeneralPurposeMeasurementChannelConfig,
     SceneChannelState,
@@ -262,7 +260,5 @@ async def main():
 
 
 if __name__ == "__main__":
-    try:
+    with contextlib.suppress(KeyboardInterrupt):
         asyncio.run(main())
-    except KeyboardInterrupt:
-        pass

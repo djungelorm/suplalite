@@ -5,7 +5,7 @@ import socket
 from collections.abc import Callable, Coroutine
 from typing import Any, cast
 
-import tlslite  # type: ignore
+import tlslite
 
 _DEFAULT_LIMIT = 2**16  # 64 KiB
 
@@ -57,7 +57,7 @@ class TLSSocket:
         if not self._connected:
             raise BlockingIOError
         try:
-            return cast(bytes, self._ssl_sock.recv(bufsize))
+            return cast("bytes", self._ssl_sock.recv(bufsize))
         except ConnectionResetError:  # pragma: no cover
             return b""
         except tlslite.TLSAbruptCloseError:  # pragma: no cover
@@ -65,7 +65,7 @@ class TLSSocket:
 
     def send(self, data: bytes) -> int:
         assert self._connected
-        return cast(int, self._ssl_sock.send(data))
+        return cast("int", self._ssl_sock.send(data))
 
     def close(self) -> None:
         self._ssl_sock.close()
@@ -97,10 +97,11 @@ class TLSProtocol(asyncio.StreamReaderProtocol):
         self._ssl_settings = settings
 
     def connection_made(self, transport: asyncio.BaseTransport) -> None:
-        # Replace the raw socket in the transport with a TLSSocket that wraps the raw socket
+        # Replace the raw socket in the transport with a TLSSocket
+        # that wraps the raw socket
         raw_sock = transport.get_extra_info("socket")
         if isinstance(raw_sock, asyncio.trsock.TransportSocket):  # pragma: no cover
-            raw_sock = raw_sock._sock  # type: ignore  # pylint: disable=protected-access
+            raw_sock = raw_sock._sock
         ssl_sock = TLSSocket(
             raw_sock,
             self._ssl_cert,
@@ -108,7 +109,7 @@ class TLSProtocol(asyncio.StreamReaderProtocol):
             self._ssl_session_cache,
             self._ssl_settings,
         )
-        transport._sock = ssl_sock  # type: ignore  # pylint: disable=protected-access
+        transport._sock = ssl_sock
         super().connection_made(transport)
 
 

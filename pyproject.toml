@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling", "uv-dynamic-versioning"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
@@ -20,70 +20,109 @@ dependencies = [
     "uvicorn",
 ]
 
-[tool.hatch.version]
-source = "uv-dynamic-versioning"
-
 [project.optional-dependencies]
 dev = [
-    "build",
-    "mypy",
     "aiohttp",
+    "hatch-vcs",
+    "hatchling",
     "pre-commit",
-    "pylint",
-    "pylint-pytest",
+    "pyright==1.1.410",
     "pytest",
-    "pytest-xdist",
-    "pytest-cov",
     "pytest-asyncio",
+    "pytest-cov",
+    "pytest-xdist",
+    "ruff==0.15.15",
+]
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.envs.default]
+features = ["dev"]
+post-install-commands = [
+    "pre-commit install",
+    "mkdir -p ssl",
+    'openssl req -new -x509 -days 365 -nodes -subj "/C=/ST=/L=/O=/CN=" -out ssl/server.cert -keyout ssl/server.key',
+]
+
+[tool.hatch.envs.default.scripts]
+test = [
+    "pre-commit run --all-files",
+    "pytest --cov suplalite --cov tests --cov-report html:htmlcov --cov-fail-under=100 -n auto",
 ]
 
 [tool.pytest.ini_options]
-filterwarnings = ["ignore::DeprecationWarning"]
-testpaths = [
-    "tests"
-]
+# filterwarnings = ["ignore::DeprecationWarning"]
+testpaths = ["tests"]
 asyncio_default_fixture_loop_scope = "function"
 log_level = "DEBUG"
 log_format = "[%(levelname)s] [%(name)s] %(message)s"
 
-[tool.isort]
-profile = "black"
-
-[tool.pylint.MAIN]
-load-plugins = [
-    "pylint.extensions.typing",
-    "pylint_pytest",
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "ANN401", # Any type hints
+    "ARG001", # Unused function argument
+    "ARG002", # Unused method argument
+    "COM812", # trailing comma (conflicts with formatter)
+    "D100", # module docstrings
+    "D101", # class docstrings
+    "D102", # method docstrings
+    "D103", # function docstrings
+    "D104", # package docstrings
+    "D105", # magic method docstrings
+    "D107", # __init__ docstrings
+    "D203", # docstring format (conflicts with D211)
+    "D213", # docstring format (conflicts with D212)
+    "EM101", # no string literals in exceptions
+    "EM102", # no f-string literals in exceptions
+    "FIX001", # FIXMEs
+    "FIX002", # TODOs
+    "PLR0913", # too many arguments
+    "PLR2004", # magic constants
+    "S101", # use of assert
+    "TC001", # place typing imports in type-check block
+    "TC002", # place typing imports in type-check block
+    "TC003", # place typing imports in type-check block
+    "TD001", # FIXMEs
+    "TD002", # TODO author
+    "TD003", # TODO links
+    "TRY003", # messages outside exception class
+    # FIX THE FOLLOWING
+    "S",
+    "PLR",
+    "C",
+    "PT",
+    "FBT",
+    "LOG",
+    "T",
+    # HERE
+    "ASYNC",
+    "RUF",
+    "SLF",
+    "ANN",
+    "YTT",
+    "A",
+    "PERF",
+    "TRY",
+    "B",
+    "RET",
+    "G",
+    "PTH",
+    "PLC",
+    "F",
+    "N",
+    "ERA",
+    "D",
+    "INP",
 ]
-max-module-lines=5000
 
-[tool.pylint."MESSAGES CONTROL"]
-disable = [
-    "fixme",
-    "missing-docstring",
-    "too-many-arguments",
-    "too-few-public-methods",
-    "too-many-instance-attributes",
-    "too-many-public-methods",
-    "too-many-locals",
-    "duplicate-code",
-]
-
-[tool.pylint.FORMAT]
-good-names = "i,j,k,x,y,z,n,it,id,_"
-
-[tool.pylint.REPORTS]
-reports = "no"
-
-[tool.pylint.design]
-max-positional-arguments = 12
-max-statements = 100
-max-branches = 50
+[tool.pyright]
+typeCheckingMode = "strict"
 
 [tool.coverage.run]
 branch = true
 omit = [
-    "tests/conftest.py"
+    "suplalite/logging.py", # FIXME: enable this
+    "tests/conftest.py",
 ]
-
-[tool.mypy]
-strict = true

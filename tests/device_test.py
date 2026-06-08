@@ -9,7 +9,7 @@ from suplalite.server.context import BaseContext
 from suplalite.server.events import EventContext, EventId
 from suplalite.server.handlers import event_handler
 
-from .conftest import device_guid  # type: ignore
+from .conftest import device_guid
 
 
 @event_handler(EventContext.SERVER, EventId.REQUEST)
@@ -70,8 +70,10 @@ async def test_device(server: Server, caplog: pytest.LogCaptureFixture) -> None:
         "flags=<ChannelFlag.CHANNELSTATE: 65536>, "
         "value=b'\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00'), "
         "TDS_DeviceChannel_C(number=1, type=<ChannelType.THERMOMETER: 3034>, "
-        "action_trigger_caps=<ActionCap.NONE: 0>, default_func=<ChannelFunc.THERMOMETER: 40>, "
-        "flags=<ChannelFlag.CHANNELSTATE: 65536>, value=b'\\x00\\x00\\x00\\x00\\x000q\\xc0'), "
+        "action_trigger_caps=<ActionCap.NONE: 0>, "
+        "default_func=<ChannelFunc.THERMOMETER: 40>, "
+        "flags=<ChannelFlag.CHANNELSTATE: 65536>, "
+        "value=b'\\x00\\x00\\x00\\x00\\x000q\\xc0'), "
         "TDS_DeviceChannel_C(number=2, type=<ChannelType.RELAY: 2900>, "
         "action_trigger_caps=<ActionCap.TURN_ON|TURN_OFF|TOGGLE_x1|TOGGLE_x2|TOGGLE_x3|"
         "TOGGLE_x4|TOGGLE_x5: 127>, "
@@ -102,7 +104,7 @@ async def test_device_ping(server: Server, caplog: pytest.LogCaptureFixture) -> 
 
     await device.start()
     await device.connected.wait()
-    device._ping_timeout = 3  # pylint: disable=protected-access
+    device._ping_timeout = 3
     await asyncio.sleep(4)
 
     await device.stop()
@@ -242,7 +244,8 @@ async def test_channel_set_value(
     )
     assert (
         "[suplalite.server] server call Call.DS_DEVICE_CHANNEL_VALUE_CHANGED_C "
-        "TDS_DeviceChannelValue_C(channel_number=1, offline=False, validity_time_sec=0, "
+        "TDS_DeviceChannelValue_C(channel_number=1, "
+        "offline=False, validity_time_sec=0, "
         "value=b'\\x00\\x00\\x00\\x00\\x00\\x00E@')" in caplog.text
     )
 
@@ -287,7 +290,8 @@ async def test_server_set_value(
     )
     assert (
         "[suplalite.server] server call Call.DS_DEVICE_CHANNEL_VALUE_CHANGED_C "
-        "TDS_DeviceChannelValue_C(channel_number=0, offline=False, validity_time_sec=0, "
+        "TDS_DeviceChannelValue_C(channel_number=0, "
+        "offline=False, validity_time_sec=0, "
         "value=b'\\x01\\x00\\x00\\x00\\x00\\x00\\x00\\x00')" in caplog.text
     )
 
@@ -394,66 +398,76 @@ async def test_channels(
     if channel_number == 0:
         assert (
             "[suplalite.server] server call Call.DS_DEVICE_CHANNEL_VALUE_CHANGED_C "
-            "TDS_DeviceChannelValue_C(channel_number=0, offline=False, validity_time_sec=0, "
+            "TDS_DeviceChannelValue_C(channel_number=0, "
+            "offline=False, validity_time_sec=0, "
             "value=b'\\x01\\x00\\x00\\x00\\x00\\x00\\x00\\x00')" in caplog.text
         )
         assert (
             "[suplalite.server] server call Call.DS_DEVICE_CHANNEL_VALUE_CHANGED_C "
-            "TDS_DeviceChannelValue_C(channel_number=0, offline=False, validity_time_sec=0, "
+            "TDS_DeviceChannelValue_C(channel_number=0, "
+            "offline=False, validity_time_sec=0, "
             "value=b'\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00')" in caplog.text
         )
 
     if channel_number == 1:
         assert (
             "[suplalite.server] server call Call.DS_DEVICE_CHANNEL_VALUE_CHANGED_C "
-            "TDS_DeviceChannelValue_C(channel_number=1, offline=False, validity_time_sec=0, "
+            "TDS_DeviceChannelValue_C(channel_number=1, "
+            "offline=False, validity_time_sec=0, "
             "value=b'\\x1f\\x85\\xebQ\\xb8\\x1e\\t@')" in caplog.text
         )
 
     if channel_number == 2:
         assert (
             "[suplalite.server] server call Call.DS_DEVICE_CHANNEL_VALUE_CHANGED_C "
-            "TDS_DeviceChannelValue_C(channel_number=2, offline=False, validity_time_sec=0, "
+            "TDS_DeviceChannelValue_C(channel_number=2, "
+            "offline=False, validity_time_sec=0, "
             "value=b'\\xc8\\xcd\\xfb\\xff\\x10\\xa4\\x00\\x00')" in caplog.text
         )
 
     if channel_number == 3:
         assert (
             "[suplalite.server] server call Call.DS_DEVICE_CHANNEL_VALUE_CHANGED_C "
-            "TDS_DeviceChannelValue_C(channel_number=3, offline=False, validity_time_sec=0, "
+            "TDS_DeviceChannelValue_C(channel_number=3, "
+            "offline=False, validity_time_sec=0, "
             "value=b'\\x10\\xa4\\x00\\x00\\x18\\xfc\\xff\\xff')" in caplog.text
         )
         assert (
             "[suplalite.server] server call Call.DS_DEVICE_CHANNEL_VALUE_CHANGED_C "
-            "TDS_DeviceChannelValue_C(channel_number=3, offline=False, validity_time_sec=0, "
+            "TDS_DeviceChannelValue_C(channel_number=3, "
+            "offline=False, validity_time_sec=0, "
             "value=b'\\x10\\xa4\\x00\\x00D\\x0c\\x00\\x00')" in caplog.text
         )
 
     if channel_number == 4:
         assert (
             "[suplalite.server] server call Call.DS_DEVICE_CHANNEL_VALUE_CHANGED_C "
-            "TDS_DeviceChannelValue_C(channel_number=4, offline=False, validity_time_sec=0, "
+            "TDS_DeviceChannelValue_C(channel_number=4, "
+            "offline=False, validity_time_sec=0, "
             "value=b'X9\\xb4\\xc8v\\xbe\\xf3?')" in caplog.text
         )
 
     if channel_number == 5:
         assert (
             "[suplalite.server] server call Call.DS_DEVICE_CHANNEL_VALUE_CHANGED_C "
-            "TDS_DeviceChannelValue_C(channel_number=5, offline=False, validity_time_sec=0, "
+            "TDS_DeviceChannelValue_C(channel_number=5, "
+            "offline=False, validity_time_sec=0, "
             "value=b'*\\x00\\x00\\x00\\x00\\x00\\x00\\x00')" in caplog.text
         )
 
     if channel_number == 6:
         assert (
             "[suplalite.server] server call Call.DS_DEVICE_CHANNEL_VALUE_CHANGED_C "
-            "TDS_DeviceChannelValue_C(channel_number=6, offline=False, validity_time_sec=0, "
+            "TDS_DeviceChannelValue_C(channel_number=6, "
+            "offline=False, validity_time_sec=0, "
             "value=b'\\x00*Z\\x0eS\\x00\\x00\\x00')" in caplog.text
         )
 
     if channel_number == 7:
         assert (
             "[suplalite.server] server call Call.DS_DEVICE_CHANNEL_VALUE_CHANGED_C "
-            "TDS_DeviceChannelValue_C(channel_number=7, offline=False, validity_time_sec=0, "
+            "TDS_DeviceChannelValue_C(channel_number=7, "
+            "offline=False, validity_time_sec=0, "
             "value=b'\\n2\\xc0@\\x80\\x00\\x00\\x00')" in caplog.text
         )
 

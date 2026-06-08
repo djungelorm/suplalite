@@ -1,6 +1,3 @@
-# pylint: disable=redefined-outer-name
-
-# type: ignore
 from collections.abc import AsyncIterator
 
 import pytest

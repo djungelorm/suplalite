@@ -1,5 +1,3 @@
-# pylint: disable=redefined-outer-name
-
 import asyncio
 from collections.abc import AsyncIterator
 

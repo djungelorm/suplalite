@@ -38,7 +38,6 @@ def test_register_device_e() -> None:
         ],
     )
     data = encoding.encode(msg)
-    print(data)
     assert data == (
         b"email@example.com\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
         b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
@@ -149,7 +148,8 @@ def test_register_device_result() -> None:
     msg = proto.TSD_RegisterDeviceResult(proto.ResultCode.TRUE, 2, 3, 4)
     assert (
         str(msg) == "TSD_RegisterDeviceResult("
-        "result_code=<ResultCode.TRUE: 3>, activity_timeout=2, version=3, version_min=4)"
+        "result_code=<ResultCode.TRUE: 3>, activity_timeout=2, "
+        "version=3, version_min=4)"
     )
     data = encoding.encode(msg)
     assert data == b"\x03\x00\x00\x00\x02\x03\x04"
@@ -157,7 +157,8 @@ def test_register_device_result() -> None:
     assert size == 7
     assert (
         str(msg) == "TSD_RegisterDeviceResult("
-        "result_code=<ResultCode.TRUE: 3>, activity_timeout=2, version=3, version_min=4)"
+        "result_code=<ResultCode.TRUE: 3>, activity_timeout=2, "
+        "version=3, version_min=4)"
     )
 
 
@@ -244,11 +245,13 @@ def test_channel_state() -> None:
         15,
     )
     assert str(msg) == (
-        "TDS_ChannelState(receiver_id=1, channel_number=2, fields=<ChannelStateField.MAC: 2>, "
+        "TDS_ChannelState(receiver_id=1, channel_number=2, "
+        "fields=<ChannelStateField.MAC: 2>, "
         "default_icon_field=4, ipv4=5, mac=b'\\x01\\x02\\x03\\x04\\x05\\x06', "
         "battery_level=6, battery_powered=False,"
         " wifi_rssi=7, wifi_signal_strength=8, bridge_node_online=True, "
-        "bridge_node_signal_strength=9, uptime=10, connected_uptime=11, battery_health=12, "
+        "bridge_node_signal_strength=9, uptime=10, "
+        "connected_uptime=11, battery_health=12, "
         "last_connection_reset_cause=13, light_source_lifespan=14, "
         "light_source_operating_time=15)"
     )
@@ -261,11 +264,13 @@ def test_channel_state() -> None:
     msg, size = encoding.decode(proto.TDS_ChannelState, data)
     assert size == 50
     assert str(msg) == (
-        "TDS_ChannelState(receiver_id=1, channel_number=2, fields=<ChannelStateField.MAC: 2>, "
+        "TDS_ChannelState(receiver_id=1, channel_number=2, "
+        "fields=<ChannelStateField.MAC: 2>, "
         "default_icon_field=4, ipv4=5, mac=b'\\x01\\x02\\x03\\x04\\x05\\x06', "
         "battery_level=6, battery_powered=False,"
         " wifi_rssi=7, wifi_signal_strength=8, bridge_node_online=True, "
-        "bridge_node_signal_strength=9, uptime=10, connected_uptime=11, battery_health=12, "
+        "bridge_node_signal_strength=9, uptime=10, "
+        "connected_uptime=11, battery_health=12, "
         "last_connection_reset_cause=13, light_source_lifespan=14, "
         "light_source_operating_time=15)"
     )
@@ -280,8 +285,8 @@ def test_data_packet() -> None:
     )
     data = encoding.encode(msg)
     assert (
-        data
-        == b"SUPLA\x13\x01\x00\x00\x00(\x00\x00\x00\x04\x00\x00\x00\x01\x02\x03\x04SUPLA"
+        data == b"SUPLA\x13\x01\x00\x00\x00(\x00\x00\x00\x04\x00\x00\x00"
+        b"\x01\x02\x03\x04SUPLA"
     )
 
 

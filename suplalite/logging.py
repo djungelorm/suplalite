@@ -3,10 +3,7 @@ from typing import Any
 
 
 def get_config(show_time: bool = True, level: str = "DEBUG") -> dict[str, Any]:
-    if show_time:
-        asctime = "%(asctime)s "
-    else:
-        asctime = ""
+    asctime = "%(asctime)s " if show_time else ""
     return {
         "version": 1,
         "root": {

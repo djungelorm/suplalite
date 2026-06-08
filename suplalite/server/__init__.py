@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import contextlib
 import functools
 import inspect
 import logging
 from dataclasses import dataclass
 from typing import Any, cast
 
-import tlslite  # type: ignore
+import tlslite
 import uvicorn
 
 from suplalite import encoding, network, proto
@@ -71,10 +72,8 @@ class Connection:
 
             # stop the event loop
             self._event_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.exceptions.CancelledError):
                 await self._event_task
-            except asyncio.exceptions.CancelledError:
-                pass
 
             # clean up server state
             if isinstance(self._context, DeviceContext):
@@ -125,7 +124,7 @@ class Connection:
                     if self._context.should_replace:
                         self._context = self._context.replacement
                 if self._context.error:
-                    self._context.log("error; closing connection", logging.WARN)
+                    self._context.log("error; closing connection", logging.WARNING)
                     break
         except network.NetworkError as exc:
             self._context.log(f"network error: {exc}", logging.ERROR)
@@ -193,12 +192,12 @@ class Connection:
             try:
                 async with self._context.server.state.lock:
                     await handler.handle_event(self._context, payload)
-            except Exception as exc:  # pylint: disable=broad-exception-caught
+            except Exception as exc:
                 logger.error("event handler failed", exc_info=exc)
 
 
 class Server:
-    def __init__(  # pylint: disable=too-many-positional-arguments
+    def __init__(
         self,
         listen_host: str,
         host: str,
@@ -224,7 +223,7 @@ class Server:
         self._password = password
 
         # Import here to break cyclic dependency
-        from suplalite.server.handlers import (  # pylint: disable=import-outside-toplevel
+        from suplalite.server.handlers import (
             get_handlers,
         )
 
@@ -235,9 +234,9 @@ class Server:
                 assert handler.call_id not in self._call_handlers
                 self._call_handlers[handler.call_id] = handler
 
-        self._event_handlers: dict[tuple[EventContext, EventId], list[EventHandler]] = (
-            {}
-        )
+        self._event_handlers: dict[
+            tuple[EventContext, EventId], list[EventHandler]
+        ] = {}
         for handler in handlers:
             if isinstance(handler, EventHandler):
                 key = (handler.event_context, handler.event_id)
@@ -290,19 +289,19 @@ class Server:
     @property
     def port(self) -> int:
         assert self._server is not None
-        return cast(int, self._server.sockets[0].getsockname()[1])
+        return cast("int", self._server.sockets[0].getsockname()[1])
 
     @property
     def secure_port(self) -> int:
         assert self._secure_server is not None
-        return cast(int, self._secure_server.sockets[0].getsockname()[1])
+        return cast("int", self._secure_server.sockets[0].getsockname()[1])
 
     @property
     def api_port(self) -> int:
         assert self._api_server is not None
         for server in self._api_server.servers:
             for socket in server.sockets:  # pragma: no branch
-                return cast(int, socket.getsockname()[1])
+                return cast("int", socket.getsockname()[1])
         raise RuntimeError  # pragma: no cover
 
     @property
@@ -366,10 +365,8 @@ class Server:
         for task in self._tasks:
             task.cancel()
         for task in self._tasks:
-            try:
+            with contextlib.suppress(asyncio.exceptions.CancelledError):
                 await task
-            except asyncio.exceptions.CancelledError:
-                pass
         logger.info("stopped")
 
     def get_call_handler(self, call_id: proto.Call) -> CallHandler | None:
@@ -405,9 +402,7 @@ class Server:
                     try:
                         async with self._context.server.state.lock:
                             await handler.handle_event(self._context, payload)
-                    except (
-                        Exception  # pylint: disable=broad-exception-caught
-                    ) as exc:  # pragma: no cover
+                    except Exception as exc:  # pragma: no cover
                         logger.error("event handler failed", exc_info=exc)
                 async with self._state.lock:
                     clients = self._state.get_clients()
@@ -461,7 +456,7 @@ class Server:
             self._connection_count += 1
         try:
             if secure:
-                await writer.transport._sock.do_handshake()  # type: ignore  # pylint: disable=protected-access
+                await writer.transport._sock.do_handshake()
             await Connection(self, reader, writer)()
         except Exception as exc:  # pragma: no cover
             logger.error(str(exc), exc_info=exc)

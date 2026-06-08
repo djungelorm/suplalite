@@ -1,19 +1,17 @@
 from __future__ import annotations
 
 import asyncio
-import ctypes
-import datetime
+import contextlib
 import inspect
 import logging
 import ssl
-import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, TypeVar, cast
+from typing import Any, TypeVar
 
-from suplalite import encoding, network, packets, proto
+from suplalite import encoding, packets, proto
 
 logging.basicConfig(
     format="%(asctime)s %(levelname)-8s %(message)s",
@@ -86,13 +84,13 @@ async def channelrelationpack_update(
 
 @supla_call(proto.Call.SC_SCENE_PACK_UPDATE)
 async def scenepack_update(context: Context, msg: proto.TSC_ScenePack):
-    logging.debug(f"scene pack update")
+    logging.debug("scene pack update")
     context.client._got_scenes = msg.total_left == 0
 
 
 @supla_call(proto.Call.SC_CHANNELVALUE_PACK_UPDATE_B)
 async def channelvaluepack_update(context: Context, msg: proto.TSC_ChannelValuePack_B):
-    logging.debug(f"channel value pack update")
+    logging.debug("channel value pack update")
 
 
 async def oauth_request(context):
@@ -176,13 +174,16 @@ class Client:
         not_got_all = any(
             [not self._got_locations, not self._got_channels, self._extra_get_next > 0]
         )
-        if self._state == self.State.CONNECTED and not_got_all:
-            if time.time() - self._last_get_next > 0.5:
-                if self._got_locations and self._got_channels:
-                    self._extra_get_next -= 1
-                self._last_get_next = time.time()
-                await self._get_next()
-                return
+        if (
+            self._state == self.State.CONNECTED
+            and not_got_all
+            and time.time() - self._last_get_next > 0.5
+        ):
+            if self._got_locations and self._got_channels:
+                self._extra_get_next -= 1
+            self._last_get_next = time.time()
+            await self._get_next()
+            return
 
         if (
             self._state == self.State.CONNECTED
@@ -268,7 +269,5 @@ async def main():
 
 
 if __name__ == "__main__":
-    try:
+    with contextlib.suppress(KeyboardInterrupt):
         asyncio.run(main())
-    except KeyboardInterrupt:
-        pass

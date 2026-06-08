@@ -95,9 +95,7 @@ def event_handler(
 
 
 @call_handler(proto.Call.DCS_PING_SERVER, proto.Call.SDC_PING_SERVER_RESULT)
-async def ping(
-    context: ConnectionContext,  # pylint: disable=unused-argument
-) -> proto.TSDC_PingServerResult:
+async def ping(context: ConnectionContext) -> proto.TSDC_PingServerResult:
     now = time.time()
     result = proto.TSDC_PingServerResult(
         proto.TimeVal(tv_sec=int(now), tv_usec=int((now - int(now)) * 1000000))
@@ -110,7 +108,7 @@ async def ping(
     proto.Call.SDC_GET_REGISTRATION_ENABLED_RESULT,
 )
 async def get_registration_enabled(
-    context: ConnectionContext,  # pylint:disable=unused-argument
+    context: ConnectionContext,
 ) -> proto.TSDC_RegistrationEnabled:
     # Note: registration is never enabled
     # Devices are registered by the server config
@@ -145,7 +143,7 @@ async def register_device(
         device_id = context.server.state.get_device_id(msg.guid)
     except KeyError:
         context.log(
-            f"device not found with guid {to_hex(msg.guid)}", level=logging.WARN
+            f"device not found with guid {to_hex(msg.guid)}", level=logging.WARNING
         )
         context.error = True
         return proto.TSD_RegisterDeviceResult(
@@ -161,7 +159,7 @@ async def register_device(
         context.log(
             "manufacturer id mismatch; "
             f"expected {device.manufacturer_id} got {msg.manufacturer_id}",
-            level=logging.WARN,
+            level=logging.WARNING,
         )
         context.error = True
         return proto.TSD_RegisterDeviceResult(
@@ -174,7 +172,7 @@ async def register_device(
     if device.product_id != msg.product_id:
         context.log(
             f"product id mismatch; expected {device.product_id} got {msg.product_id}",
-            level=logging.WARN,
+            level=logging.WARNING,
         )
         context.error = True
         return proto.TSD_RegisterDeviceResult(
@@ -187,7 +185,10 @@ async def register_device(
     channels = context.server.state.get_device_channels(device_id)
     error: str | None = None
     if len(msg.channels) != len(channels):
-        error = f"incorrect number of channels; expected {len(channels)} got {len(msg.channels)}"
+        error = (
+            f"incorrect number of channels; expected {len(channels)}"
+            f" got {len(msg.channels)}"
+        )
 
     for number, (channel_id, channel_msg) in enumerate(zip(channels, msg.channels)):
         channel = context.server.state.get_channel(channel_id)
@@ -214,7 +215,7 @@ async def register_device(
             break
 
     if error is not None:
-        context.log(error, level=logging.WARN)
+        context.log(error, level=logging.WARNING)
         context.error = True
         return proto.TSD_RegisterDeviceResult(
             proto.ResultCode.FALSE,
@@ -228,7 +229,7 @@ async def register_device(
         device_id, proto_version, context.events
     ):
         # failed to connect, the device is already connected
-        context.log("device already connected", level=logging.WARN)
+        context.log("device already connected", level=logging.WARNING)
         context.error = True
         return proto.TSD_RegisterDeviceResult(
             proto.ResultCode.FALSE,
@@ -298,7 +299,7 @@ async def register_client(
 
     if not context.server.state.client_connected(client_id, context.events):
         # failed to connect, the client is already connected
-        context.log("client already connected", level=logging.WARN)
+        context.log("client already connected", level=logging.WARNING)
         context.error = True
         result_code = proto.ResultCode.FALSE
 
@@ -333,7 +334,7 @@ async def register_client(
     proto.Call.SC_REGISTER_PN_CLIENT_TOKEN_RESULT,
 )
 async def register_client_push_notification_token(
-    context: ClientContext,  # pylint:disable=unused-argument
+    context: ClientContext,
 ) -> proto.TSC_RegisterPnClientTokenResult:  # pragma: no cover
     return proto.TSC_RegisterPnClientTokenResult(proto.ResultCode.FALSE)
 
@@ -342,7 +343,7 @@ async def register_client_push_notification_token(
     proto.Call.CS_OAUTH_TOKEN_REQUEST, proto.Call.SC_OAUTH_TOKEN_REQUEST_RESULT
 )
 async def oauth_token_request(
-    context: ClientContext,  # pylint:disable=unused-argument
+    context: ClientContext,
 ) -> proto.TSC_OAuthTokenRequestResult:
 
     # Generate a random token (we don't actually do proper oauth, just allow all)
@@ -361,9 +362,7 @@ async def oauth_token_request(
 
 
 @call_handler(proto.Call.CS_GET_NEXT)
-async def client_get_next(
-    context: ClientContext,  # pylint:disable=unused-argument
-) -> None:  # pragma: no cover
+async def client_get_next(context: ClientContext) -> None:  # pragma: no cover
     client = context.server.state.get_client(context.client_id)
     if not client.sent_channels:
         await context.events.add(EventId.SEND_CHANNELS)
@@ -398,7 +397,7 @@ async def execute_channel_action(
         else:
             context.log(
                 f"failed to execute action; relay action {action} not supported",
-                level=logging.WARN,
+                level=logging.WARNING,
             )
             raise RuntimeError
     elif channel.type == proto.ChannelType.DIMMER:
@@ -417,7 +416,7 @@ async def execute_channel_action(
         else:
             context.log(
                 f"failed to execute action; dimmer action {action} not supported",
-                level=logging.WARN,
+                level=logging.WARNING,
             )
             raise RuntimeError
 
@@ -472,7 +471,7 @@ async def execute_channel_action(
         else:
             context.log(
                 f"failed to execute action; rgb dimmer action {action} not supported",
-                level=logging.WARN,
+                level=logging.WARNING,
             )
             raise RuntimeError
 
@@ -526,14 +525,14 @@ async def execute_channel_action(
         else:
             context.log(
                 f"failed to execute action; rgbw dimmer action {action} not supported",
-                level=logging.WARN,
+                level=logging.WARNING,
             )
             raise RuntimeError
 
     else:
         context.log(
             f"failed to execute action; channel type {channel.type} not supported",
-            level=logging.WARN,
+            level=logging.WARNING,
         )
         raise RuntimeError
 
@@ -555,7 +554,7 @@ async def client_execute_action(
             except KeyError as exc:
                 context.log(
                     f"failed to execute action; channel id {channel_id} does not exist",
-                    level=logging.WARN,
+                    level=logging.WARNING,
                 )
                 raise RuntimeError from exc
             await execute_channel_action(context, channel, msg.action_id, msg.param)
@@ -567,7 +566,7 @@ async def client_execute_action(
             except KeyError as exc:
                 context.log(
                     f"failed to execute action; scene id {scene_id} does not exist",
-                    level=logging.WARN,
+                    level=logging.WARNING,
                 )
                 raise RuntimeError from exc
 
@@ -583,14 +582,15 @@ async def client_execute_action(
             else:
                 context.log(
                     f"failed to execute action; {msg.action_id} not implemented",
-                    level=logging.WARN,
+                    level=logging.WARNING,
                 )
                 raise RuntimeError
 
         else:
             context.log(
-                f"failed to execute action; subject type {msg.subject_type} not supported",
-                level=logging.WARN,
+                f"failed to execute action; subject type"
+                f" {msg.subject_type} not supported",
+                level=logging.WARNING,
             )
             raise RuntimeError
 
@@ -650,8 +650,7 @@ async def channel_set_value(
 
 @call_handler(proto.Call.DS_CHANNEL_SET_VALUE_RESULT)
 async def channel_set_value_result(
-    context: DeviceContext,  # pylint: disable=unused-argument
-    msg: proto.TDS_ChannelNewValueResult,  # pylint: disable=unused-argument
+    context: DeviceContext, msg: proto.TDS_ChannelNewValueResult
 ) -> None:  # pragma: no cover
     # Note: ignore this, device should also send a CHANNEL_VALUE_CHANGED message
     pass
@@ -912,7 +911,7 @@ async def client_superuser_authorization_request(
         context.server.state.set_client_authorized(context.client_id)
         result = proto.ResultCode.AUTHORIZED
     else:
-        context.log("unauthorized", level=logging.WARN)
+        context.log("unauthorized", level=logging.WARNING)
         result = proto.ResultCode.UNAUTHORIZED
     result_msg = proto.TSC_SuperUserAuthorizationResult(result=result)
     await context.conn.send(proto.Call.SC_SUPERUSER_AUTHORIZATION_RESULT, result_msg)

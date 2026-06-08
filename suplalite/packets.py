@@ -2,7 +2,7 @@ import asyncio
 import ssl
 from dataclasses import dataclass
 
-import tlslite  # type: ignore
+import tlslite
 
 from suplalite import encoding, network, proto
 

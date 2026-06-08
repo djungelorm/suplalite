@@ -258,11 +258,7 @@ def test_partial_decode() -> None:
     assert decoded_msg.d is True
     assert decoded_msg.e == b"hi"
 
-    data = (
-        b"\x01\x00\x00\x00"  #
-        b"\x02\x00\x00\x00\x00\x00\x00\x00"  #
-        b"fo"  #
-    )
+    data = b"\x01\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00fo"
     fields, offset = encoding.partial_decode(LargerMessage, data, num_fields=2)
     assert offset == 12
     assert fields[0] == 1

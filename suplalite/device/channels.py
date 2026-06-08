@@ -9,7 +9,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from suplalite import device
 
 
-class Channel:  # pylint: disable=too-few-public-methods
+class Channel:
     def __init__(self) -> None:
         self._device: device.Device | None = None
         self._channel_number: int | None = None

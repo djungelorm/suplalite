@@ -19,54 +19,19 @@ repos:
       - id: mixed-line-ending
       - id: name-tests-test
       - id: trailing-whitespace
-  - repo: https://github.com/PyCQA/isort
-    rev: 8.0.1
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.15
     hooks:
-      - id: isort
-        args: ["--profile", "black"]
-        stages: [pre-commit, pre-push, manual]
-  - repo: https://github.com/psf/black
-    rev: 26.1.0
-    hooks:
-      - id: black
-        stages: [pre-commit, pre-push]
-      - id: black
-        stages: [manual]
-        args: ["--check"]
-  - repo: local
-    hooks:
-      - id: mypy
-        name: mypy
-        entry: env/bin/mypy
-        language: system
-        types: [python]
-        args: ["suplalite", "tests"]
-        files: "\\.py$"
-        pass_filenames: false
-  - repo: local
-    hooks:
-      - id: pylint
-        name: pylint
-        entry: env/bin/pylint
-        language: system
-        types: [python]
-        args: [
-          "-rn", # Only display messages
-          "-sn", # Don't display the score
-        ]
-        files: "(suplalite|tests)/.+\\.py$"
-  - repo: local
-    hooks:
-      - id: pytest
-        name: pytest
-        entry: env/bin/pytest
-        language: system
-        types: [python]
-        args: [
-          "--cov",
-          "--cov-report=html:htmlcov",
-          "--cov-fail-under=100",
-          "-n", "auto", # Run in parallel
-        ]
-        files: "\\.py$"
-        pass_filenames: false
+      - id: ruff-format
+      - id: ruff-check
+        args: ["--fix", "--show-fixes"]
+  # - repo: local
+  #   hooks:
+  #     - id: pyright
+  #       name: pyright
+  #       entry: hatch run pyright
+  #       language: system
+  #       types: [python]
+  #       args: ["suplalite", "tests"]
+  #       files: "\\.py$"
+  #       pass_filenames: false

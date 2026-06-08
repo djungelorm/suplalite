@@ -37,7 +37,7 @@ class IntFlag(_IntFlag):
                 if self & value.value != 0
             ]
         else:  # pragma: no cover
-            names = cast(list[str], [x.name for x in self])
+            names = cast("list[str]", [x.name for x in self])
         if len(names) == 0:
             for name, value in self.__class__.__members__.items():
                 if value == 0:

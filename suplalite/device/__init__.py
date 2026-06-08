@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import ssl
 import time
@@ -153,10 +154,8 @@ class Device:
             task.cancel()
         try:
             for task in self._tasks:
-                try:
+                with contextlib.suppress(asyncio.exceptions.CancelledError):
                     await task
-                except asyncio.exceptions.CancelledError:
-                    pass
         finally:
             assert self._packets is not None
             await self._packets.close()

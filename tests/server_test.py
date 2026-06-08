@@ -1,5 +1,3 @@
-# pylint: disable=too-many-statements
-
 import asyncio
 import base64
 import hashlib
@@ -23,22 +21,20 @@ from suplalite.server.events import EventContext, EventId
 from suplalite.server.handlers import event_handler
 from suplalite.utils import to_hex
 
-from .conftest import device_guid  # type: ignore
+from .conftest import device_guid
 
 proto.CHANNELPACK_MAXCOUNT = 5
 proto.ACTIVITY_TIMEOUT_DEFAULT = 30
 
 
 @event_handler(EventContext.SERVER, EventId.DEVICE_CONNECTED)
-async def device_connected(
-    context: ServerContext, device_id: int  # pylint:disable=unused-argument
-) -> None:
+async def device_connected(context: ServerContext, device_id: int) -> None:
     logging.info("server event DEVICE_CONNECTED %d", device_id)
 
 
 @event_handler(EventContext.SERVER, EventId.DEVICE_CONNECTED)
 async def device_connected_with_extra(
-    context: ServerContext,  # pylint:disable=unused-argument
+    context: ServerContext,
     device_id: int,
     extra: str | None = None,
 ) -> None:
@@ -46,15 +42,13 @@ async def device_connected_with_extra(
 
 
 @event_handler(EventContext.SERVER, EventId.DEVICE_DISCONNECTED)
-async def device_disconnected(
-    context: ServerContext, device_id: int  # pylint:disable=unused-argument
-) -> None:
+async def device_disconnected(context: ServerContext, device_id: int) -> None:
     logging.info("server event DEVICE_DISCONNECTED %d", device_id)
 
 
 @event_handler(EventContext.SERVER, EventId.CHANNEL_REGISTER_VALUE)
 async def channel_register_value(
-    context: ServerContext,  # pylint:disable=unused-argument
+    context: ServerContext,
     channel_id: int,
     value: bytes,
 ) -> None:
@@ -63,7 +57,7 @@ async def channel_register_value(
 
 @event_handler(EventContext.SERVER, EventId.CHANNEL_VALUE_CHANGED)
 async def channel_value_changed(
-    context: ServerContext,  # pylint:disable=unused-argument
+    context: ServerContext,
     channel_id: int,
     value: bytes,
 ) -> None:
@@ -72,7 +66,7 @@ async def channel_value_changed(
 
 @event_handler(EventContext.SERVER, EventId.CHANNEL_SET_VALUE)
 async def channel_set_value(
-    context: ServerContext,  # pylint:disable=unused-argument
+    context: ServerContext,
     channel_id: int,
     value: bytes,
 ) -> None:
@@ -80,16 +74,12 @@ async def channel_set_value(
 
 
 @event_handler(EventContext.SERVER, EventId.CLIENT_CONNECTED)
-async def client_connected(
-    context: ServerContext, client_id: int  # pylint:disable=unused-argument
-) -> None:
+async def client_connected(context: ServerContext, client_id: int) -> None:
     logging.info("server event CLIENT_CONNECTED %d", client_id)
 
 
 @event_handler(EventContext.SERVER, EventId.CLIENT_DISCONNECTED)
-async def client_disconnected(
-    context: ServerContext, client_id: int  # pylint:disable=unused-argument
-) -> None:
+async def client_disconnected(context: ServerContext, client_id: int) -> None:
     logging.info("server event CLIENT_DISCONNECTED %d", client_id)
 
 
@@ -358,7 +348,9 @@ async def register_device(stream: PacketStream, device_id: int) -> int:
     return device_id
 
 
-async def register_client(stream: PacketStream, name: str) -> tuple[
+async def register_client(
+    stream: PacketStream, name: str
+) -> tuple[
     int,
     proto.TSC_LocationPack,
     list[proto.TSC_ChannelPack_E],
@@ -577,8 +569,8 @@ async def test_register_device_invalid_channel_flags(
         await do_register_device_invalid(stream, call)
     assert (
         "incorrect flags for channel number 0; "
-        "expected ChannelFlag.CHANNELSTATE got ChannelFlag.ZWAVE_BRIDGE|RS_AUTO_CALIBRATION"
-        in caplog.text
+        "expected ChannelFlag.CHANNELSTATE"
+        " got ChannelFlag.ZWAVE_BRIDGE|RS_AUTO_CALIBRATION" in caplog.text
     )
     assert "error; closing connection" in caplog.text
 
@@ -704,7 +696,7 @@ async def test_register_client(
         assert channel_packs[1].items[3].default_config_crc32 == 3093446211
 
         # scene update
-        if server.with_scenes:  # type: ignore
+        if server.with_scenes:
             assert len(scene_pack.items) == 3
 
             assert scene_pack.items[0].id == 1
@@ -756,76 +748,78 @@ async def test_register_client_twice(
 
 @pytest.mark.asyncio
 async def test_client_get_channel_state(server: Server) -> None:
-    async with open_device(server, 1) as device:
-        async with open_client(server, "Test Client") as client:
-            channel_id = 2
-            channel_number = 1  # index in the device's channels
+    async with (
+        open_device(server, 1) as device,
+        open_client(server, "Test Client") as client,
+    ):
+        channel_id = 2
+        channel_number = 1  # index in the device's channels
 
-            # client calls get_channel_state
-            call = proto.TCS_ChannelStateRequest(
-                sender_id=client.client_id, channel_id=channel_id
-            )
-            await client.stream.send(
-                Packet(proto.Call.CSD_GET_CHANNEL_STATE, encoding.encode(call))
-            )
+        # client calls get_channel_state
+        call = proto.TCS_ChannelStateRequest(
+            sender_id=client.client_id, channel_id=channel_id
+        )
+        await client.stream.send(
+            Packet(proto.Call.CSD_GET_CHANNEL_STATE, encoding.encode(call))
+        )
 
-            # device receives get channel state
-            packet = await device.stream.recv()
-            assert packet.call_id == proto.Call.CSD_GET_CHANNEL_STATE
-            device_request, _ = encoding.decode(
-                proto.TSD_ChannelStateRequest, packet.data
-            )
-            assert device_request.sender_id == client.client_id
-            assert device_request.channel_number == channel_number
+        # device receives get channel state
+        packet = await device.stream.recv()
+        assert packet.call_id == proto.Call.CSD_GET_CHANNEL_STATE
+        device_request, _ = encoding.decode(proto.TSD_ChannelStateRequest, packet.data)
+        assert device_request.sender_id == client.client_id
+        assert device_request.channel_number == channel_number
 
-            # device sends channel state result
-            device_response = proto.TDS_ChannelState(
-                receiver_id=device_request.sender_id,
-                channel_number=1,
-                fields=proto.ChannelStateField.MAC,
-                default_icon_field=0,
-                ipv4=0,
-                mac=b"\x01\x02\x03\x04\x05\x06",
-                battery_level=0,
-                battery_powered=False,
-                wifi_rssi=0,
-                wifi_signal_strength=0,
-                bridge_node_online=False,
-                bridge_node_signal_strength=0,
-                uptime=0,
-                connected_uptime=0,
-                battery_health=0,
-                last_connection_reset_cause=0,
-                light_source_lifespan=0,
-                light_source_operating_time=0,
+        # device sends channel state result
+        device_response = proto.TDS_ChannelState(
+            receiver_id=device_request.sender_id,
+            channel_number=1,
+            fields=proto.ChannelStateField.MAC,
+            default_icon_field=0,
+            ipv4=0,
+            mac=b"\x01\x02\x03\x04\x05\x06",
+            battery_level=0,
+            battery_powered=False,
+            wifi_rssi=0,
+            wifi_signal_strength=0,
+            bridge_node_online=False,
+            bridge_node_signal_strength=0,
+            uptime=0,
+            connected_uptime=0,
+            battery_health=0,
+            last_connection_reset_cause=0,
+            light_source_lifespan=0,
+            light_source_operating_time=0,
+        )
+        await device.stream.send(
+            Packet(
+                proto.Call.DSC_CHANNEL_STATE_RESULT,
+                encoding.encode(device_response),
             )
-            await device.stream.send(
-                Packet(
-                    proto.Call.DSC_CHANNEL_STATE_RESULT,
-                    encoding.encode(device_response),
-                )
-            )
+        )
 
-            # client receives channel state result
-            packet = await client.stream.recv()
-            assert packet.call_id == proto.Call.DSC_CHANNEL_STATE_RESULT
-            client_response, _ = encoding.decode(proto.TSC_ChannelState, packet.data)
-            assert client_response.receiver_id == client.client_id
-            assert client_response.channel_id == channel_id
-            assert client_response.mac == b"\x01\x02\x03\x04\x05\x06"
+        # client receives channel state result
+        packet = await client.stream.recv()
+        assert packet.call_id == proto.Call.DSC_CHANNEL_STATE_RESULT
+        client_response, _ = encoding.decode(proto.TSC_ChannelState, packet.data)
+        assert client_response.receiver_id == client.client_id
+        assert client_response.channel_id == channel_id
+        assert client_response.mac == b"\x01\x02\x03\x04\x05\x06"
 
 
 @pytest.mark.asyncio
 async def test_client_get_all_icons(server: Server) -> None:
     url = f"https://{server.host}:{server.api_port}/api/2.2.0/user-icons"
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url, ssl=False) as response:
-            assert response.status == 200
-            assert response.headers["content-type"] == "application/json"
-            assert await response.json() == [
-                {"id": 15666345},
-                {"id": 732673},
-            ]
+    async with (
+        aiohttp.ClientSession() as session,
+        session.get(url, ssl=False) as response,
+    ):
+        assert response.status == 200
+        assert response.headers["content-type"] == "application/json"
+        assert await response.json() == [
+            {"id": 15666345},
+            {"id": 732673},
+        ]
 
 
 @pytest.mark.asyncio
@@ -835,22 +829,24 @@ async def test_client_get_multiple_channel_icons(server: Server) -> None:
             f"https://{server.host}:{server.api_port}/api/2.2.0/"
             "user-icons?ids=15666345,732673&include=images"
         )
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, ssl=False) as response:  # pragma: no branch
-                assert response.status == 200
-                assert response.headers["content-type"] == "application/json"
-                assert await response.json() == [
-                    {
-                        "id": 15666345,
-                        "images": ["aWNvbjE=", "aWNvbjI="],
-                        "imagesDark": ["aWNvbjE=", "aWNvbjI="],
-                    },
-                    {
-                        "id": 732673,
-                        "images": ["aWNvbjM="],
-                        "imagesDark": ["aWNvbjM="],
-                    },
-                ]
+        async with (
+            aiohttp.ClientSession() as session,
+            session.get(url, ssl=False) as response,
+        ):  # pragma: no branch
+            assert response.status == 200
+            assert response.headers["content-type"] == "application/json"
+            assert await response.json() == [
+                {
+                    "id": 15666345,
+                    "images": ["aWNvbjE=", "aWNvbjI="],
+                    "imagesDark": ["aWNvbjE=", "aWNvbjI="],
+                },
+                {
+                    "id": 732673,
+                    "images": ["aWNvbjM="],
+                    "imagesDark": ["aWNvbjM="],
+                },
+            ]
 
 
 @pytest.mark.asyncio
@@ -860,65 +856,65 @@ async def test_client_get_single_channel_icon(server: Server) -> None:
             f"https://{server.host}:{server.api_port}/api/2.2.0/"
             "user-icons?ids=732673&include=images"
         )
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, ssl=False) as response:  # pragma: no branch
-                assert response.status == 200
-                assert response.headers["content-type"] == "application/json"
-                assert await response.json() == [
-                    {
-                        "id": 732673,
-                        "images": ["aWNvbjM="],
-                        "imagesDark": ["aWNvbjM="],
-                    },
-                ]
+        async with (
+            aiohttp.ClientSession() as session,
+            session.get(url, ssl=False) as response,
+        ):  # pragma: no branch
+            assert response.status == 200
+            assert response.headers["content-type"] == "application/json"
+            assert await response.json() == [
+                {
+                    "id": 732673,
+                    "images": ["aWNvbjM="],
+                    "imagesDark": ["aWNvbjM="],
+                },
+            ]
 
 
 @pytest.mark.asyncio
 async def test_api_not_found(server: Server) -> None:
     async with open_device(server, 4):
         url = f"https://{server.host}:{server.api_port}/api/2.2.0/foo"
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, ssl=False) as response:  # pragma: no branch
-                assert response.status == 404
-                assert response.headers["content-type"] == "application/json"
-                assert await response.json() == {"message": "Not found"}
+        async with (
+            aiohttp.ClientSession() as session,
+            session.get(url, ssl=False) as response,
+        ):  # pragma: no branch
+            assert response.status == 404
+            assert response.headers["content-type"] == "application/json"
+            assert await response.json() == {"message": "Not found"}
 
 
 @pytest.mark.asyncio
 async def test_client_update_on_device_connect(server: Server) -> None:
-    async with open_client(server, "Client A") as client_a:
-        async with open_client(server, "Client B") as client_b:
-            async with open_device(server, 1):  # pragma: no branch
+    async with (
+        open_client(server, "Client A") as client_a,
+        open_client(server, "Client B") as client_b,
+        open_device(server, 1),
+    ):  # pragma: no branch
 
-                def check_packet(packet: Packet) -> None:
-                    assert packet.call_id == proto.Call.SC_CHANNELVALUE_PACK_UPDATE_B
-                    msg, _ = encoding.decode(proto.TSC_ChannelValuePack_B, packet.data)
-                    assert msg.total_left == 0
-                    assert len(msg.items) == 3
+        def check_packet(packet: Packet) -> None:
+            assert packet.call_id == proto.Call.SC_CHANNELVALUE_PACK_UPDATE_B
+            msg, _ = encoding.decode(proto.TSC_ChannelValuePack_B, packet.data)
+            assert msg.total_left == 0
+            assert len(msg.items) == 3
 
-                    assert not msg.items[0].eol
-                    assert msg.items[0].id == 1
-                    assert msg.items[0].online
-                    assert (
-                        msg.items[0].value.value == b"\x00\x00\x00\x00\x00\x00\x00\x00"
-                    )
+            assert not msg.items[0].eol
+            assert msg.items[0].id == 1
+            assert msg.items[0].online
+            assert msg.items[0].value.value == b"\x00\x00\x00\x00\x00\x00\x00\x00"
 
-                    assert not msg.items[1].eol
-                    assert msg.items[1].id == 2
-                    assert msg.items[1].online
-                    assert (
-                        msg.items[1].value.value == b"\x00\x00\x00\x00\x00\x00\x00\x00"
-                    )
+            assert not msg.items[1].eol
+            assert msg.items[1].id == 2
+            assert msg.items[1].online
+            assert msg.items[1].value.value == b"\x00\x00\x00\x00\x00\x00\x00\x00"
 
-                    assert msg.items[2].eol
-                    assert msg.items[2].id == 3
-                    assert msg.items[2].online
-                    assert (
-                        msg.items[2].value.value == b"\x00\x00\x00\x00\x00\x00\x00\x00"
-                    )
+            assert msg.items[2].eol
+            assert msg.items[2].id == 3
+            assert msg.items[2].online
+            assert msg.items[2].value.value == b"\x00\x00\x00\x00\x00\x00\x00\x00"
 
-                check_packet(await client_a.stream.recv())
-                check_packet(await client_b.stream.recv())
+        check_packet(await client_a.stream.recv())
+        check_packet(await client_b.stream.recv())
 
 
 connectors = {
@@ -932,7 +928,7 @@ connectors = {
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(**connectors)  # type: ignore
+@pytest.mark.parametrize(**connectors)
 async def test_device_ping(
     server: Server,
     connect: Callable[[Server], AbstractAsyncContextManager[Connection]],
@@ -955,7 +951,7 @@ async def test_device_ping(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(**connectors)  # type: ignore
+@pytest.mark.parametrize(**connectors)
 async def test_registration_enabled(
     server: Server,
     connect: Callable[[Server], AbstractAsyncContextManager[Connection]],
@@ -970,7 +966,7 @@ async def test_registration_enabled(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(**connectors)  # type: ignore
+@pytest.mark.parametrize(**connectors)
 async def test_set_activity_timeout(
     server: Server,
     connect: Callable[[Server], AbstractAsyncContextManager[Connection]],
@@ -998,37 +994,36 @@ async def test_set_activity_timeout(
 async def test_device_value_changed(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
-    async with open_device(server, 1) as device:
-        async with open_client(server, "test") as client:
-            await device.stream.send(
-                Packet(
-                    proto.Call.DS_DEVICE_CHANNEL_VALUE_CHANGED,
-                    encoding.encode(
-                        proto.TDS_DeviceChannelValue(
-                            channel_number=0,
-                            value=b"12345678",
-                        )
+    async with open_device(server, 1) as device, open_client(server, "test") as client:
+        await device.stream.send(
+            Packet(
+                proto.Call.DS_DEVICE_CHANNEL_VALUE_CHANGED,
+                encoding.encode(
+                    proto.TDS_DeviceChannelValue(
+                        channel_number=0,
+                        value=b"12345678",
+                    )
+                ),
+            )
+        )
+        packet = await client.stream.recv()
+        assert packet.call_id == proto.Call.SC_CHANNELVALUE_PACK_UPDATE_B
+        msg, _ = encoding.decode(proto.TSC_ChannelValuePack_B, packet.data)
+        assert msg == proto.TSC_ChannelValuePack_B(
+            total_left=0,
+            items=[
+                proto.TSC_ChannelValue_B(
+                    eol=True,
+                    id=1,
+                    online=True,
+                    value=proto.ChannelValue_B(
+                        value=b"12345678",
+                        sub_value=b"\x00\x00\x00\x00\x00\x00\x00\x00",
+                        sub_value_type=0,
                     ),
                 )
-            )
-            packet = await client.stream.recv()
-            assert packet.call_id == proto.Call.SC_CHANNELVALUE_PACK_UPDATE_B
-            msg, _ = encoding.decode(proto.TSC_ChannelValuePack_B, packet.data)
-            assert msg == proto.TSC_ChannelValuePack_B(
-                total_left=0,
-                items=[
-                    proto.TSC_ChannelValue_B(
-                        eol=True,
-                        id=1,
-                        online=True,
-                        value=proto.ChannelValue_B(
-                            value=b"12345678",
-                            sub_value=b"\x00\x00\x00\x00\x00\x00\x00\x00",
-                            sub_value_type=0,
-                        ),
-                    )
-                ],
-            )
+            ],
+        )
 
     assert (
         "device[device-1] handle call Call.DS_DEVICE_CHANNEL_VALUE_CHANGED"
@@ -1078,19 +1073,18 @@ async def do_execute_action(
 async def test_client_execute_action_on(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
-    async with open_device(server, 1) as device:
-        async with open_client(server, "test") as client:
-            await do_execute_action(
-                client,
-                device,
-                proto.TCS_Action(
-                    action_id=proto.ActionType.TURN_ON,
-                    subject_id=3,
-                    subject_type=proto.ActionSubjectType.CHANNEL,
-                    param=b"",
-                ),
-                [(2, b"\x01\x00\x00\x00\x00\x00\x00\x00")],
-            )
+    async with open_device(server, 1) as device, open_client(server, "test") as client:
+        await do_execute_action(
+            client,
+            device,
+            proto.TCS_Action(
+                action_id=proto.ActionType.TURN_ON,
+                subject_id=3,
+                subject_type=proto.ActionSubjectType.CHANNEL,
+                param=b"",
+            ),
+            [(2, b"\x01\x00\x00\x00\x00\x00\x00\x00")],
+        )
     assert "client[test] handle call Call.CS_EXECUTE_ACTION" in caplog.text
     assert "client[test] send Call.SC_ACTION_EXECUTION_RESULT" in caplog.text
     assert "device[device-1] handle event EventId.CHANNEL_SET_VALUE" in caplog.text
@@ -1103,19 +1097,18 @@ async def test_client_execute_action_on(
 async def test_client_execute_action_off(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
-    async with open_device(server, 1) as device:
-        async with open_client(server, "test") as client:
-            await do_execute_action(
-                client,
-                device,
-                proto.TCS_Action(
-                    action_id=proto.ActionType.TURN_OFF,
-                    subject_id=3,
-                    subject_type=proto.ActionSubjectType.CHANNEL,
-                    param=b"",
-                ),
-                [(2, b"\x00\x00\x00\x00\x00\x00\x00\x00")],
-            )
+    async with open_device(server, 1) as device, open_client(server, "test") as client:
+        await do_execute_action(
+            client,
+            device,
+            proto.TCS_Action(
+                action_id=proto.ActionType.TURN_OFF,
+                subject_id=3,
+                subject_type=proto.ActionSubjectType.CHANNEL,
+                param=b"",
+            ),
+            [(2, b"\x00\x00\x00\x00\x00\x00\x00\x00")],
+        )
     assert "client[test] handle call Call.CS_EXECUTE_ACTION" in caplog.text
     assert "client[test] send Call.SC_ACTION_EXECUTION_RESULT" in caplog.text
     assert "device[device-1] handle event EventId.CHANNEL_SET_VALUE" in caplog.text
@@ -1128,19 +1121,18 @@ async def test_client_execute_action_off(
 async def test_client_execute_action_toggle(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
-    async with open_device(server, 1) as device:
-        async with open_client(server, "test") as client:
-            await do_execute_action(
-                client,
-                device,
-                proto.TCS_Action(
-                    action_id=proto.ActionType.TOGGLE,
-                    subject_id=3,
-                    subject_type=proto.ActionSubjectType.CHANNEL,
-                    param=b"",
-                ),
-                [(2, b"\x01\x00\x00\x00\x00\x00\x00\x00")],
-            )
+    async with open_device(server, 1) as device, open_client(server, "test") as client:
+        await do_execute_action(
+            client,
+            device,
+            proto.TCS_Action(
+                action_id=proto.ActionType.TOGGLE,
+                subject_id=3,
+                subject_type=proto.ActionSubjectType.CHANNEL,
+                param=b"",
+            ),
+            [(2, b"\x01\x00\x00\x00\x00\x00\x00\x00")],
+        )
     assert "client[test] handle call Call.CS_EXECUTE_ACTION" in caplog.text
     assert "client[test] send Call.SC_ACTION_EXECUTION_RESULT" in caplog.text
     assert "device[device-1] handle event EventId.CHANNEL_SET_VALUE" in caplog.text
@@ -1163,27 +1155,29 @@ async def test_client_execute_action_set_rgbw_parameters(
     server: Server,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    async with open_device(server, device_and_channel[0]) as device:
-        async with open_client(server, "test") as client:
-            await do_execute_action(
-                client,
-                device,
-                proto.TCS_Action(
-                    action_id=proto.ActionType.SET_RGBW_PARAMETERS,
-                    subject_id=device_and_channel[1],
-                    subject_type=proto.ActionSubjectType.CHANNEL,
-                    param=encoding.encode(
-                        proto.TAction_RGBW_Parameters(
-                            brightness=10,
-                            color_brightness=-1,
-                            color=0,
-                            color_random=False,
-                            on_off=False,
-                        )
-                    ),
+    async with (
+        open_device(server, device_and_channel[0]) as device,
+        open_client(server, "test") as client,
+    ):
+        await do_execute_action(
+            client,
+            device,
+            proto.TCS_Action(
+                action_id=proto.ActionType.SET_RGBW_PARAMETERS,
+                subject_id=device_and_channel[1],
+                subject_type=proto.ActionSubjectType.CHANNEL,
+                param=encoding.encode(
+                    proto.TAction_RGBW_Parameters(
+                        brightness=10,
+                        color_brightness=-1,
+                        color=0,
+                        color_random=False,
+                        on_off=False,
+                    )
                 ),
-                [(device_and_channel[2], device_and_channel[3])],
-            )
+            ),
+            [(device_and_channel[2], device_and_channel[3])],
+        )
     assert "client[test] handle call Call.CS_EXECUTE_ACTION" in caplog.text
     assert "client[test] send Call.SC_ACTION_EXECUTION_RESULT" in caplog.text
     assert (
@@ -1220,17 +1214,16 @@ async def do_execute_action_with_error(
 async def test_client_execute_action_invalid_subject(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
-    async with open_device(server, 1):
-        async with open_client(server, "test") as client:
-            await do_execute_action_with_error(
-                client,
-                proto.TCS_Action(
-                    action_id=proto.ActionType.TURN_ON,
-                    subject_id=3,
-                    subject_type=proto.ActionSubjectType.SCHEDULE,
-                    param=b"",
-                ),
-            )
+    async with open_device(server, 1), open_client(server, "test") as client:
+        await do_execute_action_with_error(
+            client,
+            proto.TCS_Action(
+                action_id=proto.ActionType.TURN_ON,
+                subject_id=3,
+                subject_type=proto.ActionSubjectType.SCHEDULE,
+                param=b"",
+            ),
+        )
     assert (
         "client[test] failed to execute action; "
         "subject type ActionSubjectType.SCHEDULE not supported" in caplog.text
@@ -1241,17 +1234,16 @@ async def test_client_execute_action_invalid_subject(
 async def test_client_execute_action_invalid_channel(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
-    async with open_device(server, 1):
-        async with open_client(server, "test") as client:
-            await do_execute_action_with_error(
-                client,
-                proto.TCS_Action(
-                    action_id=proto.ActionType.TURN_ON,
-                    subject_id=42,
-                    subject_type=proto.ActionSubjectType.CHANNEL,
-                    param=b"",
-                ),
-            )
+    async with open_device(server, 1), open_client(server, "test") as client:
+        await do_execute_action_with_error(
+            client,
+            proto.TCS_Action(
+                action_id=proto.ActionType.TURN_ON,
+                subject_id=42,
+                subject_type=proto.ActionSubjectType.CHANNEL,
+                param=b"",
+            ),
+        )
     assert (
         "client[test] failed to execute action; channel id 42 does not exist"
         in caplog.text
@@ -1262,17 +1254,16 @@ async def test_client_execute_action_invalid_channel(
 async def test_client_execute_action_invalid_relay_action(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
-    async with open_device(server, 1):
-        async with open_client(server, "test") as client:
-            await do_execute_action_with_error(
-                client,
-                proto.TCS_Action(
-                    action_id=proto.ActionType.OPEN,
-                    subject_id=3,
-                    subject_type=proto.ActionSubjectType.CHANNEL,
-                    param=b"",
-                ),
-            )
+    async with open_device(server, 1), open_client(server, "test") as client:
+        await do_execute_action_with_error(
+            client,
+            proto.TCS_Action(
+                action_id=proto.ActionType.OPEN,
+                subject_id=3,
+                subject_type=proto.ActionSubjectType.CHANNEL,
+                param=b"",
+            ),
+        )
     assert (
         "client[test] failed to execute action; "
         "relay action ActionType.OPEN not supported" in caplog.text
@@ -1283,17 +1274,16 @@ async def test_client_execute_action_invalid_relay_action(
 async def test_client_execute_action_invalid_dimmer_action(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
-    async with open_device(server, 2):
-        async with open_client(server, "test") as client:
-            await do_execute_action_with_error(
-                client,
-                proto.TCS_Action(
-                    action_id=proto.ActionType.INTERRUPT,
-                    subject_id=4,
-                    subject_type=proto.ActionSubjectType.CHANNEL,
-                    param=b"",
-                ),
-            )
+    async with open_device(server, 2), open_client(server, "test") as client:
+        await do_execute_action_with_error(
+            client,
+            proto.TCS_Action(
+                action_id=proto.ActionType.INTERRUPT,
+                subject_id=4,
+                subject_type=proto.ActionSubjectType.CHANNEL,
+                param=b"",
+            ),
+        )
     assert (
         "client[test] failed to execute action; "
         "dimmer action ActionType.INTERRUPT not supported" in caplog.text
@@ -1304,17 +1294,16 @@ async def test_client_execute_action_invalid_dimmer_action(
 async def test_client_execute_action_invalid_rgb_dimmer_action(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
-    async with open_device(server, 5):
-        async with open_client(server, "test") as client:
-            await do_execute_action_with_error(
-                client,
-                proto.TCS_Action(
-                    action_id=proto.ActionType.INTERRUPT,
-                    subject_id=16,
-                    subject_type=proto.ActionSubjectType.CHANNEL,
-                    param=b"",
-                ),
-            )
+    async with open_device(server, 5), open_client(server, "test") as client:
+        await do_execute_action_with_error(
+            client,
+            proto.TCS_Action(
+                action_id=proto.ActionType.INTERRUPT,
+                subject_id=16,
+                subject_type=proto.ActionSubjectType.CHANNEL,
+                param=b"",
+            ),
+        )
     assert (
         "client[test] failed to execute action; "
         "rgb dimmer action ActionType.INTERRUPT not supported" in caplog.text
@@ -1325,17 +1314,16 @@ async def test_client_execute_action_invalid_rgb_dimmer_action(
 async def test_client_execute_action_invalid_rgbw_dimmer_action(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
-    async with open_device(server, 5):
-        async with open_client(server, "test") as client:
-            await do_execute_action_with_error(
-                client,
-                proto.TCS_Action(
-                    action_id=proto.ActionType.INTERRUPT,
-                    subject_id=17,
-                    subject_type=proto.ActionSubjectType.CHANNEL,
-                    param=b"",
-                ),
-            )
+    async with open_device(server, 5), open_client(server, "test") as client:
+        await do_execute_action_with_error(
+            client,
+            proto.TCS_Action(
+                action_id=proto.ActionType.INTERRUPT,
+                subject_id=17,
+                subject_type=proto.ActionSubjectType.CHANNEL,
+                param=b"",
+            ),
+        )
     assert (
         "client[test] failed to execute action; "
         "rgbw dimmer action ActionType.INTERRUPT not supported" in caplog.text
@@ -1346,17 +1334,16 @@ async def test_client_execute_action_invalid_rgbw_dimmer_action(
 async def test_client_execute_action_unsupported_channel_type(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
-    async with open_device(server, 1):
-        async with open_client(server, "test") as client:
-            await do_execute_action_with_error(
-                client,
-                proto.TCS_Action(
-                    action_id=proto.ActionType.TURN_ON,
-                    subject_id=2,
-                    subject_type=proto.ActionSubjectType.CHANNEL,
-                    param=b"",
-                ),
-            )
+    async with open_device(server, 1), open_client(server, "test") as client:
+        await do_execute_action_with_error(
+            client,
+            proto.TCS_Action(
+                action_id=proto.ActionType.TURN_ON,
+                subject_id=2,
+                subject_type=proto.ActionSubjectType.CHANNEL,
+                param=b"",
+            ),
+        )
     assert (
         "client[test] failed to execute action; "
         "channel type ChannelType.THERMOMETER not supported" in caplog.text
@@ -1367,22 +1354,21 @@ async def test_client_execute_action_unsupported_channel_type(
 async def test_client_execute_scene_action(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
-    async with open_device(server, 1) as device:
-        async with open_client(server, "test") as client:
-            await do_execute_action(
-                client,
-                device,
-                proto.TCS_Action(
-                    action_id=proto.ActionType.EXECUTE,
-                    subject_id=1,
-                    subject_type=proto.ActionSubjectType.SCENE,
-                    param=b"",
-                ),
-                [
-                    (0, b"\x01\x00\x00\x00\x00\x00\x00\x00"),
-                    (2, b"\x00\x00\x00\x00\x00\x00\x00\x00"),
-                ],
-            )
+    async with open_device(server, 1) as device, open_client(server, "test") as client:
+        await do_execute_action(
+            client,
+            device,
+            proto.TCS_Action(
+                action_id=proto.ActionType.EXECUTE,
+                subject_id=1,
+                subject_type=proto.ActionSubjectType.SCENE,
+                param=b"",
+            ),
+            [
+                (0, b"\x01\x00\x00\x00\x00\x00\x00\x00"),
+                (2, b"\x00\x00\x00\x00\x00\x00\x00\x00"),
+            ],
+        )
 
     assert "client[test] handle call Call.CS_EXECUTE_ACTION" in caplog.text
     assert "client[test] send Call.SC_ACTION_EXECUTION_RESULT" in caplog.text
@@ -1397,21 +1383,20 @@ async def test_client_execute_scene_action(
 async def test_client_execute_scene_action_with_dimmer_brightness(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
-    async with open_device(server, 2) as device:
-        async with open_client(server, "test") as client:
-            await do_execute_action(
-                client,
-                device,
-                proto.TCS_Action(
-                    action_id=proto.ActionType.EXECUTE,
-                    subject_id=2,
-                    subject_type=proto.ActionSubjectType.SCENE,
-                    param=b"",
-                ),
-                [
-                    (0, b"\x0a\x00\x00\x00\x00\x00\x00\x00"),
-                ],
-            )
+    async with open_device(server, 2) as device, open_client(server, "test") as client:
+        await do_execute_action(
+            client,
+            device,
+            proto.TCS_Action(
+                action_id=proto.ActionType.EXECUTE,
+                subject_id=2,
+                subject_type=proto.ActionSubjectType.SCENE,
+                param=b"",
+            ),
+            [
+                (0, b"\x0a\x00\x00\x00\x00\x00\x00\x00"),
+            ],
+        )
 
     assert "client[test] handle call Call.CS_EXECUTE_ACTION" in caplog.text
     assert "client[test] send Call.SC_ACTION_EXECUTION_RESULT" in caplog.text
@@ -1425,17 +1410,16 @@ async def test_client_execute_scene_action_with_dimmer_brightness(
 async def test_client_execute_scene_action_invalid_scene(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
-    async with open_device(server, 1):
-        async with open_client(server, "test") as client:
-            await do_execute_action_with_error(
-                client,
-                proto.TCS_Action(
-                    action_id=proto.ActionType.EXECUTE,
-                    subject_id=42,
-                    subject_type=proto.ActionSubjectType.SCENE,
-                    param=b"",
-                ),
-            )
+    async with open_device(server, 1), open_client(server, "test") as client:
+        await do_execute_action_with_error(
+            client,
+            proto.TCS_Action(
+                action_id=proto.ActionType.EXECUTE,
+                subject_id=42,
+                subject_type=proto.ActionSubjectType.SCENE,
+                param=b"",
+            ),
+        )
     assert (
         "client[test] failed to execute action; scene id 42 does not exist"
         in caplog.text
@@ -1446,17 +1430,16 @@ async def test_client_execute_scene_action_invalid_scene(
 async def test_client_execute_scene_action_invalid_action(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
-    async with open_device(server, 1):
-        async with open_client(server, "test") as client:
-            await do_execute_action_with_error(
-                client,
-                proto.TCS_Action(
-                    action_id=proto.ActionType.TURN_ON,
-                    subject_id=1,
-                    subject_type=proto.ActionSubjectType.SCENE,
-                    param=b"",
-                ),
-            )
+    async with open_device(server, 1), open_client(server, "test") as client:
+        await do_execute_action_with_error(
+            client,
+            proto.TCS_Action(
+                action_id=proto.ActionType.TURN_ON,
+                subject_id=1,
+                subject_type=proto.ActionSubjectType.SCENE,
+                param=b"",
+            ),
+        )
     assert (
         "client[test] failed to execute action; ActionType.TURN_ON not implemented"
         in caplog.text
@@ -1487,18 +1470,17 @@ async def do_set_value(
 async def test_client_set_value(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
-    async with open_device(server, 1) as device:
-        async with open_client(server, "test") as client:
-            await do_set_value(
-                client,
-                device,
-                proto.TCS_NewValue(
-                    value_id=3,
-                    target=proto.Target.CHANNEL,
-                    value=b"\x01\x02\x03\x04\x05\x06\x07\x08",
-                ),
-                2,
-            )
+    async with open_device(server, 1) as device, open_client(server, "test") as client:
+        await do_set_value(
+            client,
+            device,
+            proto.TCS_NewValue(
+                value_id=3,
+                target=proto.Target.CHANNEL,
+                value=b"\x01\x02\x03\x04\x05\x06\x07\x08",
+            ),
+            2,
+        )
     assert "client[test] handle call Call.CS_SET_VALUE" in caplog.text
     assert "device[device-1] handle event EventId.CHANNEL_SET_VALUE" in caplog.text
     assert "device[device-1] send Call.SD_CHANNEL_SET_VALUE" in caplog.text
@@ -1520,16 +1502,15 @@ async def do_set_value_with_error(
 async def test_client_set_value_invalid_target(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
-    async with open_device(server, 1):
-        async with open_client(server, "test") as client:
-            await do_set_value_with_error(
-                client,
-                proto.TCS_NewValue(
-                    value_id=3,
-                    target=proto.Target.IODEVICE,
-                    value=b"\x01\x02\x03\x04\x05\x06\x07\x08",
-                ),
-            )
+    async with open_device(server, 1), open_client(server, "test") as client:
+        await do_set_value_with_error(
+            client,
+            proto.TCS_NewValue(
+                value_id=3,
+                target=proto.Target.IODEVICE,
+                value=b"\x01\x02\x03\x04\x05\x06\x07\x08",
+            ),
+        )
     assert "client[test] handle call Call.CS_SET_VALUE" in caplog.text
     assert "client[test] failed to set value; target not supported" in caplog.text
     assert "device[device-1] handle event EventId.CHANNEL_SET_VALUE" not in caplog.text
@@ -1540,16 +1521,15 @@ async def test_client_set_value_invalid_target(
 async def test_client_set_value_invalid_channel(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
-    async with open_device(server, 1):
-        async with open_client(server, "test") as client:
-            await do_set_value_with_error(
-                client,
-                proto.TCS_NewValue(
-                    value_id=42,
-                    target=proto.Target.CHANNEL,
-                    value=b"\x01\x02\x03\x04\x05\x06\x07\x08",
-                ),
-            )
+    async with open_device(server, 1), open_client(server, "test") as client:
+        await do_set_value_with_error(
+            client,
+            proto.TCS_NewValue(
+                value_id=42,
+                target=proto.Target.CHANNEL,
+                value=b"\x01\x02\x03\x04\x05\x06\x07\x08",
+            ),
+        )
     assert "client[test] handle call Call.CS_SET_VALUE" in caplog.text
     assert (
         "client[test] failed to set value; channel id 42 does not exist" in caplog.text
@@ -1756,63 +1736,62 @@ async def test_client_get_channel_config_invalid_channel_id(
 
 @pytest.mark.asyncio
 async def test_calcfg(server: Server, caplog: pytest.LogCaptureFixture) -> None:
-    async with open_device(server, 1) as device:
-        async with open_client(server, "test") as client:
-            # client sends config request
-            await client.stream.send(
-                Packet(
-                    proto.Call.CS_DEVICE_CALCFG_REQUEST_B,
-                    encoding.encode(
-                        proto.TCS_DeviceCalCfgRequest_B(
-                            channel_id=2,
-                            target=0,
-                            command=31,
-                            datatype=42,
-                            data=b"foobar",
-                        )
-                    ),
-                )
+    async with open_device(server, 1) as device, open_client(server, "test") as client:
+        # client sends config request
+        await client.stream.send(
+            Packet(
+                proto.Call.CS_DEVICE_CALCFG_REQUEST_B,
+                encoding.encode(
+                    proto.TCS_DeviceCalCfgRequest_B(
+                        channel_id=2,
+                        target=0,
+                        command=31,
+                        datatype=42,
+                        data=b"foobar",
+                    )
+                ),
             )
+        )
 
-            # device receives config request
-            packet = await device.stream.recv()
-            assert packet.call_id == proto.Call.SD_DEVICE_CALCFG_REQUEST
-            msg, _ = encoding.decode(proto.TSD_DeviceCalCfgRequest, packet.data)
-            assert msg == proto.TSD_DeviceCalCfgRequest(
-                sender_id=1,
-                channel_number=1,
-                command=31,
-                super_user_authorized=False,
-                datatype=42,
-                data=b"foobar",
-            )
+        # device receives config request
+        packet = await device.stream.recv()
+        assert packet.call_id == proto.Call.SD_DEVICE_CALCFG_REQUEST
+        msg, _ = encoding.decode(proto.TSD_DeviceCalCfgRequest, packet.data)
+        assert msg == proto.TSD_DeviceCalCfgRequest(
+            sender_id=1,
+            channel_number=1,
+            command=31,
+            super_user_authorized=False,
+            datatype=42,
+            data=b"foobar",
+        )
 
-            # device sends config response
-            await device.stream.send(
-                Packet(
-                    proto.Call.DS_DEVICE_CALCFG_RESULT,
-                    encoding.encode(
-                        proto.TDS_DeviceCalCfgResult(
-                            receiver_id=1,
-                            channel_number=1,
-                            command=12,
-                            result=23,
-                            data=b"barbaz",
-                        )
-                    ),
-                )
+        # device sends config response
+        await device.stream.send(
+            Packet(
+                proto.Call.DS_DEVICE_CALCFG_RESULT,
+                encoding.encode(
+                    proto.TDS_DeviceCalCfgResult(
+                        receiver_id=1,
+                        channel_number=1,
+                        command=12,
+                        result=23,
+                        data=b"barbaz",
+                    )
+                ),
             )
+        )
 
-            # client receives config response
-            packet = await client.stream.recv()
-            assert packet.call_id == proto.Call.SC_DEVICE_CALCFG_RESULT
-            result, _ = encoding.decode(proto.TSC_DeviceCalCfgResult, packet.data)
-            assert result == proto.TSC_DeviceCalCfgResult(
-                channel_id=2,
-                command=12,
-                result=23,
-                data=b"barbaz",
-            )
+        # client receives config response
+        packet = await client.stream.recv()
+        assert packet.call_id == proto.Call.SC_DEVICE_CALCFG_RESULT
+        result, _ = encoding.decode(proto.TSC_DeviceCalCfgResult, packet.data)
+        assert result == proto.TSC_DeviceCalCfgResult(
+            channel_id=2,
+            command=12,
+            result=23,
+            data=b"barbaz",
+        )
 
     assert "client[test] handle call Call.CS_DEVICE_CALCFG_REQUEST_B" in caplog.text
     assert "device[device-1] handle event EventId.DEVICE_CONFIG" in caplog.text
@@ -1826,24 +1805,23 @@ async def test_calcfg(server: Server, caplog: pytest.LogCaptureFixture) -> None:
 async def test_calcfg_invalid_channel(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
-    async with open_device(server, 1):
-        async with open_client(server, "test") as client:
-            # client sends config request
-            await client.stream.send(
-                Packet(
-                    proto.Call.CS_DEVICE_CALCFG_REQUEST_B,
-                    encoding.encode(
-                        proto.TCS_DeviceCalCfgRequest_B(
-                            channel_id=27,
-                            target=0,
-                            command=31,
-                            datatype=42,
-                            data=b"foobar",
-                        )
-                    ),
-                )
+    async with open_device(server, 1), open_client(server, "test") as client:
+        # client sends config request
+        await client.stream.send(
+            Packet(
+                proto.Call.CS_DEVICE_CALCFG_REQUEST_B,
+                encoding.encode(
+                    proto.TCS_DeviceCalCfgRequest_B(
+                        channel_id=27,
+                        target=0,
+                        command=31,
+                        datatype=42,
+                        data=b"foobar",
+                    )
+                ),
             )
-            await asyncio.sleep(0.5)
+        )
+        await asyncio.sleep(0.5)
 
     assert "client[test] handle call Call.CS_DEVICE_CALCFG_REQUEST_B" in caplog.text
     assert (
@@ -1886,24 +1864,23 @@ async def test_calcfg_result_invalid_client(
 async def test_calcfg_result_invalid_channel_number(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
-    async with open_client(server, "test"):
-        async with open_device(server, 1) as device:
-            # device sends config response
-            await device.stream.send(
-                Packet(
-                    proto.Call.DS_DEVICE_CALCFG_RESULT,
-                    encoding.encode(
-                        proto.TDS_DeviceCalCfgResult(
-                            receiver_id=1,
-                            channel_number=42,
-                            command=12,
-                            result=23,
-                            data=b"barbaz",
-                        )
-                    ),
-                )
+    async with open_client(server, "test"), open_device(server, 1) as device:
+        # device sends config response
+        await device.stream.send(
+            Packet(
+                proto.Call.DS_DEVICE_CALCFG_RESULT,
+                encoding.encode(
+                    proto.TDS_DeviceCalCfgResult(
+                        receiver_id=1,
+                        channel_number=42,
+                        command=12,
+                        result=23,
+                        data=b"barbaz",
+                    )
+                ),
             )
-            await asyncio.sleep(0.5)
+        )
+        await asyncio.sleep(0.5)
 
     assert "device[device-1] handle call Call.DS_DEVICE_CALCFG_RESULT" in caplog.text
     assert (
@@ -1971,288 +1948,280 @@ async def test_get_channel_by_name_invalid(server: Server) -> None:
 async def test_dimmer_off_on_preserves_brightness(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
-    async with open_device(server, 2) as device:
-        async with open_client(server, "test") as client:
-            # set brightness = 50
-            await do_set_value(
-                client,
-                device,
-                proto.TCS_NewValue(
-                    value_id=4,
-                    target=proto.Target.CHANNEL,
-                    value=b"\x32\x00\x00\x00\x00\x00\x00\x00",
-                ),
-                0,
-            )
+    async with open_device(server, 2) as device, open_client(server, "test") as client:
+        # set brightness = 50
+        await do_set_value(
+            client,
+            device,
+            proto.TCS_NewValue(
+                value_id=4,
+                target=proto.Target.CHANNEL,
+                value=b"\x32\x00\x00\x00\x00\x00\x00\x00",
+            ),
+            0,
+        )
 
-            # turn off
-            await do_execute_action(
-                client,
-                device,
-                proto.TCS_Action(
-                    action_id=proto.ActionType.TURN_OFF,
-                    subject_id=4,
-                    subject_type=proto.ActionSubjectType.CHANNEL,
-                    param=b"",
-                ),
-                [(0, b"\x00\x00\x00\x00\x00\x00\x00\x00")],
-            )
+        # turn off
+        await do_execute_action(
+            client,
+            device,
+            proto.TCS_Action(
+                action_id=proto.ActionType.TURN_OFF,
+                subject_id=4,
+                subject_type=proto.ActionSubjectType.CHANNEL,
+                param=b"",
+            ),
+            [(0, b"\x00\x00\x00\x00\x00\x00\x00\x00")],
+        )
 
-            # turn on
-            await do_execute_action(
-                client,
-                device,
-                proto.TCS_Action(
-                    action_id=proto.ActionType.TURN_ON,
-                    subject_id=4,
-                    subject_type=proto.ActionSubjectType.CHANNEL,
-                    param=b"",
-                ),
-                [(0, b"\x32\x00\x00\x00\x00\x00\x00\x00")],
-            )
+        # turn on
+        await do_execute_action(
+            client,
+            device,
+            proto.TCS_Action(
+                action_id=proto.ActionType.TURN_ON,
+                subject_id=4,
+                subject_type=proto.ActionSubjectType.CHANNEL,
+                param=b"",
+            ),
+            [(0, b"\x32\x00\x00\x00\x00\x00\x00\x00")],
+        )
 
 
 @pytest.mark.asyncio
 async def test_dimmer_initial_on_sets_full_brightness(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
-    async with open_device(server, 2) as device:
-        async with open_client(server, "test") as client:
-            # turn on
-            await do_execute_action(
-                client,
-                device,
-                proto.TCS_Action(
-                    action_id=proto.ActionType.TURN_ON,
-                    subject_id=4,
-                    subject_type=proto.ActionSubjectType.CHANNEL,
-                    param=b"",
-                ),
-                [(0, b"\x64\x00\x00\x00\x00\x00\x00\x00")],
-            )
+    async with open_device(server, 2) as device, open_client(server, "test") as client:
+        # turn on
+        await do_execute_action(
+            client,
+            device,
+            proto.TCS_Action(
+                action_id=proto.ActionType.TURN_ON,
+                subject_id=4,
+                subject_type=proto.ActionSubjectType.CHANNEL,
+                param=b"",
+            ),
+            [(0, b"\x64\x00\x00\x00\x00\x00\x00\x00")],
+        )
 
 
 @pytest.mark.asyncio
 async def test_dimmer_already_on_preserves_brightness(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
-    async with open_device(server, 2) as device:
-        async with open_client(server, "test") as client:
-            # set brightness = 50
-            await do_set_value(
-                client,
-                device,
-                proto.TCS_NewValue(
-                    value_id=4,
-                    target=proto.Target.CHANNEL,
-                    value=b"\x32\x00\x00\x00\x00\x00\x00\x00",
-                ),
-                0,
-            )
+    async with open_device(server, 2) as device, open_client(server, "test") as client:
+        # set brightness = 50
+        await do_set_value(
+            client,
+            device,
+            proto.TCS_NewValue(
+                value_id=4,
+                target=proto.Target.CHANNEL,
+                value=b"\x32\x00\x00\x00\x00\x00\x00\x00",
+            ),
+            0,
+        )
 
-            # turn on
-            await do_execute_action(
-                client,
-                device,
-                proto.TCS_Action(
-                    action_id=proto.ActionType.TURN_ON,
-                    subject_id=4,
-                    subject_type=proto.ActionSubjectType.CHANNEL,
-                    param=b"",
-                ),
-                [(0, b"\x32\x00\x00\x00\x00\x00\x00\x00")],
-            )
+        # turn on
+        await do_execute_action(
+            client,
+            device,
+            proto.TCS_Action(
+                action_id=proto.ActionType.TURN_ON,
+                subject_id=4,
+                subject_type=proto.ActionSubjectType.CHANNEL,
+                param=b"",
+            ),
+            [(0, b"\x32\x00\x00\x00\x00\x00\x00\x00")],
+        )
 
 
 @pytest.mark.asyncio
 async def test_rgb_dimmer_off_on_preserves_brightness_and_color(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
-    async with open_device(server, 5) as device:
-        async with open_client(server, "test") as client:
-            # set colorBrightness=50, purple (r=128, g=64, b=192), onOff=False
-            await do_set_value(
-                client,
-                device,
-                proto.TCS_NewValue(
-                    value_id=16,
-                    target=proto.Target.CHANNEL,
-                    value=b"\x00\x32\xc0\x40\x80\x00\x00\x00",
-                ),
-                6,
-            )
+    async with open_device(server, 5) as device, open_client(server, "test") as client:
+        # set colorBrightness=50, purple (r=128, g=64, b=192), onOff=False
+        await do_set_value(
+            client,
+            device,
+            proto.TCS_NewValue(
+                value_id=16,
+                target=proto.Target.CHANNEL,
+                value=b"\x00\x32\xc0\x40\x80\x00\x00\x00",
+            ),
+            6,
+        )
 
-            # turn off (colorBrightness=0, color unchanged, onOff=True)
-            await do_execute_action(
-                client,
-                device,
-                proto.TCS_Action(
-                    action_id=proto.ActionType.TURN_OFF,
-                    subject_id=16,
-                    subject_type=proto.ActionSubjectType.CHANNEL,
-                    param=b"",
-                ),
-                [(6, b"\x00\x00\xc0\x40\x80\x01\x00\x00")],
-            )
+        # turn off (colorBrightness=0, color unchanged, onOff=True)
+        await do_execute_action(
+            client,
+            device,
+            proto.TCS_Action(
+                action_id=proto.ActionType.TURN_OFF,
+                subject_id=16,
+                subject_type=proto.ActionSubjectType.CHANNEL,
+                param=b"",
+            ),
+            [(6, b"\x00\x00\xc0\x40\x80\x01\x00\x00")],
+        )
 
-            # turn on (colorBrightness=50, color unchanged, onOff=True)
-            await do_execute_action(
-                client,
-                device,
-                proto.TCS_Action(
-                    action_id=proto.ActionType.TURN_ON,
-                    subject_id=16,
-                    subject_type=proto.ActionSubjectType.CHANNEL,
-                    param=b"",
-                ),
-                [(6, b"\x00\x32\xc0\x40\x80\x01\x00\x00")],
-            )
+        # turn on (colorBrightness=50, color unchanged, onOff=True)
+        await do_execute_action(
+            client,
+            device,
+            proto.TCS_Action(
+                action_id=proto.ActionType.TURN_ON,
+                subject_id=16,
+                subject_type=proto.ActionSubjectType.CHANNEL,
+                param=b"",
+            ),
+            [(6, b"\x00\x32\xc0\x40\x80\x01\x00\x00")],
+        )
 
 
 @pytest.mark.asyncio
 async def test_rgb_dimmer_initial_on_sets_full_brightness_and_white(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
-    async with open_device(server, 5) as device:
-        async with open_client(server, "test") as client:
-            # turn on
-            await do_execute_action(
-                client,
-                device,
-                proto.TCS_Action(
-                    action_id=proto.ActionType.TURN_ON,
-                    subject_id=16,
-                    subject_type=proto.ActionSubjectType.CHANNEL,
-                    param=b"",
-                ),
-                [(6, b"\x00\x64\x00\x00\x00\x01\x00\x00")],
-            )
+    async with open_device(server, 5) as device, open_client(server, "test") as client:
+        # turn on
+        await do_execute_action(
+            client,
+            device,
+            proto.TCS_Action(
+                action_id=proto.ActionType.TURN_ON,
+                subject_id=16,
+                subject_type=proto.ActionSubjectType.CHANNEL,
+                param=b"",
+            ),
+            [(6, b"\x00\x64\x00\x00\x00\x01\x00\x00")],
+        )
 
 
 @pytest.mark.asyncio
 async def test_rgb_dimmer_already_on_preserves_brightness_and_color(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
-    async with open_device(server, 5) as device:
-        async with open_client(server, "test") as client:
-            # set colorBrightness=50, purple (r=128, g=64, b=192)
-            await do_set_value(
-                client,
-                device,
-                proto.TCS_NewValue(
-                    value_id=16,
-                    target=proto.Target.CHANNEL,
-                    value=b"\x00\x32\xc0\x40\x80\x00\x00\x00",
-                ),
-                6,
-            )
+    async with open_device(server, 5) as device, open_client(server, "test") as client:
+        # set colorBrightness=50, purple (r=128, g=64, b=192)
+        await do_set_value(
+            client,
+            device,
+            proto.TCS_NewValue(
+                value_id=16,
+                target=proto.Target.CHANNEL,
+                value=b"\x00\x32\xc0\x40\x80\x00\x00\x00",
+            ),
+            6,
+        )
 
-            # turn on
-            await do_execute_action(
-                client,
-                device,
-                proto.TCS_Action(
-                    action_id=proto.ActionType.TURN_ON,
-                    subject_id=16,
-                    subject_type=proto.ActionSubjectType.CHANNEL,
-                    param=b"",
-                ),
-                [(6, b"\x00\x32\xc0\x40\x80\x01\x00\x00")],
-            )
+        # turn on
+        await do_execute_action(
+            client,
+            device,
+            proto.TCS_Action(
+                action_id=proto.ActionType.TURN_ON,
+                subject_id=16,
+                subject_type=proto.ActionSubjectType.CHANNEL,
+                param=b"",
+            ),
+            [(6, b"\x00\x32\xc0\x40\x80\x01\x00\x00")],
+        )
 
 
 @pytest.mark.asyncio
 async def test_rgbw_dimmer_off_on_preserves_brightness_and_color(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
-    async with open_device(server, 5) as device:
-        async with open_client(server, "test") as client:
-            # set brightness=20, colorBrightness=50, purple (r=128, g=64, b=192), onOff=False
-            await do_set_value(
-                client,
-                device,
-                proto.TCS_NewValue(
-                    value_id=17,
-                    target=proto.Target.CHANNEL,
-                    value=b"\x14\x32\xc0\x40\x80\x00\x00\x00",
-                ),
-                7,
-            )
+    async with open_device(server, 5) as device, open_client(server, "test") as client:
+        # set brightness=20, colorBrightness=50, purple (r=128, g=64, b=192),
+        # onOff=False
+        await do_set_value(
+            client,
+            device,
+            proto.TCS_NewValue(
+                value_id=17,
+                target=proto.Target.CHANNEL,
+                value=b"\x14\x32\xc0\x40\x80\x00\x00\x00",
+            ),
+            7,
+        )
 
-            # turn off (brightness=0, colorBrightness=0, color unchanged, onOff=True)
-            await do_execute_action(
-                client,
-                device,
-                proto.TCS_Action(
-                    action_id=proto.ActionType.TURN_OFF,
-                    subject_id=17,
-                    subject_type=proto.ActionSubjectType.CHANNEL,
-                    param=b"",
-                ),
-                [(7, b"\x00\x00\xc0\x40\x80\x01\x00\x00")],
-            )
+        # turn off (brightness=0, colorBrightness=0, color unchanged, onOff=True)
+        await do_execute_action(
+            client,
+            device,
+            proto.TCS_Action(
+                action_id=proto.ActionType.TURN_OFF,
+                subject_id=17,
+                subject_type=proto.ActionSubjectType.CHANNEL,
+                param=b"",
+            ),
+            [(7, b"\x00\x00\xc0\x40\x80\x01\x00\x00")],
+        )
 
-            # turn on (brightness=20, colorBrightness=50, color unchanged, onOff=True)
-            await do_execute_action(
-                client,
-                device,
-                proto.TCS_Action(
-                    action_id=proto.ActionType.TURN_ON,
-                    subject_id=17,
-                    subject_type=proto.ActionSubjectType.CHANNEL,
-                    param=b"",
-                ),
-                [(7, b"\x14\x32\xc0\x40\x80\x01\x00\x00")],
-            )
+        # turn on (brightness=20, colorBrightness=50, color unchanged, onOff=True)
+        await do_execute_action(
+            client,
+            device,
+            proto.TCS_Action(
+                action_id=proto.ActionType.TURN_ON,
+                subject_id=17,
+                subject_type=proto.ActionSubjectType.CHANNEL,
+                param=b"",
+            ),
+            [(7, b"\x14\x32\xc0\x40\x80\x01\x00\x00")],
+        )
 
 
 @pytest.mark.asyncio
 async def test_rgbw_dimmer_initial_on_sets_full_brightness_and_white(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
-    async with open_device(server, 5) as device:
-        async with open_client(server, "test") as client:
-            # turn on with no previous value: brightness=100, colorBrightness=100
-            await do_execute_action(
-                client,
-                device,
-                proto.TCS_Action(
-                    action_id=proto.ActionType.TURN_ON,
-                    subject_id=17,
-                    subject_type=proto.ActionSubjectType.CHANNEL,
-                    param=b"",
-                ),
-                [(7, b"\x64\x64\x00\x00\x00\x01\x00\x00")],
-            )
+    async with open_device(server, 5) as device, open_client(server, "test") as client:
+        # turn on with no previous value: brightness=100, colorBrightness=100
+        await do_execute_action(
+            client,
+            device,
+            proto.TCS_Action(
+                action_id=proto.ActionType.TURN_ON,
+                subject_id=17,
+                subject_type=proto.ActionSubjectType.CHANNEL,
+                param=b"",
+            ),
+            [(7, b"\x64\x64\x00\x00\x00\x01\x00\x00")],
+        )
 
 
 @pytest.mark.asyncio
 async def test_rgbw_dimmer_already_on_preserves_brightness_and_color(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
-    async with open_device(server, 5) as device:
-        async with open_client(server, "test") as client:
-            # set brightness=20, colorBrightness=50, purple (r=128, g=64, b=192)
-            await do_set_value(
-                client,
-                device,
-                proto.TCS_NewValue(
-                    value_id=17,
-                    target=proto.Target.CHANNEL,
-                    value=b"\x14\x32\xc0\x40\x80\x00\x00\x00",
-                ),
-                7,
-            )
+    async with open_device(server, 5) as device, open_client(server, "test") as client:
+        # set brightness=20, colorBrightness=50, purple (r=128, g=64, b=192)
+        await do_set_value(
+            client,
+            device,
+            proto.TCS_NewValue(
+                value_id=17,
+                target=proto.Target.CHANNEL,
+                value=b"\x14\x32\xc0\x40\x80\x00\x00\x00",
+            ),
+            7,
+        )
 
-            # turn on
-            await do_execute_action(
-                client,
-                device,
-                proto.TCS_Action(
-                    action_id=proto.ActionType.TURN_ON,
-                    subject_id=17,
-                    subject_type=proto.ActionSubjectType.CHANNEL,
-                    param=b"",
-                ),
-                [(7, b"\x14\x32\xc0\x40\x80\x01\x00\x00")],
-            )
+        # turn on
+        await do_execute_action(
+            client,
+            device,
+            proto.TCS_Action(
+                action_id=proto.ActionType.TURN_ON,
+                subject_id=17,
+                subject_type=proto.ActionSubjectType.CHANNEL,
+                param=b"",
+            ),
+            [(7, b"\x14\x32\xc0\x40\x80\x01\x00\x00")],
+        )
