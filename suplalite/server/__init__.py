@@ -33,7 +33,7 @@ class Connection:
         server: Server,
         reader: asyncio.StreamReader,
         writer: asyncio.StreamWriter,
-    ):
+    ) -> None:
         self._reader = reader
         self._writer = writer
         self._context = ConnectionContext(

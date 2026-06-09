@@ -64,7 +64,7 @@ class Relay(Channel):
         default: bool = False,
         on_change: Callable[[Relay, bool], Awaitable[None]] | None = None,
         func: proto.ChannelFunc = proto.ChannelFunc.POWERSWITCH,
-    ):
+    ) -> None:
         super().__init__()
         self._value = default
         self._on_change = on_change
@@ -331,7 +331,7 @@ class GeneralPurposeMeasurement(Channel):
     def __init__(
         self,
         default: float = 0.0,
-    ):
+    ) -> None:
         super().__init__()
         self._value = default
 
@@ -389,7 +389,7 @@ class Dimmer(Channel):
         self,
         default: int = 0,
         on_change: Callable[[Dimmer, int], Awaitable[None]] | None = None,
-    ):
+    ) -> None:
         super().__init__()
         self._value = default
         self._on_change = on_change
@@ -457,7 +457,7 @@ class RGBDimmer(Channel):
         on_change: (
             Callable[[RGBDimmer, tuple[int, int, int, int]], Awaitable[None]] | None
         ) = None,
-    ):
+    ) -> None:
         super().__init__()
         self._value = (0, 0, 0, 0)
         self._on_change = on_change
@@ -536,7 +536,7 @@ class RGBWDimmer(Channel):
             Callable[[RGBWDimmer, tuple[int, int, int, int, int]], Awaitable[None]]
             | None
         ) = None,
-    ):
+    ) -> None:
         super().__init__()
         self._value = (0, 0, 0, 0, 0)
         self._on_change = on_change

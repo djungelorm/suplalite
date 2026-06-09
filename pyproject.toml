@@ -95,7 +95,6 @@ ignore = [
     "C",
     # Typing
     "T",
-    "ANN",
     # Boolean arguments
     "FBT001",
     "FBT002",

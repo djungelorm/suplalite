@@ -40,7 +40,9 @@ async def channel_value_changed(
     await update(context, "changed", channel_id, value)
 
 
-async def update(context, action, channel_id, value):
+async def update(
+    context: ServerContext, action: str, channel_id: int, value: bytes
+) -> None:
     channel = context.server.state.get_channel(channel_id)
     topic = f"supla/{channel.name}/{action}"
     if channel.type == proto.ChannelType.THERMOMETER:
@@ -79,7 +81,7 @@ async def update(context, action, channel_id, value):
         logger.info(topic, "unknown value")
 
 
-async def main():
+async def main() -> None:
     server = Server(
         listen_host="0.0.0.0",
         host="192.168.1.10",

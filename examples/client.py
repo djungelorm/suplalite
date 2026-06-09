@@ -50,12 +50,14 @@ def supla_call(call_id: proto.Call) -> Callable[[Handler], Handler]:
 
 
 @supla_call(proto.Call.SDC_PING_SERVER_RESULT)
-async def register_result_b(context: Context):
+async def register_result_b(context: Context) -> None:
     logger.debug("pong")
 
 
 @supla_call(proto.Call.SC_REGISTER_CLIENT_RESULT_D)
-async def register_result_d(context: Context, msg: proto.TSC_RegisterClientResult_D):
+async def register_result_d(
+    context: Context, msg: proto.TSC_RegisterClientResult_D
+) -> None:
     result_code = proto.ResultCode(msg.result_code)
     if result_code != proto.ResultCode.TRUE:
         raise RuntimeError(f"Register failed: {result_code.name}")
@@ -66,13 +68,13 @@ async def register_result_d(context: Context, msg: proto.TSC_RegisterClientResul
 
 
 @supla_call(proto.Call.SC_LOCATIONPACK_UPDATE)
-async def locationpack_update(context: Context, msg: proto.TSC_LocationPack):
+async def locationpack_update(context: Context, msg: proto.TSC_LocationPack) -> None:
     logger.debug("location pack update")
     context.client.got_locations = msg.total_left == 0
 
 
 @supla_call(proto.Call.SC_CHANNELPACK_UPDATE_E)
-async def channelpack_update(context: Context, msg: proto.TSC_ChannelPack_E):
+async def channelpack_update(context: Context, msg: proto.TSC_ChannelPack_E) -> None:
     logger.debug("channel pack update")
     context.client.got_channels = msg.total_left == 0
 
@@ -80,29 +82,33 @@ async def channelpack_update(context: Context, msg: proto.TSC_ChannelPack_E):
 @supla_call(proto.Call.SC_CHANNEL_RELATION_PACK_UPDATE)
 async def channelrelationpack_update(
     context: Context, msg: proto.TSC_ChannelRelationPack
-):
+) -> None:
     logger.debug("channel relation pack update")
 
 
 @supla_call(proto.Call.SC_SCENE_PACK_UPDATE)
-async def scenepack_update(context: Context, msg: proto.TSC_ScenePack):
+async def scenepack_update(context: Context, msg: proto.TSC_ScenePack) -> None:
     logger.debug("scene pack update")
     context.client.got_scenes = msg.total_left == 0
 
 
 @supla_call(proto.Call.SC_CHANNELVALUE_PACK_UPDATE_B)
-async def channelvaluepack_update(context: Context, msg: proto.TSC_ChannelValuePack_B):
+async def channelvaluepack_update(
+    context: Context, msg: proto.TSC_ChannelValuePack_B
+) -> None:
     logger.debug("channel value pack update")
 
 
-async def oauth_request(context):
+async def oauth_request(context: Context) -> None:
     await context.client.stream.send(
         packets.Packet(proto.Call.CS_OAUTH_TOKEN_REQUEST, b"")
     )
 
 
 @supla_call(proto.Call.SC_OAUTH_TOKEN_REQUEST_RESULT)
-async def oauth_result(context: Context, msg: proto.TSC_OAuthTokenRequestResult):
+async def oauth_result(
+    context: Context, msg: proto.TSC_OAuthTokenRequestResult
+) -> None:
     logger.debug("oauth result")
     context.client.state = context.client.State.CONNECTED
 
@@ -119,15 +125,15 @@ class Client:
 
     def __init__(
         self,
-        server,
-        email,
-        guid,
-        authkey,
-        name=None,
-        version=None,
-        port=2016,
-        secure=True,
-    ):
+        server: str,
+        email: str,
+        guid: bytes,
+        authkey: bytes,
+        name: str | None = None,
+        version: str | None = None,
+        port: int = 2016,
+        secure: bool = True,
+    ) -> None:
         self._server = server
         self._port = port
         self._secure = secure
@@ -148,7 +154,7 @@ class Client:
         self.got_scenes = False
         self._extra_get_next = 3
 
-    async def connect(self):
+    async def connect(self) -> None:
         if not self._secure:
             reader, writer = await asyncio.open_connection(self._server, self._port)
         else:
@@ -163,11 +169,11 @@ class Client:
         while self.state != self.State.CONNECTED:
             await self._update()
 
-    async def loop_forever(self):
+    async def loop_forever(self) -> None:
         while True:
             await self._update()
 
-    async def _update(self):
+    async def _update(self) -> None:
         if self.state == self.State.CONNECTING:
             await self._register()
             self.state = self.State.REGISTERING
@@ -209,7 +215,7 @@ class Client:
             packet = await self.stream.recv()
             await self._handle_packet(packet)
 
-    async def _register(self):
+    async def _register(self) -> None:
         logger.debug("registering")
         await self.stream.send(
             packets.Packet(
@@ -228,7 +234,7 @@ class Client:
             )
         )
 
-    async def _ping(self):
+    async def _ping(self) -> None:
         logger.debug("ping")
         now = time.time()
         msg = proto.TDCS_PingServer(
@@ -238,11 +244,11 @@ class Client:
             packets.Packet(proto.Call.DCS_PING_SERVER, encoding.encode(msg))
         )
 
-    async def _get_next(self):
+    async def _get_next(self) -> None:
         logger.debug("get next")
         await self.stream.send(packets.Packet(proto.Call.CS_GET_NEXT, b""))
 
-    async def _handle_packet(self, packet):
+    async def _handle_packet(self, packet: packets.Packet) -> None:
         if packet.call_id not in _handlers:
             raise RuntimeError(f"Unhandled call {packet.call_id}")
 
@@ -256,7 +262,7 @@ class Client:
             await handler(context)
 
 
-async def main():
+async def main() -> None:
     client = Client(
         "127.0.0.1",
         "email@email.com",

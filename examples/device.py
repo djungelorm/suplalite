@@ -2,6 +2,7 @@ import asyncio
 import logging
 import random
 import time
+from typing import Any
 
 from suplalite import device, network, proto
 from suplalite.device import Device, channels
@@ -11,13 +12,13 @@ configure_logging()
 logger = logging.getLogger("example-device")
 
 
-async def handle_change(channel, value):
+async def handle_change(channel: channels.Channel, value: Any) -> None:
     logger.info("handle change; channel %s = %s", channel.channel_number, str(value))
     if channel.value != value:
         await channel.do_set_value(value)
 
 
-async def update_loop(device):
+async def update_loop(device: Device) -> None:
     try:
         logger.debug("update loop started")
         while True:
@@ -31,7 +32,7 @@ async def update_loop(device):
         logger.debug("update loop stopped")
 
 
-async def main():
+async def main() -> None:
     device = Device(
         host="127.0.0.1",
         port=2016,

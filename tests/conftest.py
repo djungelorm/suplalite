@@ -8,17 +8,19 @@ from suplalite import encoding, proto
 from suplalite.server import Server, state
 
 
-def pytest_addoption(parser):
+def pytest_addoption(parser: pytest.Parser) -> None:
     parser.addoption(
         "--runslow", action="store_true", default=False, help="run slow tests"
     )
 
 
-def pytest_configure(config):
+def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line("markers", "slow: mark test as slow to run")
 
 
-def pytest_collection_modifyitems(config, items):
+def pytest_collection_modifyitems(
+    config: pytest.Config, items: list[pytest.Item]
+) -> None:
     if config.getoption("--runslow"):
         # --runslow given in cli: do not skip slow tests
         return
@@ -29,7 +31,7 @@ def pytest_collection_modifyitems(config, items):
 
 
 @pytest_asyncio.fixture(scope="function")
-async def server(request) -> AsyncIterator[Server]:
+async def server(request: pytest.FixtureRequest) -> AsyncIterator[Server]:
     server = Server(
         listen_host="localhost",
         host="localhost",
