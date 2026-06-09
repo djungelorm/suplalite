@@ -311,7 +311,7 @@ async def test_server_set_value(
 
 @pytest.mark.parametrize("channel_number", [0, 1, 2, 3, 4, 5, 6, 7])
 @pytest.mark.asyncio
-async def test_channels(
+async def test_channels(  # noqa: C901,PLR0915,PLR0912
     server: Server, caplog: pytest.LogCaptureFixture, channel_number: int
 ) -> None:
     async with server.running():

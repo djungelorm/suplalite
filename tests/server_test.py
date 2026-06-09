@@ -594,7 +594,7 @@ async def test_register_device_twice(
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [[], ["without-scenes"]], indirect=True)
 @pytest.mark.parametrize("secure", [True, False])
-async def test_register_client(
+async def test_register_client(  # noqa: PLR0915
     server: Server, secure: bool, caplog: pytest.LogCaptureFixture
 ) -> None:
     async with open_connection(server, secure) as client:

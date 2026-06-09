@@ -90,9 +90,6 @@ ignore = [
     "TD003", # TODO links
     "TRY003", # messages outside exception class
     # FIX THE FOLLOWING
-    # Complexity
-    "PLR",
-    "C",
     # Boolean arguments
     "FBT001",
     "FBT002",

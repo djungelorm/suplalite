@@ -144,101 +144,93 @@ async def register_device(
         context.log(
             f"device not found with guid {to_hex(msg.guid)}", level=logging.WARNING
         )
-        context.error = True
-        return proto.TSD_RegisterDeviceResult(
-            proto.ResultCode.FALSE,
-            proto.ACTIVITY_TIMEOUT_DEFAULT,
-            proto.PROTO_VERSION,
-            proto.PROTO_VERSION_MIN,
-        )
+        return _register_device_failure(context)
 
     device = context.server.state.get_device(device_id)
 
-    if device.manufacturer_id != msg.manufacturer_id:
-        context.log(
-            "manufacturer id mismatch; "
-            f"expected {device.manufacturer_id} got {msg.manufacturer_id}",
-            level=logging.WARNING,
-        )
-        context.error = True
-        return proto.TSD_RegisterDeviceResult(
-            proto.ResultCode.FALSE,
-            proto.ACTIVITY_TIMEOUT_DEFAULT,
-            proto.PROTO_VERSION,
-            proto.PROTO_VERSION_MIN,
-        )
-
-    if device.product_id != msg.product_id:
-        context.log(
-            f"product id mismatch; expected {device.product_id} got {msg.product_id}",
-            level=logging.WARNING,
-        )
-        context.error = True
-        return proto.TSD_RegisterDeviceResult(
-            proto.ResultCode.FALSE,
-            proto.ACTIVITY_TIMEOUT_DEFAULT,
-            proto.PROTO_VERSION,
-            proto.PROTO_VERSION_MIN,
-        )
-
-    channels = context.server.state.get_device_channels(device_id)
-    error: str | None = None
-    if len(msg.channels) != len(channels):
-        error = (
-            f"incorrect number of channels; expected {len(channels)}"
-            f" got {len(msg.channels)}"
-        )
-
-    for number, (channel_id, channel_msg) in enumerate(
-        zip(channels, msg.channels, strict=False)
-    ):
-        channel = context.server.state.get_channel(channel_id)
-        if number != channel_msg.number:
-            error = "incorrect channel number"
-            break
-        if channel.type != channel_msg.type:
-            error = (
-                f"incorrect type for channel number {number}; "
-                f"expected {channel.type} got {channel_msg.type}"
-            )
-            break
-        if channel.func != channel_msg.default_func:
-            error = (
-                f"incorrect function for channel number {number}; "
-                f"expected {channel.func} got {channel_msg.default_func}"
-            )
-            break
-        if channel.flags != channel_msg.flags:
-            error = (
-                f"incorrect flags for channel number {number}; "
-                f"expected {channel.flags} got {channel_msg.flags}"
-            )
-            break
-
+    error = _check_device_identity(device, msg)
     if error is not None:
         context.log(error, level=logging.WARNING)
-        context.error = True
-        return proto.TSD_RegisterDeviceResult(
-            proto.ResultCode.FALSE,
-            proto.ACTIVITY_TIMEOUT_DEFAULT,
-            proto.PROTO_VERSION,
-            proto.PROTO_VERSION_MIN,
-        )
+        return _register_device_failure(context)
+
+    channels = context.server.state.get_device_channels(device_id)
+    error = _check_channels(channels, msg.channels, context.server.state.get_channel)
+    if error is not None:
+        context.log(error, level=logging.WARNING)
+        return _register_device_failure(context)
 
     proto_version = context.conn.proto_version
     if not context.server.state.device_connected(
         device_id, proto_version, context.events
     ):
-        # failed to connect, the device is already connected
         context.log("device already connected", level=logging.WARNING)
-        context.error = True
-        return proto.TSD_RegisterDeviceResult(
-            proto.ResultCode.FALSE,
-            proto.ACTIVITY_TIMEOUT_DEFAULT,
-            proto.PROTO_VERSION,
-            proto.PROTO_VERSION_MIN,
-        )
+        return _register_device_failure(context)
 
+    return await _complete_registration(context, device_id, device, msg, proto_version)
+
+
+def _register_device_failure(context: DeviceContext) -> proto.TSD_RegisterDeviceResult:
+    context.error = True
+    return proto.TSD_RegisterDeviceResult(
+        proto.ResultCode.FALSE,
+        proto.ACTIVITY_TIMEOUT_DEFAULT,
+        proto.PROTO_VERSION,
+        proto.PROTO_VERSION_MIN,
+    )
+
+
+def _check_device_identity(device: Any, msg: proto.TDS_RegisterDevice_E) -> str | None:
+    if device.manufacturer_id != msg.manufacturer_id:
+        return (
+            "manufacturer id mismatch; "
+            f"expected {device.manufacturer_id} got {msg.manufacturer_id}"
+        )
+    if device.product_id != msg.product_id:
+        return f"product id mismatch; expected {device.product_id} got {msg.product_id}"
+    return None
+
+
+def _check_channels(
+    channels: list[Any],
+    msg_channels: list[Any],
+    get_channel: Callable[[Any], Any],
+) -> str | None:
+    if len(msg_channels) != len(channels):
+        return (
+            f"incorrect number of channels; expected {len(channels)}"
+            f" got {len(msg_channels)}"
+        )
+    for number, (channel_id, channel_msg) in enumerate(
+        zip(channels, msg_channels, strict=False)
+    ):
+        channel = get_channel(channel_id)
+        if number != channel_msg.number:
+            return "incorrect channel number"
+        if channel.type != channel_msg.type:
+            return (
+                f"incorrect type for channel number {number}; "
+                f"expected {channel.type} got {channel_msg.type}"
+            )
+        if channel.func != channel_msg.default_func:
+            return (
+                f"incorrect function for channel number {number}; "
+                f"expected {channel.func} got {channel_msg.default_func}"
+            )
+        if channel.flags != channel_msg.flags:
+            return (
+                f"incorrect flags for channel number {number}; "
+                f"expected {channel.flags} got {channel_msg.flags}"
+            )
+    return None
+
+
+async def _complete_registration(
+    context: DeviceContext,
+    device_id: Any,
+    device: Any,
+    msg: proto.TDS_RegisterDevice_E,
+    proto_version: int,
+) -> proto.TSD_RegisterDeviceResult:
     context.name = f"device[{device.name}]"
     context.replace(DeviceContext(context, guid=msg.guid, device_id=device_id))
 
@@ -380,156 +372,15 @@ async def execute_channel_action(
     params: bytes | None = None,
 ) -> None:
     if channel.type == proto.ChannelType.RELAY:
-        if action == proto.ActionType.TURN_ON:
-            value = encoding.encode(
-                proto.TRelayChannel_Value(on=True, flags=proto.RelayFlag.NONE)
-            )
-        elif action == proto.ActionType.TURN_OFF:
-            value = encoding.encode(
-                proto.TRelayChannel_Value(on=False, flags=proto.RelayFlag.NONE)
-            )
-        elif action == proto.ActionType.TOGGLE:
-            current_value, _ = encoding.decode(proto.TRelayChannel_Value, channel.value)
-            value = encoding.encode(
-                proto.TRelayChannel_Value(
-                    on=not current_value.on, flags=proto.RelayFlag.NONE
-                )
-            )
-        else:
-            context.log(
-                f"failed to execute action; relay action {action} not supported",
-                level=logging.WARNING,
-            )
-            raise RuntimeError
+        value = execute_relay_action(context, channel, action)
     elif channel.type == proto.ChannelType.DIMMER:
-        if action == proto.ActionType.TURN_ON:
-            value = channel.last_value or encoding.encode(
-                proto.TDimmerChannel_Value(brightness=100)
-            )
-        elif action == proto.ActionType.TURN_OFF:
-            value = encoding.encode(proto.TDimmerChannel_Value(brightness=0))
-        elif action == proto.ActionType.SET_RGBW_PARAMETERS:
-            assert params is not None
-            rgbw_params, _ = encoding.decode(proto.TAction_RGBW_Parameters, params)
-            value = encoding.encode(
-                proto.TDimmerChannel_Value(brightness=rgbw_params.brightness)
-            )
-        else:
-            context.log(
-                f"failed to execute action; dimmer action {action} not supported",
-                level=logging.WARNING,
-            )
-            raise RuntimeError
-
+        value = execute_dimmer_action(context, channel, action, params)
     elif channel.type == proto.ChannelType.RGBLEDCONTROLLER:
-        if action == proto.ActionType.TURN_ON:
-            value = channel.last_value or encoding.encode(
-                proto.TRGBDimmerChannel_Value(
-                    brightness=0,
-                    color_brightness=100,
-                    r=0,
-                    g=0,
-                    b=0,
-                    on_off=True,
-                    command=0,
-                )
-            )
-            message, _ = encoding.decode(proto.TRGBDimmerChannel_Value, value)
-            message.on_off = True
-            value = encoding.encode(message)
-        elif action == proto.ActionType.TURN_OFF:
-            value = channel.last_value or encoding.encode(
-                proto.TRGBDimmerChannel_Value(
-                    brightness=0,
-                    color_brightness=0,
-                    r=0,
-                    g=0,
-                    b=0,
-                    on_off=True,
-                    command=0,
-                )
-            )
-            message, _ = encoding.decode(proto.TRGBDimmerChannel_Value, value)
-            message.brightness = 0
-            message.color_brightness = 0
-            message.on_off = True
-            value = encoding.encode(message)
-        elif action == proto.ActionType.SET_RGBW_PARAMETERS:
-            assert params is not None
-            rgbw_params, _ = encoding.decode(proto.TAction_RGBW_Parameters, params)
-            value = encoding.encode(
-                proto.TRGBDimmerChannel_Value(
-                    brightness=rgbw_params.brightness,
-                    color_brightness=rgbw_params.color_brightness,
-                    r=(rgbw_params.color >> 16) & 0xFF,
-                    g=(rgbw_params.color >> 8) & 0xFF,
-                    b=rgbw_params.color & 0xFF,
-                    on_off=rgbw_params.on_off,
-                    command=0,
-                )
-            )
-
-        else:
-            context.log(
-                f"failed to execute action; rgb dimmer action {action} not supported",
-                level=logging.WARNING,
-            )
-            raise RuntimeError
-
+        value = execute_rgbw_action(context, channel, action, params, 0, "rgb dimmer")
     elif channel.type == proto.ChannelType.DIMMERANDRGBLED:
-        if action == proto.ActionType.TURN_ON:
-            value = channel.last_value or encoding.encode(
-                proto.TRGBDimmerChannel_Value(
-                    brightness=100,
-                    color_brightness=100,
-                    r=0,
-                    g=0,
-                    b=0,
-                    on_off=True,
-                    command=0,
-                )
-            )
-            message, _ = encoding.decode(proto.TRGBDimmerChannel_Value, value)
-            message.on_off = True
-            value = encoding.encode(message)
-        elif action == proto.ActionType.TURN_OFF:
-            value = channel.last_value or encoding.encode(
-                proto.TRGBDimmerChannel_Value(
-                    brightness=0,
-                    color_brightness=0,
-                    r=0,
-                    g=0,
-                    b=0,
-                    on_off=True,
-                    command=0,
-                )
-            )
-            message, _ = encoding.decode(proto.TRGBDimmerChannel_Value, value)
-            message.brightness = 0
-            message.color_brightness = 0
-            message.on_off = True
-            value = encoding.encode(message)
-        elif action == proto.ActionType.SET_RGBW_PARAMETERS:
-            assert params is not None
-            rgbw_params, _ = encoding.decode(proto.TAction_RGBW_Parameters, params)
-            value = encoding.encode(
-                proto.TRGBDimmerChannel_Value(
-                    brightness=rgbw_params.brightness,
-                    color_brightness=rgbw_params.color_brightness,
-                    r=(rgbw_params.color >> 16) & 0xFF,
-                    g=(rgbw_params.color >> 8) & 0xFF,
-                    b=rgbw_params.color & 0xFF,
-                    on_off=rgbw_params.on_off,
-                    command=0,
-                )
-            )
-        else:
-            context.log(
-                f"failed to execute action; rgbw dimmer action {action} not supported",
-                level=logging.WARNING,
-            )
-            raise RuntimeError
-
+        value = execute_rgbw_action(
+            context, channel, action, params, 100, "rgbw dimmer"
+        )
     else:
         context.log(
             f"failed to execute action; channel type {channel.type} not supported",
@@ -539,6 +390,129 @@ async def execute_channel_action(
 
     context.server.state.set_channel_value(channel.id, value)
     await context.server.events.add(EventId.CHANNEL_SET_VALUE, (channel.id, value))
+
+
+def execute_relay_action(
+    context: ClientContext,
+    channel: ChannelState,
+    action: proto.ActionType,
+) -> bytes:
+    if action == proto.ActionType.TURN_ON:
+        return encoding.encode(
+            proto.TRelayChannel_Value(on=True, flags=proto.RelayFlag.NONE)
+        )
+
+    if action == proto.ActionType.TURN_OFF:
+        return encoding.encode(
+            proto.TRelayChannel_Value(on=False, flags=proto.RelayFlag.NONE)
+        )
+
+    if action == proto.ActionType.TOGGLE:
+        current_value, _ = encoding.decode(proto.TRelayChannel_Value, channel.value)
+        return encoding.encode(
+            proto.TRelayChannel_Value(
+                on=not current_value.on, flags=proto.RelayFlag.NONE
+            )
+        )
+
+    context.log(
+        f"failed to execute action; relay action {action} not supported",
+        level=logging.WARNING,
+    )
+    raise RuntimeError
+
+
+def execute_dimmer_action(
+    context: ClientContext,
+    channel: ChannelState,
+    action: proto.ActionType,
+    params: bytes | None,
+) -> bytes:
+    if action == proto.ActionType.TURN_ON:
+        return channel.last_value or encoding.encode(
+            proto.TDimmerChannel_Value(brightness=100)
+        )
+
+    if action == proto.ActionType.TURN_OFF:
+        return encoding.encode(proto.TDimmerChannel_Value(brightness=0))
+
+    if action == proto.ActionType.SET_RGBW_PARAMETERS:
+        assert params is not None
+        rgbw_params, _ = encoding.decode(proto.TAction_RGBW_Parameters, params)
+        return encoding.encode(
+            proto.TDimmerChannel_Value(brightness=rgbw_params.brightness)
+        )
+
+    context.log(
+        f"failed to execute action; dimmer action {action} not supported",
+        level=logging.WARNING,
+    )
+    raise RuntimeError
+
+
+# Shared implementation for RGBLEDCONTROLLER (RGB) and DIMMERANDRGBLED (RGBW) channels
+def execute_rgbw_action(
+    context: ClientContext,
+    channel: ChannelState,
+    action: proto.ActionType,
+    params: bytes | None,
+    default_brightness: int,
+    channel_label: str,
+) -> bytes:
+    if action == proto.ActionType.TURN_ON:
+        value = channel.last_value or encoding.encode(
+            proto.TRGBDimmerChannel_Value(
+                brightness=default_brightness,
+                color_brightness=100,
+                r=0,
+                g=0,
+                b=0,
+                on_off=True,
+                command=0,
+            )
+        )
+        message, _ = encoding.decode(proto.TRGBDimmerChannel_Value, value)
+        message.on_off = True
+        return encoding.encode(message)
+
+    if action == proto.ActionType.TURN_OFF:
+        value = channel.last_value or encoding.encode(
+            proto.TRGBDimmerChannel_Value(
+                brightness=0,
+                color_brightness=0,
+                r=0,
+                g=0,
+                b=0,
+                on_off=True,
+                command=0,
+            )
+        )
+        message, _ = encoding.decode(proto.TRGBDimmerChannel_Value, value)
+        message.brightness = 0
+        message.color_brightness = 0
+        message.on_off = True
+        return encoding.encode(message)
+
+    if action == proto.ActionType.SET_RGBW_PARAMETERS:
+        assert params is not None
+        rgbw_params, _ = encoding.decode(proto.TAction_RGBW_Parameters, params)
+        return encoding.encode(
+            proto.TRGBDimmerChannel_Value(
+                brightness=rgbw_params.brightness,
+                color_brightness=rgbw_params.color_brightness,
+                r=(rgbw_params.color >> 16) & 0xFF,
+                g=(rgbw_params.color >> 8) & 0xFF,
+                b=rgbw_params.color & 0xFF,
+                on_off=rgbw_params.on_off,
+                command=0,
+            )
+        )
+
+    context.log(
+        f"failed to execute action; {channel_label} action {action} not supported",
+        level=logging.WARNING,
+    )
+    raise RuntimeError
 
 
 @call_handler(proto.Call.CS_EXECUTE_ACTION, proto.Call.SC_ACTION_EXECUTION_RESULT)
