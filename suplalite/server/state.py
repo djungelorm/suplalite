@@ -44,7 +44,7 @@ class ServerState:
             return self._client_guid_to_id[str(guid)]
         client_id = self._next_client_id
         self._next_client_id += 1
-        self._clients[client_id] = ClientState(client_id, guid, False)
+        self._clients[client_id] = ClientState(client_id, guid)
         self._client_guid_to_id[str(guid)] = client_id
         return client_id
 
@@ -111,10 +111,10 @@ class ServerState:
             name,
             device_id,
             guid,
-            False,
-            manufacturer_id,
-            product_id,
-            proto.PROTO_VERSION,
+            online=False,
+            manufacturer_id=manufacturer_id,
+            product_id=product_id,
+            proto_version=proto.PROTO_VERSION,
         )
         self._devices[device_id] = device
         self._device_guid_to_id[str(guid)] = device_id
@@ -271,7 +271,7 @@ class ServerState:
 class ClientState:
     id: int
     guid: bytes
-    online: bool
+    online: bool = False
     authorized: bool = False
     sent_channels: bool = False
     next_channel_batch: int = 0

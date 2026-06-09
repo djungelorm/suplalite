@@ -775,7 +775,7 @@ def get_channel_config(
         proto.ChannelType.HUMIDITYANDTEMPSENSOR,
     ):
         config_result = encoding.encode(
-            proto.TChannelConfig_TemperatureAndHumidity(0, 0, False, 0, 0, 0, 0)
+            proto.TChannelConfig_TemperatureAndHumidity(0, 0, False, 0, 0, 0, 0)  # noqa: FBT003
         )
     elif isinstance(config, GeneralPurposeMeasurementChannelConfig):
         config_result = encoding.encode(

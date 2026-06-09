@@ -317,12 +317,12 @@ class Server:
         self._state.server_started()
 
         self._server = await asyncio.start_server(
-            functools.partial(self._client_connected, False),
+            functools.partial(self._client_connected, False),  # noqa: FBT003
             self._listen_host,
             self._port,
         )
         self._secure_server = await network.start_secure_server(
-            functools.partial(self._client_connected, True),
+            functools.partial(self._client_connected, True),  # noqa: FBT003
             self._listen_host,
             self._secure_port,
             await self._load_cert(),

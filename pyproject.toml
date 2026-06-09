@@ -89,17 +89,13 @@ ignore = [
     "TD002", # TODO author
     "TD003", # TODO links
     "TRY003", # messages outside exception class
-    # FIX THE FOLLOWING
-    # Boolean arguments
-    "FBT001",
-    "FBT002",
-    "FBT003",
+    "FBT001", "FBT002", # boolean positional arguments
 ]
 
 [tool.ruff.lint.per-file-ignores]
 "suplalite/proto.py" = ["N801"] # protocol class names match C implementation
 "examples/**" = ["S", "ASYNC240"] # security and sync file io
-"tests/**" = ["S"] # security
+"tests/**" = ["S", "FBT003"] # security and boolean parameters
 
 [tool.pyright]
 typeCheckingMode = "strict"
