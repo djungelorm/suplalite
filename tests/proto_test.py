@@ -422,7 +422,7 @@ def test_partial_decode() -> None:
                         0,
                         0,
                         0,
-                        0,
+                        proto.ChannelFlag.NONE,
                         19,
                         True,
                         proto.ChannelValue_B(
@@ -444,7 +444,7 @@ def test_partial_decode() -> None:
                         0,
                         0,
                         0,
-                        0,
+                        proto.ChannelFlag.NONE,
                         19,
                         True,
                         proto.ChannelValue_B(

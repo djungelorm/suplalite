@@ -1665,7 +1665,7 @@ async def do_get_channel_config(
                 proto.TCS_GetChannelConfigRequest(
                     channel_id=channel_id,
                     config_type=proto.ConfigType.DEFAULT,
-                    flags=0,  # FIXME: should be a IntFlag
+                    flags=proto.ChannelConfigRequestFlag.NONE,
                 )
             ),
         )

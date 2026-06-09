@@ -25,7 +25,7 @@ ACTIVITY_TIMEOUT_MIN = 30
 ACTIVITY_TIMEOUT_MAX = 240
 ACTIVITY_TIMEOUT_DEFAULT = 120
 
-CHANNELMAXCOUNT = 32
+CHANNELMAXCOUNT = 128
 
 TAG = b"SUPLA"
 
@@ -332,6 +332,14 @@ class ActionCap(IntFlag):
     TOGGLE_x3 = 1 << 4
     TOGGLE_x4 = 1 << 5
     TOGGLE_x5 = 1 << 6
+    ROTATE_RIGHT = 1 << 7
+    ROTATE_LEFT = 1 << 8
+    HOLD = 1 << 10
+    SHORT_PRESS_x1 = 1 << 11
+    SHORT_PRESS_x2 = 1 << 12
+    SHORT_PRESS_x3 = 1 << 13
+    SHORT_PRESS_x4 = 1 << 14
+    SHORT_PRESS_x5 = 1 << 15
 
 
 class DeviceFlag(IntFlag):
@@ -474,9 +482,9 @@ class TDS_RegisterDevice_E:
 @dataclass
 class TSD_RegisterDeviceResult:
     result_code: ResultCode = field(metadata=c_enum(ctypes.c_uint32))
-    activity_timeout: int = field(metadata=c_int8())
-    version: int = field(metadata=c_int8())
-    version_min: int = field(metadata=c_int8())
+    activity_timeout: int = field(metadata=c_uint8())
+    version: int = field(metadata=c_uint8())
+    version_min: int = field(metadata=c_uint8())
 
 
 @dataclass
@@ -552,10 +560,10 @@ class TSC_RegisterClientResult_D:
     flags: bytes = field(  # always zero
         repr=False, init=False, metadata=c_bytes(size=4)
     )
-    activity_timeout: int = field(metadata=c_int8())
-    version: int = field(metadata=c_int8())
-    version_min: int = field(metadata=c_int8())
-    server_unix_timestamp: int = field(metadata=c_int32())
+    activity_timeout: int = field(metadata=c_uint8())
+    version: int = field(metadata=c_uint8())
+    version_min: int = field(metadata=c_uint8())
+    server_unix_timestamp: int = field(metadata=c_uint32())
 
 
 @dataclass
@@ -572,6 +580,7 @@ class Platform(Enum):
     UNKNOWN = 0
     IOS = 1
     ANDROID = 2
+    HOMEGRAPH = 3  # ver. >= 23
 
 
 @dataclass
@@ -668,7 +677,7 @@ class TSC_Channel_E:
     manufacturer_id: int = field(metadata=c_int16())
     product_id: int = field(metadata=c_int16())
     default_config_crc32: int = field(metadata=c_uint32())
-    flags: int = field(metadata=c_uint64())
+    flags: ChannelFlag = field(metadata=c_enum(ctypes.c_uint64))
     protocol_version: int = field(metadata=c_uint8())
     online: bool = field(metadata=c_uint8())
     value: ChannelValue_B
@@ -791,7 +800,9 @@ class ActionType(Enum):
     REVEAL_PARTIALLY = 50
     SHUT_PARTIALLY = 51
     TURN_ON = 60
+    TURN_ON_WITH_DURATION = 61
     TURN_OFF = 70
+    TURN_OFF_WITH_DURATION = 71
     SET_RGBW_PARAMETERS = 80
     OPEN_CLOSE = 90
     STOP = 100
@@ -799,6 +810,8 @@ class ActionType(Enum):
     UP_OR_STOP = 140
     DOWN_OR_STOP = 150
     STEP_BY_STEP = 160
+    UP = 170
+    DOWN = 180
     ENABLE = 200
     DISABLE = 210
     SEND = 220
@@ -848,8 +861,8 @@ class TCS_NewValue:
 
 @dataclass
 class TSDC_RegistrationEnabled:
-    client_timestamp: int = field(metadata=c_int32())  #  time >= now == enabled
-    iodevice_timestamp: int = field(metadata=c_int32())  #  time >= now == enabled
+    client_timestamp: int = field(metadata=c_uint32())  #  time >= now == enabled
+    iodevice_timestamp: int = field(metadata=c_uint32())  #  time >= now == enabled
 
 
 # Note: TCSD_ChannelStateRequest is split into TCS_ChannelStateRequest and
@@ -876,16 +889,16 @@ class TDS_ChannelState:
     padding: bytes = field(repr=False, init=False, metadata=c_bytes(size=3))
     fields: ChannelStateField = field(metadata=c_enum(ctypes.c_uint32))
     default_icon_field: int = field(metadata=c_int32())
-    ipv4: int = field(metadata=c_int32())
+    ipv4: int = field(metadata=c_uint32())
     mac: bytes = field(metadata=c_bytes(6))
     battery_level: int = field(metadata=c_uint8())
     battery_powered: bool = field(metadata=c_uint8())
-    wifi_rssi: int = field(metadata=c_uint8())
+    wifi_rssi: int = field(metadata=c_int8())
     wifi_signal_strength: int = field(metadata=c_uint8())
     bridge_node_online: bool = field(metadata=c_uint8())
     bridge_node_signal_strength: int = field(metadata=c_uint8())
-    uptime: int = field(metadata=c_int32())
-    connected_uptime: int = field(metadata=c_int32())
+    uptime: int = field(metadata=c_uint32())
+    connected_uptime: int = field(metadata=c_uint32())
     battery_health: int = field(metadata=c_uint8())
     last_connection_reset_cause: int = field(metadata=c_uint8())
     light_source_lifespan: int = field(metadata=c_uint16())
@@ -899,16 +912,16 @@ class TSC_ChannelState:
     channel_id: int = field(metadata=c_int32())
     fields: ChannelStateField = field(metadata=c_enum(ctypes.c_uint32))
     default_icon_field: int = field(metadata=c_int32())
-    ipv4: int = field(metadata=c_int32())
+    ipv4: int = field(metadata=c_uint32())
     mac: bytes = field(metadata=c_bytes(6))
     battery_level: int = field(metadata=c_uint8())
     battery_powered: bool = field(metadata=c_uint8())
-    wifi_rssi: int = field(metadata=c_uint8())
+    wifi_rssi: int = field(metadata=c_int8())
     wifi_signal_strength: int = field(metadata=c_uint8())
     bridge_node_online: bool = field(metadata=c_uint8())
     bridge_node_signal_strength: int = field(metadata=c_uint8())
-    uptime: int = field(metadata=c_int32())
-    connected_uptime: int = field(metadata=c_int32())
+    uptime: int = field(metadata=c_uint32())
+    connected_uptime: int = field(metadata=c_uint32())
     battery_health: int = field(metadata=c_uint8())
     last_connection_reset_cause: int = field(metadata=c_uint8())
     light_source_lifespan: int = field(metadata=c_uint16())
@@ -934,6 +947,7 @@ class ChannelStateField(IntFlag):
     LIGHTSOURCEOPERATINGTIME = 0x2000
     OPERATINGTIME = 0x4000
     SWITCHCYCLECOUNT = 0x8000
+    DEVICE_BATTERYLEVEL = 0x10000
 
 
 class OAuthResultCode(Enum):
@@ -950,7 +964,7 @@ class TSC_OAuthTokenRequestResult:
 
 @dataclass
 class TSC_OAuthToken:
-    expires_in: int = field(metadata=c_int32())
+    expires_in: int = field(metadata=c_uint32())
     token: bytes = field(
         metadata=c_bytes(size_ctype=ctypes.c_int32, max_size=OAUTH_TOKEN_MAXSIZE)
     )
@@ -1054,11 +1068,16 @@ class TDS_DeviceCalCfgResult:
 CHANNEL_CONFIG_MAXSIZE = 512  # v. >= 21
 
 
+class ChannelConfigRequestFlag(IntFlag):
+    NONE = 0
+
+
 class ConfigType(Enum):
     DEFAULT = 0
     WEEKLY_SCHEDULE = 2
     ALT_WEEKLY_SCHEDULE = 3
     OCR = 4
+    EXTENDED = 5
 
 
 class ConfigResult(Enum):
@@ -1076,7 +1095,7 @@ class ConfigResult(Enum):
 class TCS_GetChannelConfigRequest:
     channel_id: int = field(metadata=c_int32())
     config_type: ConfigType = field(metadata=c_enum(ctypes.c_uint8))
-    flags: int = field(metadata=c_int32())
+    flags: ChannelConfigRequestFlag = field(metadata=c_enum(ctypes.c_uint32))
 
 
 @dataclass
@@ -1085,7 +1104,7 @@ class TSCS_ChannelConfig:
     func: ChannelFunc = field(metadata=c_enum(ctypes.c_uint32))
     config_type: ConfigType = field(metadata=c_enum(ctypes.c_uint8))
     config: bytes = field(
-        metadata=c_bytes(size_ctype=ctypes.c_int16, max_size=CHANNEL_CONFIG_MAXSIZE)
+        metadata=c_bytes(size_ctype=ctypes.c_uint16, max_size=CHANNEL_CONFIG_MAXSIZE)
     )
 
 
