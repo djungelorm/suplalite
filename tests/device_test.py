@@ -83,6 +83,25 @@ async def test_device(server: Server, caplog: pytest.LogCaptureFixture) -> None:
         )
 
 
+def test_channel_number() -> None:
+    device = Device(
+        host="localhost",
+        port=0,
+        secure=False,
+        email="",
+        name="",
+        version="",
+        authkey=b"\x00" * 16,
+        guid=b"\x00" * 16,
+    )
+    channel_a = channels.Relay()
+    channel_b = channels.Temperature()
+    device.add(channel_a)
+    device.add(channel_b)
+    assert channel_a.channel_number == 0
+    assert channel_b.channel_number == 1
+
+
 @pytest.mark.asyncio
 async def test_device_ping(server: Server, caplog: pytest.LogCaptureFixture) -> None:
     async with server.running():
