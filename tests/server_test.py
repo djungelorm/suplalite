@@ -93,8 +93,9 @@ async def open_connection(
     port = server.secure_port if secure else server.port
     ssl_context = None
     if secure:
-        ssl_context = ssl.SSLContext()
+        ssl_context = ssl.create_default_context()
         ssl_context.check_hostname = False
+        ssl_context.verify_mode = ssl.CERT_NONE
 
     reader, writer = await asyncio.open_connection("localhost", port, ssl=ssl_context)
     stream = PacketStream(reader, writer)
