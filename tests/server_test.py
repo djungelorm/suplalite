@@ -6,9 +6,10 @@ import os
 import re
 import ssl
 import time
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncGenerator, Callable
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from dataclasses import dataclass
+from typing import Any
 
 import aiohttp
 import pytest
@@ -89,7 +90,7 @@ async def client_disconnected(context: ServerContext, client_id: int) -> None:
 @asynccontextmanager
 async def open_connection(
     server: Server, secure: bool = True
-) -> AsyncIterator[PacketStream]:
+) -> AsyncGenerator[PacketStream, None]:
     port = server.secure_port if secure else server.port
     ssl_context = None
     if secure:
@@ -118,7 +119,7 @@ class Device(Connection):
 @asynccontextmanager
 async def open_device(
     server: Server, device_id: int, secure: bool = True
-) -> AsyncIterator[Device]:
+) -> AsyncGenerator[Device, None]:
     async with open_connection(server, secure) as device:
         await register_device(device, device_id)
         yield Device(device)
@@ -135,7 +136,7 @@ class Client(Connection):
 @asynccontextmanager
 async def open_client(
     server: Server, name: str, secure: bool = True
-) -> AsyncIterator[Client]:
+) -> AsyncGenerator[Client, None]:
     async with open_connection(server, secure) as stream:
         client_id, location_pack, channel_packs, scene_pack = await register_client(
             stream, name
@@ -146,7 +147,7 @@ async def open_client(
 def register_device_message(device_id: int) -> proto.TDS_RegisterDevice_E:
     manufacturer_id = 0
     product_id = 0
-    channels = []
+    channels: list[proto.TDS_DeviceChannel_C] = []
     if device_id == 1:
         channels.append(
             proto.TDS_DeviceChannel_C(
@@ -385,7 +386,7 @@ async def register_client(
     location_pack, _ = encoding.decode(proto.TSC_LocationPack, packet.data)
 
     # get channels
-    channel_packs = []
+    channel_packs: list[proto.TSC_ChannelPack_E] = []
     while True:
         # send get next
         await stream.send(Packet(proto.Call.CS_GET_NEXT))
@@ -700,7 +701,7 @@ async def test_register_client(  # noqa: PLR0915
         assert channel_packs[1].items[3].default_config_crc32 == 3093446211
 
         # scene update
-        if server.with_scenes:
+        if server.state.get_scenes():
             assert len(scene_pack.items) == 3
 
             assert scene_pack.items[0].id == 1
@@ -921,12 +922,17 @@ async def test_client_update_on_device_connect(server: Server) -> None:
         check_packet(await client_b.stream.recv())
 
 
-connectors = {
+def _connect_device(server: Server) -> AbstractAsyncContextManager[Connection]:
+    return open_device(server, 1)
+
+
+def _connect_client(server: Server) -> AbstractAsyncContextManager[Connection]:
+    return open_client(server, "test")
+
+
+connectors: dict[str, Any] = {
     "argnames": "connect",
-    "argvalues": (
-        lambda x: open_device(x, 1),
-        lambda x: open_client(x, "test"),
-    ),
+    "argvalues": (_connect_device, _connect_client),
     "ids": ("device", "client"),
 }
 

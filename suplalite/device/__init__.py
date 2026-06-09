@@ -79,7 +79,7 @@ class Device:
 
     async def start(self) -> None:
         if self._secure:  # pragma: no cover
-            ssl_context = ssl.SSLContext()
+            ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
             ssl_context.check_hostname = False
             ssl_context.verify_mode = ssl.CERT_NONE
             try:

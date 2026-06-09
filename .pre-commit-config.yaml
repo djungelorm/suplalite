@@ -25,13 +25,13 @@ repos:
       - id: ruff-format
       - id: ruff-check
         args: ["--fix", "--show-fixes"]
-  # - repo: local
-  #   hooks:
-  #     - id: pyright
-  #       name: pyright
-  #       entry: hatch run pyright
-  #       language: system
-  #       types: [python]
-  #       args: ["suplalite", "tests"]
-  #       files: "\\.py$"
-  #       pass_filenames: false
+  - repo: local
+    hooks:
+      - id: pyright
+        name: pyright
+        entry: hatch run pyright
+        language: system
+        types: [python]
+        args: ["suplalite", "tests"]
+        files: "\\.py$"
+        pass_filenames: false

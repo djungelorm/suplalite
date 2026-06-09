@@ -2,6 +2,7 @@ import asyncio
 import contextlib
 import logging
 from pathlib import Path
+from typing import Any
 
 from suplalite import encoding, proto
 from suplalite.device import channels
@@ -45,37 +46,38 @@ async def update(
 ) -> None:
     channel = context.server.state.get_channel(channel_id)
     topic = f"supla/{channel.name}/{action}"
+    decoded: Any
     if channel.type == proto.ChannelType.THERMOMETER:
-        value = channels.Temperature.decode(channel.value)
-        logger.info(topic, value)
+        decoded = channels.Temperature.decode(channel.value)
+        logger.info(topic, decoded)
 
     elif channel.type == proto.ChannelType.HUMIDITYSENSOR:
-        value = channels.Humidity.decode(channel.value)
-        logger.info(topic, value)
+        decoded = channels.Humidity.decode(channel.value)
+        logger.info(topic, decoded)
 
     elif channel.type == proto.ChannelType.HUMIDITYANDTEMPSENSOR:
         temp, humi = channels.TemperatureAndHumidity.decode(channel.value)
         logger.info(topic, temp, humi)
 
     elif channel.type == proto.ChannelType.RELAY:
-        value = channels.Relay.decode(channel.value)
-        logger.info(topic, value)
+        decoded = channels.Relay.decode(channel.value)
+        logger.info(topic, decoded)
 
     elif channel.type == proto.ChannelType.DIMMER:
-        value = channels.Dimmer.decode(channel.value)
-        logger.info(topic, value)
+        decoded = channels.Dimmer.decode(channel.value)
+        logger.info(topic, decoded)
 
     elif channel.type == proto.ChannelType.GENERAL_PURPOSE_MEASUREMENT:
-        value = channels.GeneralPurposeMeasurement.decode(channel.value)
-        logger.info(topic, value)
+        decoded = channels.GeneralPurposeMeasurement.decode(channel.value)
+        logger.info(topic, decoded)
 
     elif channel.type == proto.ChannelType.RGBLEDCONTROLLER:
-        value = channels.RGBDimmer.decode(channel.value)
-        logger.info(topic, value)
+        decoded = channels.RGBDimmer.decode(channel.value)
+        logger.info(topic, decoded)
 
     elif channel.type == proto.ChannelType.DIMMERANDRGBLED:
-        value = channels.RGBWDimmer.decode(channel.value)
-        logger.info(topic, value)
+        decoded = channels.RGBWDimmer.decode(channel.value)
+        logger.info(topic, decoded)
 
     else:
         logger.info(topic, "unknown value")

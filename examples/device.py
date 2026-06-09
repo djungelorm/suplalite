@@ -2,7 +2,7 @@ import asyncio
 import logging
 import random
 import time
-from typing import Any
+from typing import Any, cast
 
 from suplalite import device, network, proto
 from suplalite.device import Device, channels
@@ -14,19 +14,28 @@ logger = logging.getLogger("example-device")
 
 async def handle_change(channel: channels.Channel, value: Any) -> None:
     logger.info("handle change; channel %s = %s", channel.channel_number, str(value))
-    if channel.value != value:
-        await channel.do_set_value(value)
+    ch = cast("Any", channel)
+    if ch.value != value:
+        await ch.do_set_value(value)
 
 
 async def update_loop(device: Device) -> None:
     try:
         logger.debug("update loop started")
         while True:
-            await device.get(1).set_value(random.uniform(10, 30))
-            await device.get(2).set_value(random.uniform(50, 80))
-            await device.get(3).set_temperature(random.uniform(10, 30))
-            await device.get(3).set_humidity(random.uniform(50, 80))
-            await device.get(8).set_value(random.uniform(-100, 100))
+            temp = cast("channels.Temperature", device.get(1))
+            await temp.set_value(random.uniform(10, 30))
+
+            humid = cast("channels.Humidity", device.get(2))
+            await humid.set_value(random.uniform(50, 80))
+
+            temp_and_humid = cast("channels.TemperatureAndHumidity", device.get(3))
+            await temp_and_humid.set_temperature(random.uniform(10, 30))
+            await temp_and_humid.set_humidity(random.uniform(50, 80))
+
+            gp = cast("channels.GeneralPurposeMeasurement", device.get(8))
+            await gp.set_value(random.uniform(-100, 100))
+
             await asyncio.sleep(3)
     finally:
         logger.debug("update loop stopped")

@@ -5,7 +5,7 @@ import dataclasses
 import importlib
 import typing
 from enum import Enum
-from typing import Any, Protocol, TypeVar, cast
+from typing import Any, ClassVar, Protocol, TypeVar, cast
 
 
 def c_int8() -> dict[str, Any]:
@@ -252,9 +252,10 @@ def _encode_packed_array(value: Any, metadata: dict[str, Any]) -> Any:
     # list of messages -> packed array
     max_size = metadata["max_size"]
     assert isinstance(value, list)
-    assert len(value) <= max_size
+    items = cast("list[Any]", value)
+    assert len(items) <= max_size
     data = b""
-    for x in value:
+    for x in items:
         data += encode(x)
     return data
 
@@ -263,7 +264,7 @@ def _decode_packed_array(
     data: bytes,
     offset: int,
     name: str,
-    typ: type,
+    typ: type[Any],
     sizes: dict[str, int],
     metadata: dict[str, Any],
 ) -> tuple[Any, int]:
@@ -275,7 +276,7 @@ def _decode_packed_array(
     max_size = metadata["max_size"]
     assert sizes[name] <= max_size
 
-    items = []
+    items: list[Any] = []
     size = 0
     for _ in range(sizes[name]):
         item, item_size = decode(item_type, data[offset + size :])
@@ -285,11 +286,11 @@ def _decode_packed_array(
 
 
 class MessageProtocol(Protocol):
-    def __init__(self, *args: Any) -> None: ...  # pragma: no cover
+    __dataclass_fields__: ClassVar[dict[str, dataclasses.Field[Any]]]
 
 
 T = TypeVar("T", bound=MessageProtocol)
-Fields = list[tuple[str | None, type, bool, dict[str, Any]]]
+Fields = list[tuple[str | None, type[Any], bool, dict[str, Any]]]
 
 
 def fields(cls: type[T]) -> Fields:
@@ -343,8 +344,8 @@ def fields(cls: type[T]) -> Fields:
     return result
 
 
-def encode(msg: T) -> bytes:
-    result = []
+def encode(msg: MessageProtocol) -> bytes:
+    result: list[bytes] = []
     fields_ = fields(type(msg))
     fields_by_name = {field[0]: field for field in fields_}
 
@@ -371,13 +372,13 @@ def encode(msg: T) -> bytes:
         if "encoder" in metadata:
             result.append(metadata["encoder"](value, metadata))
         else:
-            result.append(encode(value))
+            result.append(encode(cast("MessageProtocol", value)))
 
     return b"".join(result)
 
 
 def decode(cls: type[T], data: bytes) -> tuple[T, int]:
-    args = []
+    args: list[Any] = []
     sizes: dict[str, int] = {}
     offset = 0
 
@@ -397,7 +398,7 @@ def decode(cls: type[T], data: bytes) -> tuple[T, int]:
 
 
 def partial_decode(cls: type[T], data: bytes, num_fields: int) -> tuple[list[Any], int]:
-    args = []
+    args: list[Any] = []
     sizes: dict[str, int] = {}
     offset = 0
 
@@ -420,7 +421,7 @@ def _decode_field(
     offset: int,
     sizes: dict[str, int],
     name: str | None,
-    typ: type,
+    typ: type[Any],
     metadata: dict[str, Any],
 ) -> tuple[Any, int]:
     if "decoder" in metadata:

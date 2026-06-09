@@ -4,11 +4,13 @@ import asyncio
 import contextlib
 import functools
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from pathlib import Path
 from typing import Any, cast
 
 import tlslite
+import tlslite.api
+import tlslite.utils.rsakey
 import uvicorn
 
 from suplalite import encoding, network, proto
@@ -110,8 +112,6 @@ class Connection:
                             f"{proto_version} -> {self._packets.proto_version}",
                             logging.DEBUG,
                         )
-                    if packet is None:  # pragma: no cover
-                        break
                     await self._handle_call(self._context, packet)
                 except asyncio.exceptions.TimeoutError:  # pragma: no cover
                     self._context.log(
@@ -272,10 +272,10 @@ class Server:
     async def _load_cert(self) -> tlslite.api.X509CertChain:
         x509 = tlslite.api.X509()
         x509.parse(await asyncio.to_thread(self._ssl_certfile.read_text))
-        return tlslite.api.X509CertChain([x509])
+        return tlslite.api.X509CertChain([x509])  # type: ignore[no-untyped-call]
 
     async def _load_key(self) -> tlslite.utils.rsakey.RSAKey:
-        return tlslite.api.parsePEMKey(
+        return tlslite.api.parsePEMKey(  # type: ignore[no-untyped-call]
             await asyncio.to_thread(self._ssl_keyfile.read_text), private=True
         )
 
@@ -380,7 +380,7 @@ class Server:
             await task
 
     @contextlib.asynccontextmanager
-    async def running(self) -> AsyncIterator[None]:
+    async def running(self) -> AsyncGenerator[None, None]:
         task = asyncio.create_task(self.serve_forever())
         try:
             yield
@@ -459,7 +459,7 @@ class Server:
             self._no_connections.clear()
         try:
             if secure:
-                await writer.transport._sock.do_handshake()  # noqa: SLF001
+                await cast("Any", writer.transport)._sock.do_handshake()  # noqa: SLF001
             await Connection(self, reader, writer)()
         except Exception:  # pragma: no cover
             logger.exception("unexpected error")

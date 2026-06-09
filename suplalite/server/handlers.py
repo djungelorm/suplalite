@@ -6,9 +6,9 @@ import inspect
 import logging
 import random
 import time
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Collection
 from dataclasses import dataclass
-from typing import Any, Concatenate, ParamSpec, TypeVar
+from typing import Any, TypeVar
 
 from suplalite import encoding, proto
 from suplalite.server.context import (
@@ -25,12 +25,10 @@ from suplalite.server.state import (
 )
 from suplalite.utils import batched, to_hex
 
-HandlerArgs = ParamSpec("HandlerArgs")
-
 
 @dataclass
 class Handler:
-    func: Callable[Concatenate[BaseContext, HandlerArgs], Awaitable[Any]]
+    func: Callable[..., Awaitable[Any]]
 
 
 @dataclass
@@ -60,7 +58,7 @@ def get_handlers() -> list[Handler]:
     return _handlers
 
 
-CallHandlerFunc = TypeVar("CallHandlerFunc", bound=Callable[..., Any])
+CallHandlerFunc = TypeVar("CallHandlerFunc", bound=Callable[..., Awaitable[Any]])
 
 
 def call_handler(
@@ -77,7 +75,7 @@ def call_handler(
     return func
 
 
-EventHandlerFunc = TypeVar("EventHandlerFunc", bound=Callable[..., Any])
+EventHandlerFunc = TypeVar("EventHandlerFunc", bound=Callable[..., Awaitable[Any]])
 
 
 def event_handler(
@@ -191,8 +189,8 @@ def _check_device_identity(device: Any, msg: proto.TDS_RegisterDevice_E) -> str 
 
 
 def _check_channels(
-    channels: list[Any],
-    msg_channels: list[Any],
+    channels: Collection[Any],
+    msg_channels: Collection[Any],
     get_channel: Callable[[Any], Any],
 ) -> str | None:
     if len(msg_channels) != len(channels):
@@ -340,7 +338,7 @@ async def oauth_token_request(
 ) -> proto.TSC_OAuthTokenRequestResult:
 
     # Generate a random token (we don't actually do proper oauth, just allow all)
-    key = "".join(random.choice("0123456789abcdef") for i in range(86))  # noqa: S311
+    key = "".join(random.choice("0123456789abcdef") for _ in range(86))  # noqa: S311
     # Include URL for API
     url = f"https://{context.server.host}:{context.server.api_port}"
     token = key.encode() + b"." + base64.b64encode(url.encode()) + b"\x00"
@@ -976,7 +974,7 @@ async def device_connected(context: ClientContext, device_id: int) -> None:
 
     batches = batched(device.channel_ids, proto.CHANNELVALUE_PACK_MAXCOUNT)
     for batch in batches:
-        items = []
+        items: list[proto.TSC_ChannelValue_B] = []
         for channel_id in batch:
             channel = context.server.state.get_channel(channel_id)
             items.append(

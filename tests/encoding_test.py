@@ -105,7 +105,7 @@ class LargerMessage:
 
 @pytest.mark.parametrize(
     ("typ", "fields"),
-    [
+    [  # type: ignore[reportUnknownArgumentType]
         (Int32Message, [("x", int, True, {"ctype": ctypes.c_int32})]),
         (EnumMessage, [("x", MyEnum, True, {"ctype": ctypes.c_int16})]),
         (FlagMessage, [("x", MyFlag, True, {"ctype": ctypes.c_int16})]),
@@ -169,7 +169,7 @@ class LargerMessage:
 def test_fields(
     typ: type, fields: list[tuple[str | None, type, bool, dict[str, Any]]]
 ) -> None:
-    actual_fields = []
+    actual_fields: list[Any] = []
     for field_ in encoding.fields(typ):
         if "encoder" in field_[3]:
             del field_[3]["encoder"]

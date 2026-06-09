@@ -289,7 +289,7 @@ class DeviceState:
     manufacturer_id: int
     product_id: int
     proto_version: int
-    channel_ids: list[int] = field(default_factory=list)
+    channel_ids: list[int] = field(default_factory=list[int])
 
 
 @dataclass
@@ -326,20 +326,20 @@ class ChannelState:
 
 
 @dataclass
+class SceneChannelState:
+    name: str
+    action: proto.ActionType
+    params: bytes | None = None
+
+
+@dataclass
 class SceneState:
     name: str
     id: int
     caption: str
     alt_icon: int
     user_icon: int
-    channels: list[SceneChannelState] = field(default_factory=list)
-
-
-@dataclass
-class SceneChannelState:
-    name: str
-    action: proto.ActionType
-    params: bytes | None = None
+    channels: list[SceneChannelState] = field(default_factory=list[SceneChannelState])
 
 
 @dataclass

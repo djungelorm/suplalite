@@ -62,7 +62,7 @@ async def handle_500(request: Request, _: Any) -> JSONResponse:  # pragma: no co
 
 async def get_user_icons(server: Server, request: Request) -> JSONResponse:
     async with server.state.lock:
-        response = []
+        response: list[dict[str, Any]] = []
 
         if "ids" in request.query_params:
             ids = [int(x) for x in request.query_params["ids"].split(",")]

@@ -29,7 +29,7 @@ class Context:
 
 ##############################################################
 
-_handlers = {}
+_handlers: dict[proto.Call, tuple[Callable[..., Any], type[Any] | None]] = {}
 
 Handler = TypeVar("Handler", bound=Callable[..., Any])  # FIXME: avoid Any and ... here
 
@@ -100,6 +100,7 @@ async def channelvaluepack_update(
 
 
 async def oauth_request(context: Context) -> None:
+    assert context.client.stream is not None
     await context.client.stream.send(
         packets.Packet(proto.Call.CS_OAUTH_TOKEN_REQUEST, b"")
     )
@@ -201,6 +202,7 @@ class Client:
             await self._ping()
             return
 
+        assert self.stream is not None
         if not_got_all:
             packet = None
             try:
@@ -217,6 +219,7 @@ class Client:
 
     async def _register(self) -> None:
         logger.debug("registering")
+        assert self.stream is not None
         await self.stream.send(
             packets.Packet(
                 proto.Call.CS_REGISTER_CLIENT_D,
@@ -236,6 +239,7 @@ class Client:
 
     async def _ping(self) -> None:
         logger.debug("ping")
+        assert self.stream is not None
         now = time.time()
         msg = proto.TDCS_PingServer(
             proto.TimeVal(int(now), int((now - int(now)) * 1000000))
@@ -246,6 +250,7 @@ class Client:
 
     async def _get_next(self) -> None:
         logger.debug("get next")
+        assert self.stream is not None
         await self.stream.send(packets.Packet(proto.Call.CS_GET_NEXT, b""))
 
     async def _handle_packet(self, packet: packets.Packet) -> None:

@@ -26,7 +26,6 @@ async def server(request: pytest.FixtureRequest) -> AsyncIterator[Server]:
     with_scenes = not hasattr(request, "param") or "without-scenes" not in request.param
     setup_server(server, with_scenes=with_scenes)
     await server.start()
-    server.with_scenes = with_scenes
     yield server
     await server.stop()
 

@@ -29,7 +29,7 @@ def batched(iterable: Iterable[T], n: int = 1) -> Iterable[tuple[T, ...]]:
 # See https://github.com/python/cpython/issues/86073
 class IntFlag(_IntFlag):
     def __str__(self) -> str:
-        names = [x.name for x in self]
+        names = [x.name for x in self if x.name is not None]
         if len(names) == 0:
             for name, value in self.__class__.__members__.items():
                 if value == 0:

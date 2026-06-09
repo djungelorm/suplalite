@@ -1,5 +1,4 @@
 import asyncio
-import asyncio.selector_events
 import asyncio.trsock
 import socket
 from collections.abc import Callable, Coroutine
@@ -57,7 +56,7 @@ class TLSSocket:
         if not self._connected:
             raise BlockingIOError
         try:
-            return cast("bytes", self._ssl_sock.recv(bufsize))
+            return self._ssl_sock.recv(bufsize)
         except ConnectionResetError:  # pragma: no cover
             return b""
         except tlslite.TLSAbruptCloseError:  # pragma: no cover
@@ -65,7 +64,7 @@ class TLSSocket:
 
     def send(self, data: bytes) -> int:
         assert self._connected
-        return cast("int", self._ssl_sock.send(data))
+        return self._ssl_sock.send(data)
 
     def close(self) -> None:
         self._ssl_sock.close()
@@ -109,7 +108,7 @@ class TLSProtocol(asyncio.StreamReaderProtocol):
             self._ssl_session_cache,
             self._ssl_settings,
         )
-        transport._sock = ssl_sock  # noqa: SLF001
+        cast("Any", transport)._sock = ssl_sock  # noqa: SLF001
         super().connection_made(transport)
 
 
