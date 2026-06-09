@@ -49,38 +49,38 @@ async def update(
     decoded: Any
     if channel.type == proto.ChannelType.THERMOMETER:
         decoded = channels.Temperature.decode(channel.value)
-        logger.info(topic, decoded)
+        logger.info("%s %s", topic, decoded)
 
     elif channel.type == proto.ChannelType.HUMIDITYSENSOR:
         decoded = channels.Humidity.decode(channel.value)
-        logger.info(topic, decoded)
+        logger.info("%s %s", topic, decoded)
 
     elif channel.type == proto.ChannelType.HUMIDITYANDTEMPSENSOR:
         temp, humi = channels.TemperatureAndHumidity.decode(channel.value)
-        logger.info(topic, temp, humi)
+        logger.info("%s %s %s", topic, temp, humi)
 
     elif channel.type == proto.ChannelType.RELAY:
         decoded = channels.Relay.decode(channel.value)
-        logger.info(topic, decoded)
+        logger.info("%s %s", topic, decoded)
 
     elif channel.type == proto.ChannelType.DIMMER:
         decoded = channels.Dimmer.decode(channel.value)
-        logger.info(topic, decoded)
+        logger.info("%s %s", topic, decoded)
 
     elif channel.type == proto.ChannelType.GENERAL_PURPOSE_MEASUREMENT:
         decoded = channels.GeneralPurposeMeasurement.decode(channel.value)
-        logger.info(topic, decoded)
+        logger.info("%s %s", topic, decoded)
 
     elif channel.type == proto.ChannelType.RGBLEDCONTROLLER:
         decoded = channels.RGBDimmer.decode(channel.value)
-        logger.info(topic, decoded)
+        logger.info("%s %s", topic, decoded)
 
     elif channel.type == proto.ChannelType.DIMMERANDRGBLED:
         decoded = channels.RGBWDimmer.decode(channel.value)
-        logger.info(topic, decoded)
+        logger.info("%s %s", topic, decoded)
 
     else:
-        logger.info(topic, "unknown value")
+        logger.info("%s unknown value", topic)
 
 
 async def main() -> None:

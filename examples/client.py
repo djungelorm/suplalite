@@ -14,7 +14,7 @@ from typing import Any, TypeVar
 from suplalite import encoding, packets, proto
 
 logging.basicConfig(
-    format="%(asctime)s %(levelname)-8s %(message)s",
+    format="%(asctime)s [%(levelname)s] %(message)s",
     level=logging.DEBUG,
     datefmt="%Y-%m-%d %H:%M:%S",
 )
