@@ -1,4 +1,5 @@
 from collections.abc import AsyncIterator
+from pathlib import Path
 
 import pytest
 import pytest_asyncio
@@ -35,8 +36,8 @@ async def server(request) -> AsyncIterator[Server]:
         port=0,
         secure_port=0,
         api_port=0,
-        certfile="ssl/server.cert",
-        keyfile="ssl/server.key",
+        certfile=Path("ssl/server.cert"),
+        keyfile=Path("ssl/server.key"),
         location_name="Test",
         email="email@email.com",
         password="password123",

@@ -23,6 +23,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "aiohttp",
+    "anyio",
     "hatch-vcs",
     "hatchling",
     "pre-commit",
@@ -97,8 +98,6 @@ ignore = [
     "PT",
     "T",
     "ANN",
-    # Paths
-    "PTH",
     # Logging
     "LOG",
     "G",

@@ -1,6 +1,8 @@
 import asyncio
 import contextlib
 
+from anyio import Path
+
 from suplalite import encoding, proto
 from suplalite.device import channels
 from suplalite.logging import configure_logging
@@ -74,11 +76,6 @@ async def update(context, action, channel_id, value):
         print(topic, "unknown value")
 
 
-def load_icon(path):
-    with open(path, "rb") as file:
-        return file.read()
-
-
 async def main():
     configure_logging()
 
@@ -88,8 +85,8 @@ async def main():
         port=2015,
         secure_port=2016,
         api_port=5000,
-        certfile="ssl/server.cert",
-        keyfile="ssl/server.key",
+        certfile=Path("ssl/server.cert"),
+        keyfile=Path("ssl/server.key"),
         location_name="Test",
         email="email@email.com",
         password="1",
@@ -175,8 +172,8 @@ async def main():
         proto.ChannelFunc.LIGHTSWITCH,
         proto.ChannelFlag.CHANNELSTATE,
         icons=[
-            load_icon("examples/red.png"),
-            load_icon("examples/green.png"),
+            await Path("examples/red.png").read_bytes(),
+            await Path("examples/green.png").read_bytes(),
         ],
     )
 
@@ -191,7 +188,7 @@ async def main():
             unit_after_value="%",
             value_precision=1,
         ),
-        icons=[load_icon("examples/car.png")],
+        icons=[await Path("examples/car.png").read_bytes()],
     )
 
     server.state.add_channel(
@@ -231,7 +228,7 @@ async def main():
         "all-off",
         "All Off",
         icons=[
-            load_icon("examples/red.png"),
+            await Path("examples/red.png").read_bytes(),
         ],
         channels=[
             SceneChannelState(

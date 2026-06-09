@@ -5,6 +5,7 @@ import contextlib
 import functools
 import logging
 from collections.abc import AsyncIterator
+from pathlib import Path
 from typing import Any, cast
 
 import tlslite
@@ -202,8 +203,8 @@ class Server:
         port: int,
         secure_port: int,
         api_port: int,
-        certfile: str,
-        keyfile: str,
+        certfile: Path,
+        keyfile: Path,
         location_name: str,
         email: str,
         password: str,
@@ -214,8 +215,8 @@ class Server:
         self._port = port
         self._secure_port = secure_port
         self._api_port = api_port
-        self._ssl_cert = self._load_cert(certfile)
-        self._ssl_key = self._load_key(keyfile)
+        self._ssl_certfile = certfile
+        self._ssl_keyfile = keyfile
         self._location_name = location_name
         self._email = email
         self._password = password
@@ -252,8 +253,8 @@ class Server:
             self._api,
             host=listen_host,
             port=api_port,
-            ssl_certfile=certfile,
-            ssl_keyfile=keyfile,
+            ssl_certfile=str(certfile),
+            ssl_keyfile=str(keyfile),
             log_config=None,
         )
 
@@ -268,19 +269,15 @@ class Server:
         self._no_connections = asyncio.Event()
         self._no_connections.set()
 
-    @staticmethod
-    def _load_cert(certfile: str) -> tlslite.api.X509CertChain:
-        with open(certfile, encoding="utf-8") as file:
-            cert = file.read()
+    async def _load_cert(self) -> tlslite.api.X509CertChain:
         x509 = tlslite.api.X509()
-        x509.parse(cert)
+        x509.parse(await asyncio.to_thread(self._ssl_certfile.read_text))
         return tlslite.api.X509CertChain([x509])
 
-    @staticmethod
-    def _load_key(keyfile: str) -> tlslite.utils.rsakey.RSAKey:
-        with open(keyfile, encoding="utf-8") as file:
-            key = file.read()
-        return tlslite.api.parsePEMKey(key, private=True)
+    async def _load_key(self) -> tlslite.utils.rsakey.RSAKey:
+        return tlslite.api.parsePEMKey(
+            await asyncio.to_thread(self._ssl_keyfile.read_text), private=True
+        )
 
     @property
     def host(self) -> str:
@@ -328,8 +325,8 @@ class Server:
             functools.partial(self._client_connected, True),
             self._listen_host,
             self._secure_port,
-            self._ssl_cert,
-            self._ssl_key,
+            await self._load_cert(),
+            await self._load_key(),
             tlslite.HandshakeSettings(),
         )
         self._api_server = uvicorn.Server(self._api_config)
