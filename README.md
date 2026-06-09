@@ -19,10 +19,12 @@ This implementation does *not* require/provide:
  - supla-cloud web interface
  - Logging of historical sensor data
  - Dynamic registration of devices
- - Authentication of clients
 
 Configuration of the server is static, i.e. devices must be configured before starting the
-server. Clients registration is not required -- any client is allowed to connect.
+server. The server listens on three ports: a plain port for devices, a TLS-secured port for
+devices and clients, and an HTTPS REST API port. TLS requires a certificate and key file.
+
+Client authentication is supported via email and password.
 
 See `examples/server.py` for an example.
 
@@ -30,13 +32,16 @@ suplalite.device
 ----------------
 
 Provides functionality necessary to create a SUPLA device using Python.
+Supports both plain and TLS-secured connections to the server.
 
 Currently supports the following kinds of channel:
  - Relay/switch
  - Temperature sensor
  - Humidity sensor
+ - Temperature and humidity sensor
  - General purpose measurement
  - Dimmer
  - RGB dimmer
+ - RGBW dimmer
 
 See `examples/device.py` for an example.
