@@ -29,9 +29,8 @@ class Context:
 
 ##############################################################
 
-_handlers: dict[proto.Call, tuple[Callable[..., Any], type[Any] | None]] = {}
-
-Handler = TypeVar("Handler", bound=Callable[..., Any])  # FIXME: avoid Any and ... here
+Handler = TypeVar("Handler", bound=Callable[..., Any])
+_handlers: dict[proto.Call, tuple[Handler, type[Any] | None]] = {}
 
 
 def supla_call(call_id: proto.Call) -> Callable[[Handler], Handler]:
