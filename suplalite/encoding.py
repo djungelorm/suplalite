@@ -180,7 +180,7 @@ def _encode_string(value: Any, metadata: dict[str, Any]) -> Any:
         size = len(value)
         assert size <= metadata["max_size"]
         return value
-    assert False  # pragma: no cover
+    raise AssertionError  # pragma: no cover
 
 
 def _decode_string(
@@ -205,7 +205,7 @@ def _decode_string(
         length = size if not metadata["null_terminated"] else size - 1
         assert not metadata["null_terminated"] or data[offset + length] == 0
         return data[offset : offset + length].decode(encoding="utf-8"), size
-    assert False  # pragma: no cover
+    raise AssertionError  # pragma: no cover
 
 
 def _encode_bytes(value: Any, metadata: dict[str, Any]) -> Any:
@@ -219,7 +219,7 @@ def _encode_bytes(value: Any, metadata: dict[str, Any]) -> Any:
         size = len(value)
         assert size <= metadata["max_size"]
         return value
-    assert False  # pragma: no cover
+    raise AssertionError  # pragma: no cover
 
 
 def _decode_bytes(
@@ -245,7 +245,7 @@ def _decode_bytes(
         size = sizes[name]
         assert size <= metadata["max_size"]
         return data[offset : offset + size], size
-    assert False  # pragma: no cover
+    raise AssertionError  # pragma: no cover
 
 
 def _encode_packed_array(value: Any, metadata: dict[str, Any]) -> Any:

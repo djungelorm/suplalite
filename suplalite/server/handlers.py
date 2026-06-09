@@ -189,7 +189,9 @@ async def register_device(
             f" got {len(msg.channels)}"
         )
 
-    for number, (channel_id, channel_msg) in enumerate(zip(channels, msg.channels)):
+    for number, (channel_id, channel_msg) in enumerate(
+        zip(channels, msg.channels, strict=False)
+    ):
         channel = context.server.state.get_channel(channel_id)
         if number != channel_msg.number:
             error = "incorrect channel number"

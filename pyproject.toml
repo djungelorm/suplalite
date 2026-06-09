@@ -103,7 +103,6 @@ ignore = [
     "G",
     # General
     "FBT",
-    "B",
 ]
 
 [tool.ruff.lint.per-file-ignores]
