@@ -104,7 +104,7 @@ class LargerMessage:
 
 
 @pytest.mark.parametrize(
-    "typ,fields",
+    ("typ", "fields"),
     [
         (Int32Message, [("x", int, True, {"ctype": ctypes.c_int32})]),
         (EnumMessage, [("x", MyEnum, True, {"ctype": ctypes.c_int16})]),
@@ -181,7 +181,7 @@ def test_fields(
 
 
 @pytest.mark.parametrize(
-    "typ,args,data",
+    ("typ", "args", "data"),
     [
         (Int32Message, (0x42,), b"\x42\x00\x00\x00"),
         (EnumMessage, (MyEnum.BAR,), b"\x02\x00"),
@@ -280,5 +280,5 @@ def test_partial_decode() -> None:
     assert fields[4] == 2
     assert fields[5] == b"hi"
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Buffer size too small"):
         encoding.partial_decode(LargerMessage, b"\x01\x00\x00\x00", num_fields=6)

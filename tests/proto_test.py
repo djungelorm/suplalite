@@ -310,7 +310,7 @@ def test_partial_decode() -> None:
 
 
 @pytest.mark.parametrize(
-    "typ,args,size",
+    ("typ", "args", "size"),
     [
         (
             proto.TDS_DeviceChannel_C,

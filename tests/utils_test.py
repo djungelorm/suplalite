@@ -11,21 +11,21 @@ def test_to_hex() -> None:
 
 
 @pytest.mark.parametrize(
-    "xs,n,result",
-    (
+    ("xs", "n", "result"),
+    [
         ([1, 2, 3, 4], 1, [(1,), (2,), (3,), (4,)]),
         ([1, 2, 3, 4], 2, [(1, 2), (3, 4)]),
         ([1, 2, 3, 4], 3, [(1, 2, 3), (4,)]),
         ([], 3, [tuple()]),
         ([1, 2], 10, [(1, 2)]),
-    ),
+    ],
 )
 def test_batched(xs: Iterable[Any], n: int, result: Iterable[tuple[Any, ...]]) -> None:
     assert list(batched(xs, n)) == result
 
 
 def test_batched_n_too_small() -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="n must be at least one"):
         tuple(batched([1, 2, 3], 0))
 
 
@@ -43,8 +43,8 @@ class MyFlagWithoutNone(IntFlag):
 
 
 @pytest.mark.parametrize(
-    "flag, string",
-    (
+    ("flag", "string"),
+    [
         (MyFlag.A, "MyFlag.A"),
         (MyFlag.B, "MyFlag.B"),
         (MyFlag.C, "MyFlag.C"),
@@ -55,7 +55,7 @@ class MyFlagWithoutNone(IntFlag):
         (MyFlag.NONE, "MyFlag.NONE"),
         (MyFlag(0), "MyFlag.NONE"),
         (MyFlagWithoutNone(0), "MyFlagWithoutNone.0"),
-    ),
+    ],
 )
 def test_int_flag_format(flag: Any, string: str) -> None:
     assert str(flag) == string

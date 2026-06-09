@@ -290,7 +290,7 @@ async def test_server_set_value(
         )
 
 
-@pytest.mark.parametrize("channel_number", (0, 1, 2, 3, 4, 5, 6, 7))
+@pytest.mark.parametrize("channel_number", [0, 1, 2, 3, 4, 5, 6, 7])
 @pytest.mark.asyncio
 async def test_channels(
     server: Server, caplog: pytest.LogCaptureFixture, channel_number: int

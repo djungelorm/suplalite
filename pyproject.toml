@@ -94,7 +94,6 @@ ignore = [
     "PLR",
     "C",
     # Typing
-    "PT",
     "T",
     "ANN",
     # Boolean arguments

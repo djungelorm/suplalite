@@ -416,8 +416,8 @@ async def register_client(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("device_id", (1, 2, 3))
-@pytest.mark.parametrize("secure", (True, False))
+@pytest.mark.parametrize("device_id", [1, 2, 3])
+@pytest.mark.parametrize("secure", [True, False])
 async def test_register_device(
     server: Server, device_id: int, secure: bool, caplog: pytest.LogCaptureFixture
 ) -> None:
@@ -593,7 +593,7 @@ async def test_register_device_twice(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [[], ["without-scenes"]], indirect=True)
-@pytest.mark.parametrize("secure", (True, False))
+@pytest.mark.parametrize("secure", [True, False])
 async def test_register_client(
     server: Server, secure: bool, caplog: pytest.LogCaptureFixture
 ) -> None:
@@ -1146,11 +1146,11 @@ async def test_client_execute_action_toggle(
 
 @pytest.mark.parametrize(
     "device_and_channel",
-    (
+    [
         (2, 4, 0, b"\x0a\x00\x00\x00\x00\x00\x00\x00"),
         (5, 16, 6, b"\n\xff\x00\x00\x00\x00\x00\x00"),
         (5, 17, 7, b"\x0a\xff\x00\x00\x00\x00\x00\x00"),
-    ),
+    ],
 )
 @pytest.mark.asyncio
 async def test_client_execute_action_set_rgbw_parameters(
