@@ -93,8 +93,6 @@ ignore = [
     # Complexity
     "PLR",
     "C",
-    # Typing
-    "T",
     # Boolean arguments
     "FBT001",
     "FBT002",

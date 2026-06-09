@@ -81,10 +81,10 @@ if __name__ == "__main__":
             try:
                 asyncio.run(main())
             except network.NetworkError as exn:
-                print(exn)
+                logger.warning(str(exn))
                 time.sleep(3)
             except device.DeviceError as exn:
-                print(exn)
+                logger.warning(str(exn))
                 time.sleep(3)
     except KeyboardInterrupt:
         pass

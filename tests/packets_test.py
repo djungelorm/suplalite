@@ -18,9 +18,6 @@ async def echo_server(
             await writer.drain()
             if reader.at_eof():
                 return
-    except Exception as exn:  # pragma: no cover
-        print(exn)
-        raise
     finally:
         writer.close()
         await writer.wait_closed()
