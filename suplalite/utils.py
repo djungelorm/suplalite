@@ -22,7 +22,7 @@ def batched(iterable: Iterable[T], n: int = 1) -> Iterable[tuple[T, ...]]:
         num_batches += 1
         yield batch
     if num_batches == 0:
-        yield tuple()
+        yield ()
 
 
 # Customize IntFlag to print human-readable string when f-strings/format

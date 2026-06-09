@@ -41,7 +41,7 @@ class EventHandler(Handler):
     async def handle_event(self, context: BaseContext, payload: Any) -> None:
         num_params = len(inspect.signature(self.func).parameters) - 1
         if payload is None:
-            payload = tuple()
+            payload = ()
         args = list(payload)[:num_params]
         await self.func(context, *args)
 
