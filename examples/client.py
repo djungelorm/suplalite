@@ -19,6 +19,8 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 
+logger = logging.getLogger("example-client")
+
 
 @dataclass
 class Context:
@@ -49,7 +51,7 @@ def supla_call(call_id: proto.Call) -> Callable[[Handler], Handler]:
 
 @supla_call(proto.Call.SDC_PING_SERVER_RESULT)
 async def register_result_b(context: Context):
-    logging.debug("pong")
+    logger.debug("pong")
 
 
 @supla_call(proto.Call.SC_REGISTER_CLIENT_RESULT_D)
@@ -57,7 +59,7 @@ async def register_result_d(context: Context, msg: proto.TSC_RegisterClientResul
     result_code = proto.ResultCode(msg.result_code)
     if result_code != proto.ResultCode.TRUE:
         raise RuntimeError(f"Register failed: {result_code.name}")
-    logging.debug("registered")
+    logger.debug("registered")
     context.client.ping_timeout = msg.activity_timeout / 2
     context.client.state = context.client.State.AUTHENTICATING
     await oauth_request(context)
@@ -65,13 +67,13 @@ async def register_result_d(context: Context, msg: proto.TSC_RegisterClientResul
 
 @supla_call(proto.Call.SC_LOCATIONPACK_UPDATE)
 async def locationpack_update(context: Context, msg: proto.TSC_LocationPack):
-    logging.debug("location pack update")
+    logger.debug("location pack update")
     context.client.got_locations = msg.total_left == 0
 
 
 @supla_call(proto.Call.SC_CHANNELPACK_UPDATE_E)
 async def channelpack_update(context: Context, msg: proto.TSC_ChannelPack_E):
-    logging.debug("channel pack update")
+    logger.debug("channel pack update")
     context.client.got_channels = msg.total_left == 0
 
 
@@ -79,18 +81,18 @@ async def channelpack_update(context: Context, msg: proto.TSC_ChannelPack_E):
 async def channelrelationpack_update(
     context: Context, msg: proto.TSC_ChannelRelationPack
 ):
-    logging.debug("channel relation pack update")
+    logger.debug("channel relation pack update")
 
 
 @supla_call(proto.Call.SC_SCENE_PACK_UPDATE)
 async def scenepack_update(context: Context, msg: proto.TSC_ScenePack):
-    logging.debug("scene pack update")
+    logger.debug("scene pack update")
     context.client.got_scenes = msg.total_left == 0
 
 
 @supla_call(proto.Call.SC_CHANNELVALUE_PACK_UPDATE_B)
 async def channelvaluepack_update(context: Context, msg: proto.TSC_ChannelValuePack_B):
-    logging.debug("channel value pack update")
+    logger.debug("channel value pack update")
 
 
 async def oauth_request(context):
@@ -101,7 +103,7 @@ async def oauth_request(context):
 
 @supla_call(proto.Call.SC_OAUTH_TOKEN_REQUEST_RESULT)
 async def oauth_result(context: Context, msg: proto.TSC_OAuthTokenRequestResult):
-    logging.debug("oauth result")
+    logger.debug("oauth result")
     context.client.state = context.client.State.CONNECTED
 
 
@@ -208,7 +210,7 @@ class Client:
             await self._handle_packet(packet)
 
     async def _register(self):
-        logging.debug("registering")
+        logger.debug("registering")
         await self.stream.send(
             packets.Packet(
                 proto.Call.CS_REGISTER_CLIENT_D,
@@ -227,7 +229,7 @@ class Client:
         )
 
     async def _ping(self):
-        logging.debug("ping")
+        logger.debug("ping")
         now = time.time()
         msg = proto.TDCS_PingServer(
             proto.TimeVal(int(now), int((now - int(now)) * 1000000))
@@ -237,7 +239,7 @@ class Client:
         )
 
     async def _get_next(self):
-        logging.debug("get next")
+        logger.debug("get next")
         await self.stream.send(packets.Packet(proto.Call.CS_GET_NEXT, b""))
 
     async def _handle_packet(self, packet):

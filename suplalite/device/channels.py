@@ -18,6 +18,11 @@ class Channel:
         self._device = device
         self._channel_number = channel_number
 
+    @property
+    def channel_number(self) -> int:
+        assert self._channel_number is not None
+        return self._channel_number
+
     async def update(self) -> None:
         if self._device is not None:  # pragma: no branch
             assert self._channel_number is not None

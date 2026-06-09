@@ -1,7 +1,7 @@
 import asyncio
 import contextlib
-
-from anyio import Path
+import logging
+from pathlib import Path
 
 from suplalite import encoding, proto
 from suplalite.device import channels
@@ -14,6 +14,9 @@ from suplalite.server.state import (
     GeneralPurposeMeasurementChannelConfig,
     SceneChannelState,
 )
+
+configure_logging()
+logger = logging.getLogger("example-server")
 
 
 @event_handler(EventContext.SERVER, EventId.CHANNEL_REGISTER_VALUE)
@@ -42,43 +45,41 @@ async def update(context, action, channel_id, value):
     topic = f"supla/{channel.name}/{action}"
     if channel.type == proto.ChannelType.THERMOMETER:
         value = channels.Temperature.decode(channel.value)
-        print(topic, value)
+        logger.info(topic, value)
 
     elif channel.type == proto.ChannelType.HUMIDITYSENSOR:
         value = channels.Humidity.decode(channel.value)
-        print(topic, value)
+        logger.info(topic, value)
 
     elif channel.type == proto.ChannelType.HUMIDITYANDTEMPSENSOR:
         temp, humi = channels.TemperatureAndHumidity.decode(channel.value)
-        print(topic, temp, humi)
+        logger.info(topic, temp, humi)
 
     elif channel.type == proto.ChannelType.RELAY:
         value = channels.Relay.decode(channel.value)
-        print(topic, value)
+        logger.info(topic, value)
 
     elif channel.type == proto.ChannelType.DIMMER:
         value = channels.Dimmer.decode(channel.value)
-        print(topic, value)
+        logger.info(topic, value)
 
     elif channel.type == proto.ChannelType.GENERAL_PURPOSE_MEASUREMENT:
         value = channels.GeneralPurposeMeasurement.decode(channel.value)
-        print(topic, value)
+        logger.info(topic, value)
 
     elif channel.type == proto.ChannelType.RGBLEDCONTROLLER:
         value = channels.RGBDimmer.decode(channel.value)
-        print(topic, value)
+        logger.info(topic, value)
 
     elif channel.type == proto.ChannelType.DIMMERANDRGBLED:
         value = channels.RGBWDimmer.decode(channel.value)
-        print(topic, value)
+        logger.info(topic, value)
 
     else:
-        print(topic, "unknown value")
+        logger.info(topic, "unknown value")
 
 
 async def main():
-    configure_logging()
-
     server = Server(
         listen_host="0.0.0.0",
         host="192.168.1.10",
@@ -172,8 +173,8 @@ async def main():
         proto.ChannelFunc.LIGHTSWITCH,
         proto.ChannelFlag.CHANNELSTATE,
         icons=[
-            await Path("examples/red.png").read_bytes(),
-            await Path("examples/green.png").read_bytes(),
+            Path("examples/red.png").read_bytes(),
+            Path("examples/green.png").read_bytes(),
         ],
     )
 
@@ -188,7 +189,7 @@ async def main():
             unit_after_value="%",
             value_precision=1,
         ),
-        icons=[await Path("examples/car.png").read_bytes()],
+        icons=[Path("examples/car.png").read_bytes()],
     )
 
     server.state.add_channel(
@@ -228,7 +229,7 @@ async def main():
         "all-off",
         "All Off",
         icons=[
-            await Path("examples/red.png").read_bytes(),
+            Path("examples/red.png").read_bytes(),
         ],
         channels=[
             SceneChannelState(

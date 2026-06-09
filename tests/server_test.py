@@ -27,9 +27,12 @@ proto.CHANNELPACK_MAXCOUNT = 5
 proto.ACTIVITY_TIMEOUT_DEFAULT = 30
 
 
+logger = logging.getLogger("server-test")
+
+
 @event_handler(EventContext.SERVER, EventId.DEVICE_CONNECTED)
 async def device_connected(context: ServerContext, device_id: int) -> None:
-    logging.info("server event DEVICE_CONNECTED %d", device_id)
+    logger.info("DEVICE_CONNECTED %d", device_id)
 
 
 @event_handler(EventContext.SERVER, EventId.DEVICE_CONNECTED)
@@ -38,12 +41,12 @@ async def device_connected_with_extra(
     device_id: int,
     extra: str | None = None,
 ) -> None:
-    logging.info("server event DEVICE_CONNECTED %d %s", device_id, extra or "none")
+    logger.info("DEVICE_CONNECTED %d %s", device_id, extra or "none")
 
 
 @event_handler(EventContext.SERVER, EventId.DEVICE_DISCONNECTED)
 async def device_disconnected(context: ServerContext, device_id: int) -> None:
-    logging.info("server event DEVICE_DISCONNECTED %d", device_id)
+    logger.info("DEVICE_DISCONNECTED %d", device_id)
 
 
 @event_handler(EventContext.SERVER, EventId.CHANNEL_REGISTER_VALUE)
@@ -52,7 +55,7 @@ async def channel_register_value(
     channel_id: int,
     value: bytes,
 ) -> None:
-    logging.info("server event CHANNEL_REGISTER_VALUE %d %s", channel_id, to_hex(value))
+    logger.info("CHANNEL_REGISTER_VALUE %d %s", channel_id, to_hex(value))
 
 
 @event_handler(EventContext.SERVER, EventId.CHANNEL_VALUE_CHANGED)
@@ -61,7 +64,7 @@ async def channel_value_changed(
     channel_id: int,
     value: bytes,
 ) -> None:
-    logging.info("server event CHANNEL_VALUE_CHANGED %d %s", channel_id, to_hex(value))
+    logger.info("CHANNEL_VALUE_CHANGED %d %s", channel_id, to_hex(value))
 
 
 @event_handler(EventContext.SERVER, EventId.CHANNEL_SET_VALUE)
@@ -70,17 +73,17 @@ async def channel_set_value(
     channel_id: int,
     value: bytes,
 ) -> None:
-    logging.info("server event CHANNEL_SET_VALUE %d %s", channel_id, to_hex(value))
+    logger.info("CHANNEL_SET_VALUE %d %s", channel_id, to_hex(value))
 
 
 @event_handler(EventContext.SERVER, EventId.CLIENT_CONNECTED)
 async def client_connected(context: ServerContext, client_id: int) -> None:
-    logging.info("server event CLIENT_CONNECTED %d", client_id)
+    logger.info("CLIENT_CONNECTED %d", client_id)
 
 
 @event_handler(EventContext.SERVER, EventId.CLIENT_DISCONNECTED)
 async def client_disconnected(context: ServerContext, client_id: int) -> None:
-    logging.info("server event CLIENT_DISCONNECTED %d", client_id)
+    logger.info("CLIENT_DISCONNECTED %d", client_id)
 
 
 @asynccontextmanager
@@ -431,12 +434,12 @@ async def test_register_device_events(
     async with open_device(server, 1):
         pass
     await asyncio.sleep(0.5)
-    assert "server event CHANNEL_REGISTER_VALUE 1 0000000000000000" in caplog.text
-    assert "server event CHANNEL_REGISTER_VALUE 2 0000000000000000" in caplog.text
-    assert "server event CHANNEL_REGISTER_VALUE 3 0000000000000000" in caplog.text
-    assert "server event DEVICE_CONNECTED 1" in caplog.text
-    assert "server event DEVICE_CONNECTED 1 none" in caplog.text
-    assert "server event DEVICE_DISCONNECTED 1" in caplog.text
+    assert "[server-test] CHANNEL_REGISTER_VALUE 1 0000000000000000" in caplog.text
+    assert "[server-test] CHANNEL_REGISTER_VALUE 2 0000000000000000" in caplog.text
+    assert "[server-test] CHANNEL_REGISTER_VALUE 3 0000000000000000" in caplog.text
+    assert "[server-test] DEVICE_CONNECTED 1" in caplog.text
+    assert "[server-test] DEVICE_CONNECTED 1 none" in caplog.text
+    assert "[server-test] DEVICE_DISCONNECTED 1" in caplog.text
 
 
 @pytest.mark.asyncio
@@ -445,7 +448,7 @@ async def test_event_with_extra(
 ) -> None:
     await server.events.add(EventId.DEVICE_CONNECTED, (42, "foo"))
     await asyncio.sleep(0.5)
-    assert "server event DEVICE_CONNECTED 42 foo" in caplog.text
+    assert "[server-test] DEVICE_CONNECTED 42 foo" in caplog.text
 
 
 async def do_register_device_invalid(
@@ -729,8 +732,8 @@ async def test_register_client_events(
     async with open_client(server, "test"):
         pass
     await asyncio.sleep(0.5)
-    assert "server event CLIENT_CONNECTED 1" in caplog.text
-    assert "server event CLIENT_DISCONNECTED 1" in caplog.text
+    assert "[server-test] CLIENT_CONNECTED 1" in caplog.text
+    assert "[server-test] CLIENT_DISCONNECTED 1" in caplog.text
 
 
 @pytest.mark.asyncio
@@ -1032,7 +1035,7 @@ async def test_device_value_changed(
     assert "client[test] handle event EventId.CHANNEL_VALUE_CHANGED" in caplog.text
     assert "client[test] send Call.SC_CHANNELVALUE_PACK_UPDATE_B" in caplog.text
 
-    assert "server event CHANNEL_VALUE_CHANGED 1 3132333435363738" in caplog.text
+    assert "[server-test] CHANNEL_VALUE_CHANGED 1 3132333435363738" in caplog.text
 
 
 async def do_execute_action(
@@ -1090,7 +1093,7 @@ async def test_client_execute_action_on(
     assert "device[device-1] handle event EventId.CHANNEL_SET_VALUE" in caplog.text
     assert "device[device-1] send Call.SD_CHANNEL_SET_VALUE" in caplog.text
 
-    assert "server event CHANNEL_SET_VALUE 3 0100000000000000" in caplog.text
+    assert "[server-test] CHANNEL_SET_VALUE 3 0100000000000000" in caplog.text
 
 
 @pytest.mark.asyncio
@@ -1114,7 +1117,7 @@ async def test_client_execute_action_off(
     assert "device[device-1] handle event EventId.CHANNEL_SET_VALUE" in caplog.text
     assert "device[device-1] send Call.SD_CHANNEL_SET_VALUE" in caplog.text
 
-    assert "server event CHANNEL_SET_VALUE 3 0000000000000000" in caplog.text
+    assert "[server-test] CHANNEL_SET_VALUE 3 0000000000000000" in caplog.text
 
 
 @pytest.mark.asyncio
@@ -1138,7 +1141,7 @@ async def test_client_execute_action_toggle(
     assert "device[device-1] handle event EventId.CHANNEL_SET_VALUE" in caplog.text
     assert "device[device-1] send Call.SD_CHANNEL_SET_VALUE" in caplog.text
 
-    assert "server event CHANNEL_SET_VALUE 3 0100000000000000" in caplog.text
+    assert "[server-test] CHANNEL_SET_VALUE 3 0100000000000000" in caplog.text
 
 
 @pytest.mark.parametrize(
@@ -1188,7 +1191,7 @@ async def test_client_execute_action_set_rgbw_parameters(
     ) in caplog.text
 
     assert (
-        "server event CHANNEL_SET_VALUE "
+        "[server-test] CHANNEL_SET_VALUE "
         f"{device_and_channel[1]} {device_and_channel[3].hex()}"
     ) in caplog.text
 
@@ -1375,8 +1378,8 @@ async def test_client_execute_scene_action(
     assert "device[device-1] handle event EventId.CHANNEL_SET_VALUE" in caplog.text
     assert "device[device-1] send Call.SD_CHANNEL_SET_VALUE" in caplog.text
 
-    assert "server event CHANNEL_SET_VALUE 1 0100000000000000" in caplog.text
-    assert "server event CHANNEL_SET_VALUE 3 0000000000000000" in caplog.text
+    assert "[server-test] CHANNEL_SET_VALUE 1 0100000000000000" in caplog.text
+    assert "[server-test] CHANNEL_SET_VALUE 3 0000000000000000" in caplog.text
 
 
 @pytest.mark.asyncio
@@ -1403,7 +1406,7 @@ async def test_client_execute_scene_action_with_dimmer_brightness(
     assert "device[device-2] handle event EventId.CHANNEL_SET_VALUE" in caplog.text
     assert "device[device-2] send Call.SD_CHANNEL_SET_VALUE" in caplog.text
 
-    assert "server event CHANNEL_SET_VALUE 4 0a00000000000000" in caplog.text
+    assert "[server-test] CHANNEL_SET_VALUE 4 0a00000000000000" in caplog.text
 
 
 @pytest.mark.asyncio
@@ -1485,7 +1488,7 @@ async def test_client_set_value(
     assert "device[device-1] handle event EventId.CHANNEL_SET_VALUE" in caplog.text
     assert "device[device-1] send Call.SD_CHANNEL_SET_VALUE" in caplog.text
 
-    assert "server event CHANNEL_SET_VALUE 3 0102030405060708" in caplog.text
+    assert "[server-test] CHANNEL_SET_VALUE 3 0102030405060708" in caplog.text
 
 
 async def do_set_value_with_error(

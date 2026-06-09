@@ -26,7 +26,7 @@ class BaseContext:
     def log(self, msg: str, level: int = logging.INFO) -> None:
         if not logger.isEnabledFor(level):  # pragma: no cover
             return
-        logger.log(level=level, msg=f"{self.name} {msg}")
+        logger.log(level, "%s %s", self.name, msg)
 
 
 class ServerContext(BaseContext):
