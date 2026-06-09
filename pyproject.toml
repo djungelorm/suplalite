@@ -48,12 +48,16 @@ post-install-commands = [
 [tool.hatch.envs.default.scripts]
 test = [
     "pre-commit run --all-files",
-    "pytest --cov suplalite --cov tests --cov-report html:htmlcov --cov-fail-under=100 -n auto {args}",
+    "pytest --cov suplalite --cov tests --cov-report html:htmlcov --cov-fail-under=100 -n auto -m 'not slow'",
+]
+ci-test = [
+    "pre-commit run --all-files",
+    "pytest --cov suplalite --cov tests --cov-report html:htmlcov --cov-fail-under=100 -n auto -v",
 ]
 
 [tool.pytest.ini_options]
-# filterwarnings = ["ignore::DeprecationWarning"]
 testpaths = ["tests"]
+markers = ["slow: mark test as slow to run"]
 asyncio_default_fixture_loop_scope = "function"
 log_level = "DEBUG"
 log_format = "[%(levelname)s] [%(name)s] %(message)s"

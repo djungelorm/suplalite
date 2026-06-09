@@ -18,4 +18,4 @@ jobs:
       - name: Setup environment
         run: hatch env create
       - name: Tests
-        run: hatch run test -v --runslow
+        run: hatch run ci-test
