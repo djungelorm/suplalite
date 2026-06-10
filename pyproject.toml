@@ -52,7 +52,7 @@ test = [
 ]
 ci-test = [
     "pre-commit run --all-files",
-    "pytest --cov suplalite --cov tests --cov-report html:htmlcov --cov-fail-under=100 -n auto -v",
+    "pytest --cov suplalite --cov tests --cov-report term-missing --cov-fail-under=100 -n auto -v",
 ]
 
 [tool.pytest.ini_options]
