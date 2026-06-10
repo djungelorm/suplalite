@@ -477,7 +477,7 @@ async def test_channels(  # noqa: C901,PLR0915,PLR0912
                 "value=b'\\x00*Z\\x0eS\\x00\\x00\\x00')" in caplog.text
             )
 
-        if channel_number == 7:
+        if channel_number == 7:  # pragma: no branch
             assert (
                 "[suplalite.server] server call Call.DS_DEVICE_CHANNEL_VALUE_CHANGED_C "
                 "TDS_DeviceChannelValue_C(channel_number=7, "
