@@ -79,18 +79,17 @@ class Device:
         return self._channels[channel_number]
 
     async def start(self) -> None:
-        if self._secure:  # pragma: no cover
+        ssl_context: ssl.SSLContext | None = None
+        if self._secure:
             ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
             ssl_context.check_hostname = False
             ssl_context.verify_mode = ssl.CERT_NONE
-            try:
-                reader, writer = await asyncio.open_connection(
-                    self._host, self._port, ssl=ssl_context
-                )
-            except ConnectionRefusedError as exc:
-                raise network.NetworkError("Connection refused") from exc
-        else:
-            reader, writer = await asyncio.open_connection(self._host, self._port)
+        try:
+            reader, writer = await asyncio.open_connection(
+                self._host, self._port, ssl=ssl_context
+            )
+        except ConnectionRefusedError as exc:
+            raise network.NetworkError("Connection refused") from exc
         logger.debug("protocol version = %d", self._proto_version)
         self._packets = PacketStream(reader, writer, self._proto_version)
 
@@ -112,7 +111,7 @@ class Device:
     def ping_timeout(self, value: float) -> None:
         self._ping_timeout = value
 
-    async def loop_forever(self) -> None:  # pragma: no cover
+    async def loop_forever(self) -> None:
         await asyncio.gather(*self._tasks)
 
     def add_task(self, task: asyncio.Task[None]) -> None:
@@ -134,7 +133,7 @@ class Device:
                 packet = await self._packets.recv()
                 await self._handle_message(packet)
 
-        except Exception:  # pragma: no cover
+        except Exception:
             logger.exception("unexpected error")
             raise
         finally:
@@ -252,12 +251,12 @@ class Device:
             ),
         }
 
-        if packet.call_id in handlers:  # pragma: no branch
+        if packet.call_id in handlers:
             msg_type, handler = handlers[packet.call_id]
             msg, size = encoding.decode(msg_type, packet.data)
             assert len(packet.data) == size
             await handler(msg)
-        else:  # pragma: no cover
+        else:
             raise DeviceError(f"Unhandled call {packet.call_id}")
 
     async def _handle_register_result(
@@ -314,7 +313,7 @@ class Device:
     async def _handle_channel_new_value(self, msg: proto.TSD_ChannelNewValue) -> None:
         logger.debug("channel %d new value", msg.channel_number)
 
-        if msg.channel_number >= len(self._channels):  # pragma: no cover
+        if msg.channel_number >= len(self._channels):
             logger.warning("no channel %d for set value request", msg.channel_number)
             return
 
@@ -336,7 +335,7 @@ class Device:
         )
 
     async def set_value(self, channel_number: int, value: bytes) -> None:
-        if self._state != DeviceState.CONNECTED:  # pragma: no cover
+        if self._state != DeviceState.CONNECTED:
             return
         msg = proto.TDS_DeviceChannelValue_C(
             channel_number=channel_number,

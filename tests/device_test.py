@@ -1,9 +1,14 @@
 import asyncio
+import contextlib
+import socket
 from typing import Any
 
 import pytest
 
+from suplalite import proto
 from suplalite.device import Device, DeviceError, channels
+from suplalite.network import NetworkError
+from suplalite.packets import Packet
 from suplalite.server import Server
 from suplalite.server.context import BaseContext
 from suplalite.server.events import EventContext, EventId
@@ -12,11 +17,48 @@ from suplalite.server.handlers import event_handler
 from .conftest import device_guid
 
 
+def make_device(port: int, *, secure: bool = False) -> Device:
+    return Device(
+        host="127.0.0.1",
+        port=port,
+        secure=secure,
+        email="email@email.com",
+        name="device",
+        version="1.0.0",
+        authkey=b"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x00\x0a\x0b\x0c\x0d\x0e\x0f",
+        guid=device_guid[1],
+    )
+
+
+def add_device_1_channels(device: Device) -> None:
+    # Channels matching the device-1 layout in the server fixture
+    device.add(channels.Relay())
+    device.add(channels.Temperature())
+    device.add(channels.Relay())
+
+
+def closed_port() -> int:
+    sock = socket.socket()
+    sock.bind(("127.0.0.1", 0))
+    port = sock.getsockname()[1]
+    sock.close()
+    return port
+
+
 @event_handler(EventContext.SERVER, EventId.REQUEST)
 async def handle_packet_received(
     context: BaseContext, _: Any, call: int, msg: Any
 ) -> None:
     context.log(f"call {call} {msg}")
+
+
+@pytest.mark.parametrize("secure", [False, True])
+@pytest.mark.asyncio
+async def test_connection_refused(secure: bool) -> None:
+    device = make_device(closed_port(), secure=secure)
+    add_device_1_channels(device)
+    with pytest.raises(NetworkError):
+        await device.start()
 
 
 @pytest.mark.asyncio
@@ -724,3 +766,71 @@ async def test_task(server: Server) -> None:
         await asyncio.sleep(1)
 
         await device.stop()
+
+
+@pytest.mark.asyncio
+async def test_loop_forever(server: Server) -> None:
+    async with server.running():
+        device = make_device(server.port)
+        add_device_1_channels(device)
+        await device.start()
+        await device.connected.wait()
+
+        loop = asyncio.create_task(device.loop_forever())
+        await asyncio.sleep(0)
+        await device.stop()
+        with contextlib.suppress(asyncio.CancelledError):
+            await loop
+
+
+@pytest.mark.asyncio
+async def test_base_channel_not_implemented() -> None:
+    channel = channels.Channel()
+    with pytest.raises(NotImplementedError):
+        _ = channel.type
+    with pytest.raises(NotImplementedError):
+        _ = channel.func
+    with pytest.raises(NotImplementedError):
+        _ = channel.encoded_value
+    with pytest.raises(NotImplementedError):
+        await channel.set_encoded_value(b"")
+
+
+@pytest.mark.asyncio
+async def test_channel_update_without_device() -> None:
+    # update() on a channel not attached to a device is a no-op
+    await channels.Relay().update()
+
+
+@pytest.mark.asyncio
+async def test_set_value_when_not_connected() -> None:
+    # Setting a value before the device has connected is a no-op
+    device = make_device(0)
+    add_device_1_channels(device)
+    await device.set_value(0, channels.Relay.encode(value=True))
+
+
+@pytest.mark.asyncio
+async def test_handle_unknown_call() -> None:
+    device = make_device(0)
+    add_device_1_channels(device)
+    with pytest.raises(DeviceError, match="Unhandled call"):
+        await device._handle_message(  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
+            Packet(proto.Call.DS_REGISTER_DEVICE_E, b"")
+        )
+
+
+@pytest.mark.asyncio
+async def test_handle_new_value_unknown_channel(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    device = make_device(0)
+    add_device_1_channels(device)
+    msg = proto.TSD_ChannelNewValue(
+        sender_id=0,
+        channel_number=99,
+        duration_ms=0,
+        value=b"\x00\x00\x00\x00\x00\x00\x00\x00",
+    )
+    await device._handle_channel_new_value(msg)  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
+    assert "no channel 99 for set value request" in caplog.text

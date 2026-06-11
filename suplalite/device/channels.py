@@ -35,7 +35,7 @@ class Channel:
         return self._channel_number
 
     async def update(self) -> None:
-        if self._device is not None:  # pragma: no branch
+        if self._device is not None:
             assert self._channel_number is not None
             await self._device.set_value(self._channel_number, self.encoded_value)
 
@@ -47,7 +47,7 @@ class Channel:
 
     @property
     def type(self) -> proto.ChannelType:
-        raise NotImplementedError  # pragma: no cover
+        raise NotImplementedError
 
     @property
     def action_trigger_caps(self) -> proto.ActionCap:
@@ -55,7 +55,7 @@ class Channel:
 
     @property
     def func(self) -> proto.ChannelFunc:
-        raise NotImplementedError  # pragma: no cover
+        raise NotImplementedError
 
     @property
     def flags(self) -> proto.ChannelFlag:
@@ -63,10 +63,10 @@ class Channel:
 
     @property
     def encoded_value(self) -> bytes:
-        raise NotImplementedError  # pragma: no cover
+        raise NotImplementedError
 
     async def set_encoded_value(self, data: bytes) -> bool:
-        raise NotImplementedError  # pragma: no cover
+        raise NotImplementedError
 
 
 class Relay(Channel):
