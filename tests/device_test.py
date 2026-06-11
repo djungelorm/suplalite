@@ -213,6 +213,46 @@ async def test_register_timeout(
 
 
 @pytest.mark.asyncio
+async def test_stop_before_start() -> None:
+    device = Device(
+        host="127.0.0.1",
+        port=0,
+        secure=False,
+        email="email@email.com",
+        name="device",
+        version="1.0.0",
+        authkey=b"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x00\x0a\x0b\x0c\x0d\x0e\x0f",
+        guid=device_guid[1],
+    )
+    # Stopping a device that never started should be a safe no-op
+    await device.stop()
+
+
+@pytest.mark.asyncio
+async def test_add_channel_after_start(server: Server) -> None:
+    async with server.running():
+        device = Device(
+            host="127.0.0.1",
+            port=server.port,
+            secure=False,
+            email="email@email.com",
+            name="device",
+            version="1.0.0",
+            authkey=b"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x00\x0a\x0b\x0c\x0d\x0e\x0f",
+            guid=device_guid[1],
+        )
+        device.add(channels.Relay())
+        device.add(channels.Temperature())
+        device.add(channels.Relay())
+
+        await device.start()
+        await device.connected.wait()
+        with pytest.raises(DeviceError, match="after the device has started"):
+            device.add(channels.Relay())
+        await device.stop()
+
+
+@pytest.mark.asyncio
 async def test_channel_state(server: Server, caplog: pytest.LogCaptureFixture) -> None:
     async with server.running():
         device = Device(

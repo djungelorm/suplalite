@@ -68,6 +68,8 @@ class Device:
         self._tasks: list[asyncio.Task[None]] = []
 
     def add(self, channel: Channel) -> None:
+        if self._packets is not None:
+            raise DeviceError("Cannot add channels after the device has started")
         channel_number = len(self._channels)
         self._channels.append(channel)
         channel.set_device(self, channel_number)
@@ -177,8 +179,8 @@ class Device:
                 with contextlib.suppress(asyncio.exceptions.CancelledError):
                     await task
         finally:
-            assert self._packets is not None
-            await self._packets.close()
+            if self._packets is not None:
+                await self._packets.close()
             logger.info("stopped")
 
     async def _register(self) -> None:
