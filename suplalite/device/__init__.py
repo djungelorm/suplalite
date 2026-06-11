@@ -15,10 +15,6 @@ from suplalite.packets import Packet, PacketStream
 
 logger = logging.getLogger("suplalite.device")
 
-
-ACTIVITY_TIMEOUT_MIN = 30
-ACTIVITY_TIMEOUT_MAX = 240
-
 # Minimum required proto version for basic device messages (excl. channels)
 BASE_PROTO_VERSION = 12
 
