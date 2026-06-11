@@ -11,8 +11,8 @@ from suplalite.server import Server, state
 @pytest_asyncio.fixture(scope="function")
 async def server(request: pytest.FixtureRequest) -> AsyncIterator[Server]:
     server = Server(
-        listen_host="localhost",
-        host="localhost",
+        listen_host="127.0.0.1",
+        host="127.0.0.1",
         port=0,
         secure_port=0,
         api_port=0,

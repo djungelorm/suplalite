@@ -25,9 +25,9 @@ async def echo_server(
 
 @pytest_asyncio.fixture
 async def stream() -> AsyncIterator[PacketStream]:
-    server = await asyncio.start_server(echo_server, "localhost", 0)
+    server = await asyncio.start_server(echo_server, "127.0.0.1", 0)
     port = server.sockets[0].getsockname()[1]
-    reader, writer = await asyncio.open_connection("localhost", port)
+    reader, writer = await asyncio.open_connection("127.0.0.1", port)
     stream = PacketStream(reader, writer)
     yield stream
 

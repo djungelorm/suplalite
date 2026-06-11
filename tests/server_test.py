@@ -98,7 +98,7 @@ async def open_connection(
         ssl_context.check_hostname = False
         ssl_context.verify_mode = ssl.CERT_NONE
 
-    reader, writer = await asyncio.open_connection("localhost", port, ssl=ssl_context)
+    reader, writer = await asyncio.open_connection("127.0.0.1", port, ssl=ssl_context)
     stream = PacketStream(reader, writer)
     try:
         yield stream

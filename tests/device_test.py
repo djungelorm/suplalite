@@ -23,7 +23,7 @@ async def handle_packet_received(
 async def test_device(server: Server, caplog: pytest.LogCaptureFixture) -> None:
     async with server.running():
         device = Device(
-            host="localhost",
+            host="127.0.0.1",
             port=server.port,
             secure=False,
             email="email@email.com",
@@ -57,7 +57,7 @@ async def test_device(server: Server, caplog: pytest.LogCaptureFixture) -> None:
             "\\x00\\x00\\x00\\x00\\x00\\x00\\x00', "
             "name='device', "
             "soft_ver='1.0.0', "
-            "server_name='localhost', "
+            "server_name='127.0.0.1', "
             "flags=<DeviceFlag.NONE: 0>, "
             "manufacturer_id=0, "
             "product_id=0, "
@@ -85,7 +85,7 @@ async def test_device(server: Server, caplog: pytest.LogCaptureFixture) -> None:
 
 def test_channel_number() -> None:
     device = Device(
-        host="localhost",
+        host="127.0.0.1",
         port=0,
         secure=False,
         email="",
@@ -106,7 +106,7 @@ def test_channel_number() -> None:
 async def test_device_ping(server: Server, caplog: pytest.LogCaptureFixture) -> None:
     async with server.running():
         device = Device(
-            host="localhost",
+            host="127.0.0.1",
             port=server.port,
             secure=False,
             email="email@email.com",
@@ -136,7 +136,7 @@ async def test_device_ping(server: Server, caplog: pytest.LogCaptureFixture) -> 
 async def test_no_channels(server: Server) -> None:
     async with server.running():
         device = Device(
-            host="localhost",
+            host="127.0.0.1",
             port=server.port,
             secure=False,
             email="email@email.com",
@@ -156,7 +156,7 @@ async def test_no_channels(server: Server) -> None:
 async def test_wrong_channels(server: Server, caplog: pytest.LogCaptureFixture) -> None:
     async with server.running():
         device = Device(
-            host="localhost",
+            host="127.0.0.1",
             port=server.port,
             secure=False,
             email="email@email.com",
@@ -185,7 +185,7 @@ async def test_wrong_channels(server: Server, caplog: pytest.LogCaptureFixture) 
 async def test_channel_state(server: Server, caplog: pytest.LogCaptureFixture) -> None:
     async with server.running():
         device = Device(
-            host="localhost",
+            host="127.0.0.1",
             port=server.port,
             secure=False,
             email="email@email.com",
@@ -228,7 +228,7 @@ async def test_channel_set_value(
 ) -> None:
     async with server.running():
         device = Device(
-            host="localhost",
+            host="127.0.0.1",
             port=server.port,
             secure=False,
             email="email@email.com",
@@ -270,7 +270,7 @@ async def test_server_set_value(
 ) -> None:
     async with server.running():
         device = Device(
-            host="localhost",
+            host="127.0.0.1",
             port=server.port,
             secure=False,
             email="email@email.com",
@@ -316,7 +316,7 @@ async def test_channels(  # noqa: C901,PLR0915,PLR0912
 ) -> None:
     async with server.running():
         device = Device(
-            host="localhost",
+            host="127.0.0.1",
             port=server.port,
             secure=False,
             email="email@email.com",
@@ -633,7 +633,7 @@ async def sub_task() -> None:
 async def test_task(server: Server) -> None:
     async with server.running():
         device = Device(
-            host="localhost",
+            host="127.0.0.1",
             port=server.port,
             secure=False,
             email="email@email.com",
