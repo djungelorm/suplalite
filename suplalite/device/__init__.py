@@ -314,27 +314,26 @@ class Device:
     async def _handle_channel_new_value(self, msg: proto.TSD_ChannelNewValue) -> None:
         logger.debug("channel %d new value", msg.channel_number)
 
-        success = False
-        if msg.channel_number < len(self._channels):  # pragma: no cover
-            # Note: this sends a DS_DEVICE_CHANNEL_VALUE_CHANGED_C message
-            # if the value is sucessfully set
-            success = await self._channels[msg.channel_number].set_encoded_value(
-                msg.value
-            )
+        if msg.channel_number >= len(self._channels):  # pragma: no cover
+            logger.warning("no channel %d for set value request", msg.channel_number)
+            return
 
-        if not success:  # pragma: no cover
-            await self._send(
-                Packet(
-                    proto.Call.DS_CHANNEL_SET_VALUE_RESULT,
-                    encoding.encode(
-                        proto.TDS_ChannelNewValueResult(
-                            channel_number=msg.channel_number,
-                            sender_id=msg.sender_id,
-                            success=success,
-                        )
-                    ),
-                )
+        # Note: set_encoded_value also reports the new value back to the server
+        # with a DS_DEVICE_CHANNEL_VALUE_CHANGED_C message; the result sent below
+        # acknowledges the set-value command itself (success or failure)
+        success = await self._channels[msg.channel_number].set_encoded_value(msg.value)
+        await self._send(
+            Packet(
+                proto.Call.DS_CHANNEL_SET_VALUE_RESULT,
+                encoding.encode(
+                    proto.TDS_ChannelNewValueResult(
+                        channel_number=msg.channel_number,
+                        sender_id=msg.sender_id,
+                        success=success,
+                    )
+                ),
             )
+        )
 
     async def set_value(self, channel_number: int, value: bytes) -> None:
         if self._state != DeviceState.CONNECTED:  # pragma: no cover

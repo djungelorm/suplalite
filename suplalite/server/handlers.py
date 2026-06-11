@@ -624,7 +624,7 @@ async def channel_set_value(
 @call_handler(proto.Call.DS_CHANNEL_SET_VALUE_RESULT)
 async def channel_set_value_result(
     context: DeviceContext, msg: proto.TDS_ChannelNewValueResult
-) -> None:  # pragma: no cover
+) -> None:
     # Note: ignore this, device should also send a CHANNEL_VALUE_CHANGED message
     pass
 
