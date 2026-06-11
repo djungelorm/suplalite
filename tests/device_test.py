@@ -182,6 +182,37 @@ async def test_wrong_channels(server: Server, caplog: pytest.LogCaptureFixture) 
 
 
 @pytest.mark.asyncio
+async def test_register_timeout(
+    server: Server, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with server.running():
+        device = Device(
+            host="127.0.0.1",
+            port=server.port,
+            secure=False,
+            email="email@email.com",
+            name="device",
+            version="1.0.0",
+            authkey=b"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x00\x0a\x0b\x0c\x0d\x0e\x0f",
+            guid=device_guid[1],
+        )
+        device.add(channels.Relay())
+
+        # Never actually register, so the server never replies with a result and
+        # the device stays in the REGISTERING state until the deadline passes.
+        async def no_register() -> None:
+            pass
+
+        monkeypatch.setattr(device, "_register", no_register)
+        monkeypatch.setattr("suplalite.device.REGISTER_TIMEOUT", 0)
+
+        await device.start()
+        await asyncio.sleep(0.5)
+        with pytest.raises(DeviceError, match="Registration timed out"):
+            await device.stop()
+
+
+@pytest.mark.asyncio
 async def test_channel_state(server: Server, caplog: pytest.LogCaptureFixture) -> None:
     async with server.running():
         device = Device(

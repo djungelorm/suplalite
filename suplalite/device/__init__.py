@@ -18,6 +18,9 @@ logger = logging.getLogger("suplalite.device")
 # Minimum required proto version for basic device messages (excl. channels)
 BASE_PROTO_VERSION = 12
 
+# Seconds to wait for the register result before giving up and tearing down
+REGISTER_TIMEOUT = 10
+
 
 class DeviceError(Exception):
     pass
@@ -91,10 +94,9 @@ class Device:
 
         logger.info("started")
 
-        self._tasks = [
-            asyncio.create_task(self._message_loop()),
-            asyncio.create_task(self._task_loop()),
-        ]
+        self._tasks = []
+        for x in (self._message_loop(), self._task_loop()):
+            self.add_task(asyncio.create_task(x))
 
     @property
     def connected(self) -> asyncio.Event:
@@ -109,11 +111,17 @@ class Device:
         self._ping_timeout = value
 
     async def loop_forever(self) -> None:  # pragma: no cover
-        for task in self._tasks:
-            await task
+        await asyncio.gather(*self._tasks)
 
     def add_task(self, task: asyncio.Task[None]) -> None:
         self._tasks.append(task)
+        task.add_done_callback(self._on_task_done)
+
+    def _on_task_done(self, task: asyncio.Task[None]) -> None:
+        # When a task exits cancel the others so the device shuts down as a whole
+        for other in self._tasks:
+            if other is not task and not other.done():
+                other.cancel()
 
     async def _message_loop(self) -> None:
         try:
@@ -134,10 +142,18 @@ class Device:
         try:
             logger.debug("task loop started")
 
+            register_deadline: float | None = None
+
             while True:
                 if self._state == DeviceState.CONNECTING:
                     await self._register()
                     self._state = DeviceState.REGISTERING
+                    register_deadline = time.time() + REGISTER_TIMEOUT
+
+                if self._state == DeviceState.REGISTERING:
+                    assert register_deadline is not None
+                    if time.time() > register_deadline:
+                        raise DeviceError("Registration timed out")  # noqa: TRY301
 
                 if self._state == DeviceState.CONNECTED:
                     now = time.time()
