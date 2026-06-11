@@ -158,11 +158,15 @@ async def register_device(
         return _register_device_failure(context)
 
     proto_version = context.conn.proto_version
-    if not context.server.state.device_connected(
-        device_id, proto_version, context.events
-    ):
-        context.log("device already connected", level=logging.WARNING)
-        return _register_device_failure(context)
+    old_conn = context.server.state.device_connected(
+        device_id, proto_version, context.events, context.conn
+    )
+    if old_conn is not None:
+        context.log(
+            "device already connected; replacing existing connection",
+            level=logging.WARNING,
+        )
+        old_conn.supersede()
 
     return await _complete_registration(context, device_id, device, msg, proto_version)
 
@@ -288,26 +292,28 @@ async def register_client(
 ) -> proto.TSC_RegisterClientResult_D:
     client_id = context.server.state.add_client(msg.guid)
 
-    if not context.server.state.client_connected(client_id, context.events):
-        # failed to connect, the client is already connected
-        context.log("client already connected", level=logging.WARNING)
-        context.error = True
-        result_code = proto.ResultCode.FALSE
+    old_conn = context.server.state.client_connected(
+        client_id, context.events, context.conn
+    )
+    if old_conn is not None:
+        context.log(
+            "client already connected; replacing existing connection",
+            level=logging.WARNING,
+        )
+        old_conn.supersede()
 
-    else:
-        context.name = f"client[{msg.name}]"
-        context.replace(ClientContext(context, guid=msg.guid, client_id=client_id))
+    context.name = f"client[{msg.name}]"
+    context.replace(ClientContext(context, guid=msg.guid, client_id=client_id))
 
-        context.log(f"registered; proto={context.conn.proto_version}")
-        await context.server.events.add(EventId.CLIENT_CONNECTED, (client_id,))
-        await context.events.add(EventId.SEND_LOCATIONS)
-        result_code = proto.ResultCode.TRUE
+    context.log(f"registered; proto={context.conn.proto_version}")
+    await context.server.events.add(EventId.CLIENT_CONNECTED, (client_id,))
+    await context.events.add(EventId.SEND_LOCATIONS)
 
     channel_count = len(context.server.state.get_channels())
     scene_count = len(context.server.state.get_scenes())
 
     return proto.TSC_RegisterClientResult_D(
-        result_code=result_code,
+        result_code=proto.ResultCode.TRUE,
         client_id=client_id,
         location_count=1,
         channel_count=channel_count,

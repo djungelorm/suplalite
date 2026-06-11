@@ -47,6 +47,7 @@ class Connection:
         self._packets: PacketStream | None = None
         self._call_task: asyncio.Task[None] | None = None
         self._event_task: asyncio.Task[None] | None = None
+        self._superseded = False
 
     @property
     def proto_version(self) -> int:
@@ -76,26 +77,39 @@ class Connection:
             with contextlib.suppress(asyncio.exceptions.CancelledError):
                 await self._event_task
 
-            # clean up server state
-            if isinstance(self._context, DeviceContext):
-                device_id = self._context.device_id
-                async with self._context.server.state.lock:
-                    self._context.server.state.device_disconnected(device_id)
-                    await self._context.server.events.add(
-                        EventId.DEVICE_DISCONNECTED, (device_id,)
-                    )
-                self._context.log("device removed", logging.DEBUG)
+            # clean up server state, unless a newer connection has already taken
+            # over this connection's slot (in which case it now owns the state)
+            if not self._superseded:
+                if isinstance(self._context, DeviceContext):
+                    device_id = self._context.device_id
+                    async with self._context.server.state.lock:
+                        self._context.server.state.device_disconnected(device_id)
+                        await self._context.server.events.add(
+                            EventId.DEVICE_DISCONNECTED, (device_id,)
+                        )
+                    self._context.log("device removed", logging.DEBUG)
 
-            if isinstance(self._context, ClientContext):
-                client_id = self._context.client_id
-                async with self._context.server.state.lock:
-                    self._context.server.state.client_disconnected(client_id)
-                    await self._context.server.events.add(
-                        EventId.CLIENT_DISCONNECTED, (client_id,)
-                    )
-                self._context.log("client removed", logging.DEBUG)
+                if isinstance(self._context, ClientContext):
+                    client_id = self._context.client_id
+                    async with self._context.server.state.lock:
+                        self._context.server.state.client_disconnected(client_id)
+                        await self._context.server.events.add(
+                            EventId.CLIENT_DISCONNECTED, (client_id,)
+                        )
+                    self._context.log("client removed", logging.DEBUG)
 
             self._context.log("closed")
+
+    def supersede(self) -> None:
+        # Terminate this connection because a newer one has registered with the
+        # same GUID and taken over its slot in the server state. Cancel the tasks
+        # so the connection tears down promptly; the disconnect cleanup is
+        # skipped so the replacement is left intact.
+        self._superseded = True
+        if self._call_task is not None:  # pragma: no branch
+            self._call_task.cancel()
+        if self._event_task is not None:  # pragma: no branch
+            self._event_task.cancel()
 
     async def _call(self) -> None:
         assert self._packets is not None

@@ -417,6 +417,16 @@ async def register_client(
     return client_id, location_pack, channel_packs, scene_pack
 
 
+async def ping(stream: PacketStream) -> None:
+    now = time.time()
+    call = proto.TDCS_PingServer(
+        proto.TimeVal(tv_sec=int(now), tv_usec=int((now - int(now)) * 1000000))
+    )
+    await stream.send(Packet(proto.Call.DCS_PING_SERVER, encoding.encode(call)))
+    packet = await stream.recv()
+    assert packet.call_id == proto.Call.SDC_PING_SERVER_RESULT
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize("device_id", [1, 2, 3])
 @pytest.mark.parametrize("secure", [True, False])
@@ -581,16 +591,29 @@ async def test_register_device_invalid_channel_flags(
 
 
 @pytest.mark.asyncio
-async def test_register_device_twice(
+async def test_register_device_twice_replaces_connection(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
-    async with open_device(server, 1):
-        with pytest.raises(AssertionError):
-            async with open_device(server, 1):  # pragma no cover
-                pass
+    async with open_connection(server) as first:
+        await register_device(first, 1)
+        assert server.state.get_device(1).online
+
+        async with open_connection(server) as second:
+            await register_device(second, 1)
+
+            # the device stays online, now owned by the new connection
+            assert server.state.get_device(1).online
+
+            # the server terminates the displaced (stale) connection
+            with pytest.raises(network.NetworkError):
+                await first.recv()
+
+            # the replacement connection is fully functional
+            await ping(second)
+
     assert "device[device-1] registered" in caplog.text
-    assert "device already connected" in caplog.text
-    assert "error; closing connection" in caplog.text
+    assert "device already connected; replacing existing connection" in caplog.text
+    assert "error; closing connection" not in caplog.text
 
 
 @pytest.mark.asyncio
@@ -739,16 +762,29 @@ async def test_register_client_events(
 
 
 @pytest.mark.asyncio
-async def test_register_client_twice(
+async def test_register_client_twice_replaces_connection(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
-    async with open_client(server, "test"):
-        with pytest.raises(AssertionError):
-            async with open_client(server, "test"):  # pragma no cover
-                pass
+    async with open_connection(server) as first:
+        client_id, *_ = await register_client(first, "test")
+        assert server.state.get_client(client_id).online
+
+        async with open_connection(server) as second:
+            await register_client(second, "test")
+
+            # the client stays online, now owned by the new connection
+            assert server.state.get_client(client_id).online
+
+            # the server terminates the displaced (stale) connection
+            with pytest.raises(network.NetworkError):
+                await first.recv()
+
+            # the replacement connection is fully functional
+            await ping(second)
+
     assert "client[test] registered" in caplog.text
-    assert "client already connected" in caplog.text
-    assert "error; closing connection" in caplog.text
+    assert "client already connected; replacing existing connection" in caplog.text
+    assert "error; closing connection" not in caplog.text
 
 
 @pytest.mark.asyncio

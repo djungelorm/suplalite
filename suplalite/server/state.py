@@ -5,9 +5,13 @@ import base64
 import copy
 import hashlib
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from suplalite import encoding, proto
 from suplalite.server.events import EventQueue
+
+if TYPE_CHECKING:  # pragma: no cover
+    from suplalite.server import Connection
 
 
 class ServerState:
@@ -18,13 +22,13 @@ class ServerState:
         self._next_client_id = 1
         self._client_guid_to_id: dict[str, int] = {}
         self._clients: dict[int, ClientState] = {}
-        self._client_connections: set[int] = set()
+        self._client_connections: dict[int, Connection] = {}
         self._client_events: dict[int, EventQueue] = {}
 
         self._device_guid_to_id: dict[str, int] = {}
         self._devices: dict[int, DeviceState] = {}
         self._channels: dict[int, ChannelState] = {}
-        self._device_connections: set[int] = set()
+        self._device_connections: dict[int, Connection] = {}
         self._device_events: dict[int, EventQueue] = {}
 
         self._icons: dict[str, Icon] = {}
@@ -48,19 +52,23 @@ class ServerState:
         self._client_guid_to_id[str(guid)] = client_id
         return client_id
 
-    def client_connected(self, client_id: int, events: EventQueue) -> bool:
-        if client_id in self._client_connections:
-            return False
-        self._client_connections.add(client_id)
+    def client_connected(
+        self, client_id: int, events: EventQueue, conn: Connection
+    ) -> Connection | None:
+        old_conn = self._client_connections.get(client_id)
+        self._client_connections[client_id] = conn
         self._client_events[client_id] = events
         self._clients[client_id].online = True
-        self._clients[client_id].authorized = False
-        return True
+        self._reset_client_session(client_id)
+        return old_conn
 
     def client_disconnected(self, client_id: int) -> None:
-        self._client_connections.remove(client_id)
+        del self._client_connections[client_id]
         del self._client_events[client_id]
         self._clients[client_id].online = False
+        self._reset_client_session(client_id)
+
+    def _reset_client_session(self, client_id: int) -> None:
         self._clients[client_id].authorized = False
         self._clients[client_id].sent_channels = False
         self._clients[client_id].next_channel_batch = 0
@@ -205,18 +213,21 @@ class ServerState:
         raise KeyError
 
     def device_connected(
-        self, device_id: int, proto_version: int, events: EventQueue
-    ) -> bool:
-        if device_id in self._device_connections:
-            return False
-        self._device_connections.add(device_id)
+        self,
+        device_id: int,
+        proto_version: int,
+        events: EventQueue,
+        conn: Connection,
+    ) -> Connection | None:
+        old_conn = self._device_connections.get(device_id)
+        self._device_connections[device_id] = conn
         self._device_events[device_id] = events
         self._devices[device_id].online = True
         self._devices[device_id].proto_version = proto_version
-        return True
+        return old_conn
 
     def device_disconnected(self, device_id: int) -> None:
-        self._device_connections.remove(device_id)
+        del self._device_connections[device_id]
         del self._device_events[device_id]
         self._devices[device_id].online = False
 
