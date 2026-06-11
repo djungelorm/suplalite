@@ -8,6 +8,17 @@ from suplalite import encoding, proto
 if TYPE_CHECKING:  # pragma: no cover
     from suplalite import device
 
+# Action trigger capabilities common to switchable channels (relays, dimmers)
+STANDARD_TOGGLE_CAPS = (
+    proto.ActionCap.TURN_ON
+    | proto.ActionCap.TURN_OFF
+    | proto.ActionCap.TOGGLE_x1
+    | proto.ActionCap.TOGGLE_x2
+    | proto.ActionCap.TOGGLE_x3
+    | proto.ActionCap.TOGGLE_x4
+    | proto.ActionCap.TOGGLE_x5
+)
+
 
 class Channel:
     def __init__(self) -> None:
@@ -40,7 +51,7 @@ class Channel:
 
     @property
     def action_trigger_caps(self) -> proto.ActionCap:
-        raise NotImplementedError  # pragma: no cover
+        return proto.ActionCap.NONE
 
     @property
     def func(self) -> proto.ChannelFunc:
@@ -48,7 +59,7 @@ class Channel:
 
     @property
     def flags(self) -> proto.ChannelFlag:
-        raise NotImplementedError  # pragma: no cover
+        return proto.ChannelFlag.CHANNELSTATE
 
     @property
     def encoded_value(self) -> bytes:
@@ -80,23 +91,11 @@ class Relay(Channel):
 
     @property
     def action_trigger_caps(self) -> proto.ActionCap:
-        return (
-            proto.ActionCap.TURN_ON
-            | proto.ActionCap.TURN_OFF
-            | proto.ActionCap.TOGGLE_x1
-            | proto.ActionCap.TOGGLE_x2
-            | proto.ActionCap.TOGGLE_x3
-            | proto.ActionCap.TOGGLE_x4
-            | proto.ActionCap.TOGGLE_x5
-        )
+        return STANDARD_TOGGLE_CAPS
 
     @property
     def func(self) -> proto.ChannelFunc:
         return self._func
-
-    @property
-    def flags(self) -> proto.ChannelFlag:
-        return proto.ChannelFlag.CHANNELSTATE
 
     async def do_set_value(self, value: bool) -> None:
         self._value = value
@@ -147,16 +146,8 @@ class Temperature(Channel):
         return proto.ChannelType.THERMOMETER
 
     @property
-    def action_trigger_caps(self) -> proto.ActionCap:
-        return proto.ActionCap.NONE
-
-    @property
     def func(self) -> proto.ChannelFunc:
         return proto.ChannelFunc.THERMOMETER
-
-    @property
-    def flags(self) -> proto.ChannelFlag:
-        return proto.ChannelFlag.CHANNELSTATE
 
     async def set_value(self, value: float | None) -> bool:
         self._value = value
@@ -206,16 +197,8 @@ class Humidity(Channel):
         return proto.ChannelType.HUMIDITYSENSOR
 
     @property
-    def action_trigger_caps(self) -> proto.ActionCap:
-        return proto.ActionCap.NONE
-
-    @property
     def func(self) -> proto.ChannelFunc:
         return proto.ChannelFunc.HUMIDITY
-
-    @property
-    def flags(self) -> proto.ChannelFlag:
-        return proto.ChannelFlag.CHANNELSTATE
 
     async def set_value(self, value: float | None) -> bool:
         self._value = value
@@ -271,16 +254,8 @@ class TemperatureAndHumidity(Channel):
         return proto.ChannelType.HUMIDITYANDTEMPSENSOR
 
     @property
-    def action_trigger_caps(self) -> proto.ActionCap:
-        return proto.ActionCap.NONE
-
-    @property
     def func(self) -> proto.ChannelFunc:
         return proto.ChannelFunc.HUMIDITYANDTEMPERATURE
-
-    @property
-    def flags(self) -> proto.ChannelFlag:
-        return proto.ChannelFlag.CHANNELSTATE
 
     async def set_temperature(self, value: float | None) -> bool:
         self._temperature = value
@@ -348,16 +323,8 @@ class GeneralPurposeMeasurement(Channel):
         return proto.ChannelType.GENERAL_PURPOSE_MEASUREMENT
 
     @property
-    def action_trigger_caps(self) -> proto.ActionCap:
-        return proto.ActionCap.NONE
-
-    @property
     def func(self) -> proto.ChannelFunc:
         return proto.ChannelFunc.GENERAL_PURPOSE_MEASUREMENT
-
-    @property
-    def flags(self) -> proto.ChannelFlag:
-        return proto.ChannelFlag.CHANNELSTATE
 
     async def set_value(self, value: float) -> bool:
         self._value = value
@@ -404,23 +371,11 @@ class Dimmer(Channel):
 
     @property
     def action_trigger_caps(self) -> proto.ActionCap:
-        return (
-            proto.ActionCap.TURN_ON
-            | proto.ActionCap.TURN_OFF
-            | proto.ActionCap.TOGGLE_x1
-            | proto.ActionCap.TOGGLE_x2
-            | proto.ActionCap.TOGGLE_x3
-            | proto.ActionCap.TOGGLE_x4
-            | proto.ActionCap.TOGGLE_x5
-        )
+        return STANDARD_TOGGLE_CAPS
 
     @property
     def func(self) -> proto.ChannelFunc:
         return proto.ChannelFunc.DIMMER
-
-    @property
-    def flags(self) -> proto.ChannelFlag:
-        return proto.ChannelFlag.CHANNELSTATE
 
     async def do_set_value(self, value: int) -> None:
         self._value = value
@@ -472,23 +427,11 @@ class RGBDimmer(Channel):
 
     @property
     def action_trigger_caps(self) -> proto.ActionCap:
-        return (
-            proto.ActionCap.TURN_ON
-            | proto.ActionCap.TURN_OFF
-            | proto.ActionCap.TOGGLE_x1
-            | proto.ActionCap.TOGGLE_x2
-            | proto.ActionCap.TOGGLE_x3
-            | proto.ActionCap.TOGGLE_x4
-            | proto.ActionCap.TOGGLE_x5
-        )
+        return STANDARD_TOGGLE_CAPS
 
     @property
     def func(self) -> proto.ChannelFunc:
         return proto.ChannelFunc.RGBLIGHTING
-
-    @property
-    def flags(self) -> proto.ChannelFlag:
-        return proto.ChannelFlag.CHANNELSTATE
 
     async def do_set_value(self, value: tuple[int, int, int, int]) -> None:
         self._value = value
@@ -551,23 +494,11 @@ class RGBWDimmer(Channel):
 
     @property
     def action_trigger_caps(self) -> proto.ActionCap:
-        return (
-            proto.ActionCap.TURN_ON
-            | proto.ActionCap.TURN_OFF
-            | proto.ActionCap.TOGGLE_x1
-            | proto.ActionCap.TOGGLE_x2
-            | proto.ActionCap.TOGGLE_x3
-            | proto.ActionCap.TOGGLE_x4
-            | proto.ActionCap.TOGGLE_x5
-        )
+        return STANDARD_TOGGLE_CAPS
 
     @property
     def func(self) -> proto.ChannelFunc:
         return proto.ChannelFunc.DIMMERANDRGBLIGHTING
-
-    @property
-    def flags(self) -> proto.ChannelFlag:
-        return proto.ChannelFlag.CHANNELSTATE
 
     async def do_set_value(self, value: tuple[int, int, int, int, int]) -> None:
         self._value = value
