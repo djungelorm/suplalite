@@ -45,11 +45,13 @@ class ConnectionContext(BaseContext):
         events: EventQueue,
         name: str,
         conn: Connection,
+        activity_timeout: int = proto.ACTIVITY_TIMEOUT_DEFAULT,
+        error: bool = False,
     ) -> None:
         super().__init__(server, events, name)
         self.conn = conn
-        self.activity_timeout = proto.ACTIVITY_TIMEOUT_DEFAULT
-        self.error = False
+        self.activity_timeout = activity_timeout
+        self.error = error
 
         self._replacement: ClientContext | DeviceContext | None = None
 
@@ -77,6 +79,8 @@ class ClientContext(ConnectionContext):
             context.events,
             context.name,
             context.conn,
+            context.activity_timeout,
+            context.error,
         )
         self.guid = guid
         self.client_id = client_id
@@ -93,6 +97,8 @@ class DeviceContext(ConnectionContext):
             context.events,
             context.name,
             context.conn,
+            context.activity_timeout,
+            context.error,
         )
         self.guid = guid
         self.device_id = device_id

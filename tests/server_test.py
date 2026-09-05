@@ -1128,6 +1128,54 @@ async def test_set_activity_timeout(
 
 
 @pytest.mark.asyncio
+async def test_device_activity_timeout_preserved_across_registration(
+    server: Server,
+) -> None:
+    async with open_connection(server) as stream:
+        # negotiate the activity timeout before registering
+        await stream.send(
+            Packet(
+                proto.Call.DCS_SET_ACTIVITY_TIMEOUT,
+                encoding.encode(proto.TDCS_SetActivityTimeout(activity_timeout=195)),
+            )
+        )
+        packet = await stream.recv()
+        assert packet.call_id == proto.Call.SDC_SET_ACTIVITY_TIMEOUT_RESULT
+
+        await register_device(stream, 1)
+
+        # round-trip a ping so the server has applied the post-registration
+        # context swap before we inspect it
+        await stream.send(Packet(proto.Call.DCS_PING_SERVER))
+        packet = await stream.recv()
+        assert packet.call_id == proto.Call.SDC_PING_SERVER_RESULT
+
+        connection = server.state._device_connections[1]  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
+        assert connection._context.activity_timeout == 195  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
+
+
+@pytest.mark.asyncio
+async def test_client_activity_timeout_preserved_across_registration(
+    server: Server,
+) -> None:
+    async with open_connection(server) as stream:
+        # negotiate the activity timeout before registering
+        await stream.send(
+            Packet(
+                proto.Call.DCS_SET_ACTIVITY_TIMEOUT,
+                encoding.encode(proto.TDCS_SetActivityTimeout(activity_timeout=195)),
+            )
+        )
+        packet = await stream.recv()
+        assert packet.call_id == proto.Call.SDC_SET_ACTIVITY_TIMEOUT_RESULT
+
+        client_id, *_ = await register_client(stream, "test")
+
+        connection = server.state._client_connections[client_id]  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
+        assert connection._context.activity_timeout == 195  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
+
+
+@pytest.mark.asyncio
 async def test_device_value_changed(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
