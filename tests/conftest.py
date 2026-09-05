@@ -1,3 +1,4 @@
+import hashlib
 from collections.abc import AsyncIterator
 from pathlib import Path
 
@@ -10,8 +11,8 @@ from suplalite.server import Server, state
 
 def make_server(
     with_scenes: bool = True,
-    device_auth: bool = False,
-    client_auth: bool = False,
+    device_auth: bool = True,
+    client_auth: bool = True,
     with_authkeys: bool = True,
 ) -> Server:
     server = Server(
@@ -60,12 +61,32 @@ device_authkey = {
     5: b"\x05" * 16,
 }
 
+# Clients registering in email mode; a real client app generates its own guid
+# and authkey, so here they are just derived from the client name
+client_email = "email@example.com"
+client_names = ["test", "Test Client", "Client A", "Client B"]
+
+access_id = 42
+access_id_password = "access-id-password"
+
+
+def client_guid(name: str) -> bytes:
+    return hashlib.sha256(name.encode()).digest()[:16]
+
+
+def client_authkey(name: str) -> bytes:
+    return hashlib.sha256(name.encode()).digest()[16:32]
+
 
 def setup_server(
     server: Server, with_scenes: bool = True, with_authkeys: bool = True
 ) -> None:
     def authkey(device_id: int) -> bytes | None:
         return device_authkey[device_id] if with_authkeys else None
+
+    for name in client_names:
+        server.state.add_client(client_email, client_guid(name), client_authkey(name))
+    server.state.add_access_id(access_id, access_id_password)
 
     device_id = server.state.add_device("device-1", device_guid[1], authkey(1))
     assert device_id == 1

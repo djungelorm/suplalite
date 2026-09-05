@@ -2,7 +2,6 @@ import asyncio
 import base64
 import hashlib
 import logging
-import os
 import re
 import ssl
 import time
@@ -23,7 +22,14 @@ from suplalite.server.events import EventContext, EventId
 from suplalite.server.handlers import EventHandler, event_handler
 from suplalite.utils import to_hex
 
-from .conftest import device_guid, make_server
+from .conftest import (
+    client_authkey,
+    client_email,
+    client_guid,
+    device_authkey,
+    device_guid,
+    make_server,
+)
 
 proto.CHANNELPACK_MAXCOUNT = 5
 proto.ACTIVITY_TIMEOUT_DEFAULT = 30
@@ -332,7 +338,7 @@ def register_device_message(device_id: int) -> proto.TDS_RegisterDevice_E:
     return proto.TDS_RegisterDevice_E(
         email="email@example.com",
         guid=device_guid[device_id],
-        authkey=os.urandom(16),
+        authkey=device_authkey[device_id],
         name=f"Device #{device_id}",
         soft_ver="1.2.3",
         server_name="localhost",
@@ -362,12 +368,11 @@ async def register_client(
     list[proto.TSC_ChannelPack_E],
     proto.TSC_ScenePack,
 ]:
-    hsh = hashlib.sha256(name.encode()).digest()
     call = proto.TCS_RegisterClient_D(
-        email="email@example.com",
+        email=client_email,
         password="password123",
-        guid=hsh[:16],
-        authkey=hsh[16:32],
+        guid=client_guid(name),
+        authkey=client_authkey(name),
         name=name,
         soft_ver="1.2.3",
         server_name="localhost",
