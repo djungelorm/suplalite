@@ -46,7 +46,7 @@ async def test_send_then_recv(stream: PacketStream) -> None:
 
 @pytest.mark.asyncio
 async def test_send_rr_id_wraps_around(stream: PacketStream) -> None:
-    # rr_id is a c_int32; it must wrap back to 1 rather than overflow to zero
+    # rr_id is a c_int32, and wraps back to one before it overflows
     stream._next_send_rr_id = MAX_RR_ID  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
 
     await stream.send(Packet(proto.Call.DCS_PING_SERVER, b"\x01\x02\x03\x04"))
@@ -55,7 +55,7 @@ async def test_send_rr_id_wraps_around(stream: PacketStream) -> None:
     await stream.send(Packet(proto.Call.DCS_PING_SERVER, b"\x05\x06\x07\x08"))
     assert stream._next_send_rr_id == 2  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
 
-    # both packets are still well formed either side of the wrap
+    # Both packets are still well formed either side of the wrap
     packet = await stream.recv()
     assert packet.data == b"\x01\x02\x03\x04"
     packet = await stream.recv()

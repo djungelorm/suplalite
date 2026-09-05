@@ -875,8 +875,7 @@ class TSDC_RegistrationEnabled:
     iodevice_timestamp: int = field(metadata=c_uint32())  #  time >= now == enabled
 
 
-# Note: TCSD_ChannelStateRequest is split into TCS_ChannelStateRequest and
-# TSD_ChannelStateRequest so that we don't need to support union fields
+# Note: TCSD_ChannelStateRequest is split in two, so we do not need union fields
 @dataclass
 class TCS_ChannelStateRequest:
     sender_id: int = field(metadata=c_int32())
@@ -890,8 +889,7 @@ class TSD_ChannelStateRequest:
     padding: bytes = field(repr=False, init=False, metadata=c_bytes(size=3))
 
 
-# Note: TDSC_ChannelState is split into TDS_ChannelState and
-# TSC_ChannelState so that we don't need to support union fields
+# Note: TDSC_ChannelState is split in two, so we do not need union fields
 @dataclass
 class TDS_ChannelState:
     receiver_id: int = field(metadata=c_int32())

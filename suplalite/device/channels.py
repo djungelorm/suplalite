@@ -41,8 +41,7 @@ class Channel:
 
     @property
     def proto_version(self) -> int:
-        # Minimum required proto version to use this channel type
-        # Override if greater than 1
+        # Minimum proto version for this channel type, overridden above one
         return 1
 
     @property

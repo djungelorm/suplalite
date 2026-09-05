@@ -111,14 +111,8 @@ async def ping(context: ConnectionContext) -> proto.TSDC_PingServerResult:
 async def get_registration_enabled(
     context: ConnectionContext,
 ) -> proto.TSDC_RegistrationEnabled:
-    # Note: registration is never reported as enabled.
-    #
-    # supla-server returns the timestamps until which device and client
-    # registration are open, which the user sets through supla-cloud. suplalite
-    # has no equivalent state: devices and clients both come from the static
-    # server config and cannot be added at runtime, so there is no window to
-    # report. Registration behaves as it does in supla-server with the window
-    # permanently closed -- an unconfigured peer gets REGISTRATION_DISABLED.
+    # Note: registration is never reported as enabled, as devices and clients
+    # come from the static server config
     return proto.TSDC_RegistrationEnabled(0, 0)
 
 
@@ -182,7 +176,7 @@ def _authenticate_device(
 ) -> proto.ResultCode | None:
     # Returns the code to reject the registration with, or None to allow it.
     # Note: the checks are ordered as in supla-server, which validates the guid
-    # and the authkey before looking anything up.
+    # and the authkey first.
     if msg.guid == _ZERO_GUID:
         context.log("device sent an empty guid", level=logging.WARNING)
         return proto.ResultCode.GUID_ERROR
@@ -197,16 +191,14 @@ def _authenticate_device(
         context.log(
             f"device not found with guid {to_hex(msg.guid)}", level=logging.WARNING
         )
-        # Note: there is no registration window to open here, so an unknown
-        # device is refused the way supla-server refuses one while registration
-        # is disabled
+        # Note: supla-server uses this code for a device that registers while
+        # registration is disabled
         return proto.ResultCode.REGISTRATION_DISABLED
 
     if context.server.device_auth and not context.server.state.check_device_authkey(
         device_id, msg.authkey
     ):
-        # Note: the authkey is chosen by whoever runs the server, so unlike a
-        # client's there is nothing to be gained from logging what was sent
+        # Note: the authkey is configured on the server, so we do not log it
         context.log(
             f"incorrect authkey for device with guid {to_hex(msg.guid)}",
             level=logging.WARNING,
@@ -338,12 +330,10 @@ async def register_client(
     context: ClientContext,
     msg: proto.TCS_RegisterClient_D,
 ) -> proto.TSC_RegisterClientResult_D:
-    # Note: this is the SUPLA app's "email" sign-in mode. The app generates its
-    # own guid and authkey, so unlike a device they cannot be chosen in advance
-    # -- read them from the warning logged when an unknown client is rejected.
-    # The password is not used: supla-server treats a non-empty one as superuser
-    # authorization bypassing its registration window, which suplalite does not
-    # have. Superuser authorization is a separate call, and still supported.
+    # The SUPLA app's "email" sign-in mode. The app generates its own guid and
+    # authkey, which we read from the warning logged when it is rejected.
+    # Note: the password field is unused; superuser authorization is a separate
+    # call.
     result_code = _authenticate_client(context, msg)
     if result_code is not None:
         return _register_client_failure(context, result_code)
@@ -357,20 +347,15 @@ async def register_client_access_id(
     context: ClientContext,
     msg: proto.TCS_RegisterClient_B,
 ) -> proto.TSC_RegisterClientResult_D:
-    # Note: this is the SUPLA app's "access identifier" sign-in mode. Unlike
-    # the email mode there is no authkey, so the access id and its password are
-    # the whole credential and can be configured up front.
-    #
-    # supla-server picks the result message by negotiated protocol version
-    # rather than by the call it is answering, so this old call is answered
-    # with the newest result. A client older than version 19 would not be able
-    # to parse it, but every current SUPLA app negotiates well above that.
+    # The SUPLA app's "access identifier" sign-in mode, where the access id and
+    # its password are the whole credential.
+    # Note: supla-server picks the result message by negotiated protocol
+    # version, so this old call is answered with the newest result.
     result_code = _authenticate_client_access_id(context, msg)
     if result_code is not None:
         return _register_client_failure(context, result_code)
 
-    # Note: the app generates its own guid, so unlike an email-mode client this
-    # one cannot have been configured in advance
+    # Note: the app generates its own guid, so the client is added here
     client_id = context.server.state.add_client(msg.guid)
     return await _complete_client_registration(context, client_id, msg.guid, msg.name)
 
@@ -392,9 +377,8 @@ def _authenticate_client_access_id(
             msg.access_id, msg.access_id_pwd
         )
     except KeyError:
-        # Note: supla-server answers BAD_CREDENTIALS for an unknown access id
-        # too. Distinguishing the two is more use when diagnosing a config, and
-        # the difference only tells an attacker which access ids exist.
+        # Note: supla-server answers BAD_CREDENTIALS here, but the distinction
+        # helps when diagnosing a config
         context.log(
             f"access id {msg.access_id} is not configured", level=logging.WARNING
         )
@@ -429,8 +413,7 @@ def _authenticate_client(
             msg.guid, msg.email, msg.authkey
         )
     except KeyError:
-        # Note: as for devices, an unconfigured client is refused the way
-        # supla-server refuses one while registration is disabled
+        # Note: an unconfigured client is refused as an unconfigured device is
         _log_client_rejected(context, msg)
         return proto.ResultCode.REGISTRATION_DISABLED
 
@@ -444,8 +427,8 @@ def _authenticate_client(
 def _log_client_rejected(
     context: ClientContext, msg: proto.TCS_RegisterClient_D
 ) -> None:
-    # Log what the client sent, so it can be copied into the server config.
-    # Note: this means the log holds client authkeys.
+    # Log the credentials to copy into the server config.
+    # Note: the log then holds client authkeys.
     context.log(
         "client not allowed to register; to allow it, configure "
         f"add_client_credentials({msg.email!r}, "
@@ -529,9 +512,9 @@ async def oauth_token_request(
     context: ClientContext,
 ) -> proto.TSC_OAuthTokenRequestResult:
 
-    # Generate a random token (we don't actually do proper oauth, just allow all)
+    # Note: the token is random and every client is allowed
     key = "".join(random.choice("0123456789abcdef") for _ in range(86))  # noqa: S311
-    # Include URL for API
+    # The API url the client reads out of the token
     url = f"https://{context.server.host}:{context.server.api_port}"
     token = key.encode() + b"." + base64.b64encode(url.encode()) + b"\x00"
 
@@ -777,7 +760,7 @@ async def client_set_value(context: ClientContext, msg: proto.TCS_NewValue) -> N
     channel_id = msg.value_id
     value = msg.value
 
-    # check the channel exists
+    # Check the channel exists
     try:
         context.server.state.get_channel(channel_id)
     except KeyError:
@@ -797,11 +780,11 @@ async def channel_set_value(
 ) -> None:
     device = context.server.state.get_device(context.device_id)
     if channel_id not in device.channel_ids:  # pragma: no cover
-        # channel is not on this device, ignore event
+        # Ignore a channel on another device
         return
     channel_number = device.channel_ids.index(channel_id)
-    # Note: ignore set sender id (set to 0) as we don't need to track who requested the
-    # value to be set, as all clients are notified of the value change
+    # Note: every client is notified of the value change, so we do not track
+    # who set it
     await context.conn.send(
         proto.Call.SD_CHANNEL_SET_VALUE,
         proto.TSD_ChannelNewValue(
@@ -817,7 +800,8 @@ async def channel_set_value(
 async def channel_set_value_result(
     context: DeviceContext, msg: proto.TDS_ChannelNewValueResult
 ) -> None:
-    # Note: ignore this, device should also send a CHANNEL_VALUE_CHANGED message
+    # Note: the device also sends a CHANNEL_VALUE_CHANGED message, so we
+    # ignore this one
     pass
 
 
@@ -1035,8 +1019,8 @@ async def client_get_channel_state(
             level=logging.ERROR,
         )
         return
-    # Note: sender id appears to always be set to 0. It's not the client id,
-    # so instead we use the client id from the context
+    # Note: the sender id is always zero, so we use the client id from the
+    # context
     await events.add(EventId.GET_CHANNEL_STATE, (context.client_id, msg.channel_id))
 
 
@@ -1078,8 +1062,8 @@ async def device_channel_state_result(
 async def client_channel_state_result(
     context: ClientContext, device_msg: proto.TDS_ChannelState, channel_id: int
 ) -> None:
-    # copy device->server message to server->client message using encoded form
-    # as the messages are almost identical
+    # Copy the device message to the client message through its encoded form,
+    # as the two are almost identical
     msg, _ = encoding.decode(proto.TSC_ChannelState, encoding.encode(device_msg))
     msg.channel_id = channel_id
     await context.conn.send(proto.Call.DSC_CHANNEL_STATE_RESULT, msg)

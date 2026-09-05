@@ -61,8 +61,8 @@ device_authkey = {
     5: b"\x05" * 16,
 }
 
-# Clients registering in email mode; a real client app generates its own guid
-# and authkey, so here they are just derived from the client name
+# Clients registering in email mode. A real app generates its own guid and
+# authkey; these are derived from the client name.
 client_email = "email@example.com"
 client_names = ["test", "Test Client", "Client A", "Client B"]
 

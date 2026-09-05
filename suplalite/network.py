@@ -9,11 +9,10 @@ import tlslite
 _DEFAULT_LIMIT = 2**16  # 64 KiB
 
 
-# Note: ssl library bundled with Python does not support older TLS versions
-# required by some SUPLA devices. We use tlslite as it has support for older protocols.
-
-# Note: must manually call TLSSocket.handshakeServer on connection, as this needs
-# to be done in an async function to not block the async loop
+# We use tlslite for the older TLS versions that some SUPLA devices require,
+# which the ssl library bundled with Python drops.
+# Note: TLSSocket.handshakeServer has to be called on connection, from an async
+# function so the handshake does not block the async loop.
 
 
 class NetworkError(Exception):
@@ -39,9 +38,7 @@ class TLSSocket:
 
     async def do_handshake(self) -> None:
         assert not self._connected
-        # Perform initial ssl handshake
-        # Note this must be done in an async function so that the
-        # handshake does not block the async loop
+        # Perform the initial ssl handshake
         for _ in self._ssl_sock.handshakeServerAsync(
             certChain=self._cert,
             privateKey=self._key,
@@ -96,8 +93,7 @@ class TLSProtocol(asyncio.StreamReaderProtocol):
         self._ssl_settings = settings
 
     def connection_made(self, transport: asyncio.BaseTransport) -> None:
-        # Replace the raw socket in the transport with a TLSSocket
-        # that wraps the raw socket
+        # Wrap the transport's raw socket in a TLSSocket
         raw_sock = transport.get_extra_info("socket")
         if isinstance(raw_sock, asyncio.trsock.TransportSocket):  # pragma: no cover
             raw_sock = raw_sock._sock  # noqa: SLF001

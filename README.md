@@ -5,7 +5,7 @@ A lightweight implementation of SUPLA server and devices in Python.
 
 Install using `pip install suplalite`
 
-Note: this project is not affiliated with SUPLA or Zamel -- this is not an "official" library.
+Note: this project is not affiliated with SUPLA or Zamel. It is not an "official" library.
 
 suplalite.server
 ----------------
@@ -28,48 +28,68 @@ See `examples/server.py` for an example.
 
 ### Authentication
 
-By default a device is accepted if its GUID and channels match the configuration, and
-any client at all is accepted. That is reasonable on a trusted local network, and is
-what earlier versions did.
+Devices and clients authenticate when you turn it on:
 
-Devices and clients can instead be made to authenticate, with
-`Server(..., device_auth=True, client_auth=True)`. supla-server admits a new peer during
-a registration window that the user opens through supla-cloud; suplalite has no such
-window, so everything allowed to connect is listed in the static configuration and
-registration otherwise behaves as it does in supla-server with the window permanently
-closed. A peer that is not configured is rejected with `REGISTRATION_DISABLED`, one
-whose credentials do not match with `BAD_CREDENTIALS`.
+```python
+server = Server(..., device_auth=True, client_auth=True)
+```
 
-**Devices** authenticate with their GUID and AuthKey, both given to `state.add_device()`.
-With `device_auth=True` every configured device needs an AuthKey, and the server refuses
-to start if one does not have it.
+Both settings default to `False`. The server then accepts a device whose GUID and
+channels match the configuration, and accepts any client. That suits a trusted local
+network.
 
-**Clients** authenticate in whichever of the SUPLA app's two sign-in modes they use:
+Everything allowed to connect is listed in the static configuration. An unconfigured
+peer is rejected with `REGISTRATION_DISABLED`, and a wrong credential with
+`BAD_CREDENTIALS`.
 
- - *Access identifier* -- the app sends an access id and password, configured with
-   `state.add_access_id()`. Both are chosen by you, so this mode needs no discovery
-   step and survives the app being reinstalled.
- - *Email* -- the app sends an email address along with a GUID and AuthKey it generated
-   itself, configured with `state.add_client_credentials()`. Because the app invents the
-   GUID and AuthKey, they cannot be known in advance: let the client try to register
-   once, then copy them out of the warning the server logs when it rejects it. They
-   change if the app is reinstalled. The password field of this message is not used.
+#### Devices
 
-A failed registration is answered and then held open for `auth_failure_delay` seconds
-(2 by default) before the connection is closed, as supla-server does. This applies
-whether or not authentication is enabled, since a device can still be rejected for
-presenting an unknown GUID or the wrong channels.
+A device authenticates with the GUID and AuthKey you give to `state.add_device()`:
 
-Superuser authorization is separate from registration and unchanged: a client sends the
-email and password given to `Server()`, and needs to have done so before it can change
-device configuration.
+```python
+server.state.add_device("test", guid, authkey=authkey)
+```
 
-Two things to be aware of, both of which make the server logs sensitive:
+With `device_auth=True` every configured device needs an AuthKey. The server raises a
+`ValueError` at start up when one is missing.
 
- - Rejecting a client logs the AuthKey it sent. That is deliberate -- it is the only way
-   to learn what an app generated -- but it means log files hold client credentials.
- - An `EventId.REQUEST` event handler receives whole decoded messages, registration
-   messages included, so anything logging them logs credentials too.
+#### Clients
+
+The SUPLA app signs in with an access identifier or with an email address. Configure
+whichever mode the app uses.
+
+An access identifier is an access id and a password, both chosen by you:
+
+```python
+server.state.add_access_id(1, "access-id-password")
+```
+
+Email mode sends an email address, a GUID and an AuthKey. The app generates the GUID
+and AuthKey itself, so let the client register once and read them from the warning the
+server logs:
+
+```python
+server.state.add_client_credentials("email@email.com", guid, authkey)
+```
+
+Reinstalling the app changes the GUID and AuthKey. The password field of this message
+is unused.
+
+#### Failed Registrations
+
+A failed registration is answered, then held open for `auth_failure_delay` seconds
+(2 by default). This applies with authentication turned off, as a device is still
+rejected for an unknown GUID or the wrong channels.
+
+Rejecting a client logs the AuthKey it sent, so you can copy it into the configuration.
+An `EventId.REQUEST` event handler also receives whole decoded registration messages.
+Both put client credentials in your logs.
+
+#### Superuser Authorization
+
+Superuser authorization is separate from registration. A client sends the email and
+password you give to `Server()`, and must do so before it can change device
+configuration.
 
 suplalite.device
 ----------------

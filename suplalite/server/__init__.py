@@ -28,12 +28,11 @@ from suplalite.server.handlers import CallHandler, EventHandler
 
 logger = logging.getLogger("suplalite.server")
 
-# How long stop() waits for connections to close of their own accord, before
-# closing them itself
+# How long stop() waits for a connection to close before closing it
 STOP_TIMEOUT = 10.0
 
-# How long a connection is held open after a failed registration, before being
-# closed. Matches supla-server's hold_time_on_failure.
+# How long a failed registration is held open, matching supla-server's
+# hold_time_on_failure
 AUTH_FAILURE_DELAY = 2.0
 
 
@@ -85,8 +84,7 @@ class Connection:
             with contextlib.suppress(asyncio.exceptions.CancelledError):
                 await self._event_task
 
-            # clean up server state, unless a newer connection has already taken
-            # over this connection's slot (in which case it now owns the state)
+            # Clean up the server state, unless a superseding connection owns it
             if not self._superseded:
                 if isinstance(self._context, DeviceContext):
                     device_id = self._context.device_id
@@ -109,10 +107,8 @@ class Connection:
             self._context.log("closed")
 
     def supersede(self) -> None:
-        # Terminate this connection because a newer one has registered with the
-        # same GUID and taken over its slot in the server state. Cancel the tasks
-        # so the connection tears down promptly; the disconnect cleanup is
-        # skipped so the replacement is left intact.
+        # Tear down this connection, leaving the state to the newer connection
+        # that registered with the same guid
         self._superseded = True
         if self._call_task is not None:  # pragma: no branch
             self._call_task.cancel()
@@ -146,12 +142,8 @@ class Connection:
                         self._context = self._context.replacement
                 if self._context.error:
                     self._context.log("error; closing connection", logging.WARNING)
-                    # Note: supla-server holds a failed registration for
-                    # hold_time_on_failure before dropping the peer. Wait after
-                    # the reply rather than before it (as supla-server does for
-                    # devices, though not for clients) because the handler and
-                    # its reply run under the global state lock -- waiting
-                    # there would stall every other connection.
+                    # Note: we wait after the reply because the handler runs
+                    # under the global state lock
                     await asyncio.sleep(self._context.close_delay)
                     break
         except network.NetworkError as exc:
@@ -169,9 +161,7 @@ class Connection:
                 event = await self._context.events.get()
                 await self._handle_event(*event)
         except Exception:
-            # An exception escaping the per-handler try in _handle_event kills
-            # the event task. Close the connection rather than leaving the call
-            # task running against a connection that can no longer send events.
+            # A dead event task leaves the connection unable to send, so close it
             logger.exception("unexpected error")
             self._context.log("event task failed; closing connection", logging.ERROR)
             self.close()
@@ -179,11 +169,8 @@ class Connection:
             self._context.log("event task stopped", logging.DEBUG)
 
     def close(self) -> None:
-        # Terminate this connection. If it is serving, cancel the call task and
-        # let the teardown in __call__ clean up the server state as for any
-        # other disconnect (unlike supersede(), which deliberately skips it).
-        # If it has not started serving yet -- e.g. it is still in the TLS
-        # handshake -- there is no task to cancel, so close the socket instead.
+        # Tear down this connection, cleaning up the server state in __call__.
+        # A connection still in the TLS handshake has no call task to cancel.
         if self._call_task is not None:
             self._call_task.cancel()
         else:
@@ -214,7 +201,7 @@ class Connection:
                     EventId.RESPONSE, (context, handler.result_id, result)
                 )
                 # Note: send the response while holding the state lock
-                # so it is serialised with event-handler sends
+                # so it is serialized with event-handler sends
                 await self.send(handler.result_id, result)
 
     async def send(self, call_id: proto.Call, msg: Any) -> None:
@@ -252,8 +239,8 @@ class Server:
         location_name: str,
         email: str,
         password: str,
-        # Note: authentication is opt-in, so that a configuration written for
-        # an earlier version keeps working
+        # Note: authentication is opt-in; when disabled, any configured device
+        # and any client at all is accepted
         device_auth: bool = False,
         client_auth: bool = False,
         auth_failure_delay: float = AUTH_FAILURE_DELAY,
@@ -378,8 +365,7 @@ class Server:
         return self._events
 
     def _check_config(self) -> None:
-        # A device with no authkey could never register, so say so at start up
-        # rather than silently rejecting it when it first connects
+        # A device with no authkey can never register, so report it at start up
         if not self._device_auth:
             return
         for device in self._state.get_devices().values():
@@ -421,21 +407,19 @@ class Server:
 
         logger.info("started")
 
-    # Note: ASYNC109 suggests the caller wraps the call in asyncio.timeout
-    # instead, but the timeout is what paces the shutdown steps below
+    # Note: the timeout paces each of the shutdown steps below, so ASYNC109
+    # does not apply
     async def stop(self, timeout: float | None = STOP_TIMEOUT) -> None:  # noqa: ASYNC109
         assert self._server is not None
         assert self._secure_server is not None
         assert self._api_server is not None
 
-        # Stop accepting first, so that a peer reconnecting while we shut down
-        # cannot join the set of connections we are waiting on -- one accepted
-        # after the connections have been closed below would be left open
+        # Stop accepting first, so a peer reconnecting during shutdown cannot
+        # join the set of connections we wait on
         self._server.close()
         self._secure_server.close()
 
-        # Give connections a chance to close themselves, then close whatever is
-        # left; a single wedged connection must not block shutdown forever
+        # Close whatever is left after the timeout, bounding the shutdown
         if not await self._wait_for_connections(timeout):
             logger.warning("timed out waiting for connections to close; closing them")
             await self._close_connections()
@@ -467,9 +451,8 @@ class Server:
         server: asyncio.Server,
         timeout: float | None,  # noqa: ASYNC109
     ) -> bool:
-        # Note: since Python 3.12.1 wait_closed() also waits for the connection
-        # handlers to finish, so it has to be bounded too -- otherwise a
-        # connection that refused to close would block shutdown here instead
+        # Note: from Python 3.12.1 wait_closed() also waits for the connection
+        # handlers, so bound it too
         try:
             await asyncio.wait_for(server.wait_closed(), timeout)
         except asyncio.exceptions.TimeoutError:
@@ -515,9 +498,8 @@ class Server:
             logger.debug("event loop started")
             while True:
                 event_id, payload = await self._events.get()
-                # Note: an exception escaping the per-handler try below would
-                # otherwise kill the event loop, silently stopping event
-                # dispatch for the whole server. Log it and carry on.
+                # Note: catch handler failures here to keep the event loop
+                # running
                 try:
                     await self._dispatch_event(event_id, payload)
                 except Exception:
@@ -595,7 +577,7 @@ class Server:
             logger.exception("unexpected error")
             raise
         finally:
-            # Note: coverage bug means it thinks this is not covered?!?
+            # Note: coverage does not trace this block, so mark it uncovered
             async with self._connection_lock:  # pragma: no cover
                 self._connections.discard(connection)
                 if len(self._connections) == 0:

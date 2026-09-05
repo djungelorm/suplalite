@@ -36,9 +36,9 @@ class ServerContext(BaseContext):
 class ConnectionContext(BaseContext):
     conn: Connection
     activity_timeout: int
-    # indicates whether an error occured in a handler
+    # Whether a handler reported an error
     error: bool
-    # how long to hold the connection open before closing it on error
+    # How long to hold the connection open after an error
     close_delay: float
 
     def __init__(
@@ -53,8 +53,8 @@ class ConnectionContext(BaseContext):
     ) -> None:
         super().__init__(server, events, name)
         self.conn = conn
-        # Note: read the default here rather than as a parameter default, which
-        # would bind proto.ACTIVITY_TIMEOUT_DEFAULT at import time
+        # Note: reading the default here avoids binding
+        # proto.ACTIVITY_TIMEOUT_DEFAULT at import time
         if activity_timeout is None:
             activity_timeout = proto.ACTIVITY_TIMEOUT_DEFAULT
         self.activity_timeout = activity_timeout

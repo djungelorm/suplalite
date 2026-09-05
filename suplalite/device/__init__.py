@@ -15,10 +15,10 @@ from suplalite.packets import Packet, PacketStream
 
 logger = logging.getLogger("suplalite.device")
 
-# Minimum required proto version for basic device messages (excl. channels)
+# Minimum proto version for the device messages, excluding channels
 BASE_PROTO_VERSION = 12
 
-# Seconds to wait for the register result before giving up and tearing down
+# Seconds to wait for the register result before tearing the device down
 REGISTER_TIMEOUT = 10
 
 
@@ -119,7 +119,7 @@ class Device:
         task.add_done_callback(self._on_task_done)
 
     def _on_task_done(self, task: asyncio.Task[None]) -> None:
-        # When a task exits cancel the others so the device shuts down as a whole
+        # Cancel the other tasks, so the device shuts down as a whole
         for other in self._tasks:
             if other is not task and not other.done():
                 other.cancel()
@@ -317,9 +317,9 @@ class Device:
             logger.warning("no channel %d for set value request", msg.channel_number)
             return
 
-        # Note: set_encoded_value also reports the new value back to the server
-        # with a DS_DEVICE_CHANNEL_VALUE_CHANGED_C message; the result sent below
-        # acknowledges the set-value command itself (success or failure)
+        # Note: set_encoded_value reports the new value with its own
+        # DS_DEVICE_CHANNEL_VALUE_CHANGED_C message; the result below
+        # acknowledges the command
         success = await self._channels[msg.channel_number].set_encoded_value(msg.value)
         await self._send(
             Packet(

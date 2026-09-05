@@ -16,9 +16,8 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 def normalize_email(email: str) -> str:
-    # Note: supla-server matches the email in SQL, where the collation makes it
-    # case insensitive. Match that, so a configured address that differs only in
-    # case from what the peer sends is not a baffling authentication failure.
+    # Note: supla-server matches the email with a case insensitive SQL
+    # collation, which we match here
     return email.strip().lower()
 
 
@@ -39,8 +38,8 @@ class ServerState:
         self._device_connections: dict[int, Connection] = {}
         self._device_events: dict[int, EventQueue] = {}
 
-        # Note: credentials are kept here rather than on DeviceState/ClientState,
-        # which are handed out by get_device()/get_client() and end up in logs
+        # Note: credentials are kept apart from DeviceState and ClientState,
+        # which get_device() and get_client() hand out into logs
         self._device_authkeys: dict[int, bytes] = {}
         self._client_credentials: dict[str, tuple[str, bytes]] = {}
         self._access_ids: dict[int, str] = {}
@@ -58,18 +57,16 @@ class ServerState:
         return self._lock
 
     def add_client_credentials(self, email: str, guid: bytes, authkey: bytes) -> int:
-        # Configure a client that is allowed to register in email mode.
-        # The SUPLA app generates its own guid and authkey, so read them from
-        # the warning the server logs when it rejects an unknown client.
+        # Configure a client allowed to register in email mode. The SUPLA app
+        # generates its guid and authkey, which the rejection warning logs.
         assert self._started is False
         client_id = self.add_client(guid)
         self._client_credentials[guid.hex()] = (normalize_email(email), authkey)
         return client_id
 
     def add_client(self, guid: bytes) -> int:
-        # Note: clients are added here at registration time too, either because
-        # client auth is disabled or because they registered with an access id,
-        # whose guid cannot be known in advance
+        # Note: registration also adds a client here, as an access id gives no
+        # guid to configure up front
         key = guid.hex()
         if key in self._client_guid_to_id:
             return self._client_guid_to_id[key]
@@ -226,10 +223,8 @@ class ServerState:
         if key in self._icons:
             return self._icons[key].id
 
-        # Generate a 6-bit integer from the hash of the icon data
-        # to provide a unique id based on the content of the image.
-        # The SUPLA app caches images based on id number, so the id number
-        # needs to change if the image content changes
+        # Derive the id from a hash of the image data. The SUPLA app caches an
+        # icon by its id, so the id has to track the content.
         icon_id = int(hashlib.sha1(key.encode("utf-8")).hexdigest()[:6], 16)  # noqa: S324
         icon = Icon(icon_id, data)
         self._icons[key] = icon
@@ -290,8 +285,8 @@ class ServerState:
 
     def set_channel_value(self, channel_id: int, value: bytes) -> None:
         self._channels[channel_id].value = value
-        # Note: if the value is non-zero, save the value as the "last value"
-        # For example, used to preserve dimmer brightness across on/off actions
+        # Note: a non-zero value is kept as the last value, preserving dimmer
+        # brightness across on and off
         if self._should_set_last(self._channels[channel_id].type, value):
             self._channels[channel_id].last_value = value
 

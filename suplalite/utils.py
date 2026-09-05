@@ -25,7 +25,7 @@ def batched(iterable: Iterable[T], n: int = 1) -> Iterable[tuple[T, ...]]:
         yield ()
 
 
-# Customize IntFlag to print human-readable string when f-strings/format
+# Customize IntFlag to format as a human-readable string.
 # See https://github.com/python/cpython/issues/86073
 class IntFlag(_IntFlag):
     def __str__(self) -> str:

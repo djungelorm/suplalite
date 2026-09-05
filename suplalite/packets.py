@@ -57,28 +57,27 @@ class PacketStream:
 
     def _next_packet(self) -> Packet:
         msg, size = encoding.decode(proto.DataPacket, self._recv_buffer)
-        # Note: switch to protocol version that the client supports, capped by the max
-        # version that the server supports
+        # Note: we switch to the client's protocol version, capped by the
+        # server's
         self._proto_version = min(msg.version, proto.PROTO_VERSION)
         packet = Packet(msg.call_id, msg.data)
         self._recv_buffer = self._recv_buffer[size:]
         return packet
 
     def _have_packet(self) -> bool:
-        # Raise NetworkError if there is invalid data in the buffer
-        # If there is a valid packet at the start of the buffer return its size
-        # If there is a valid partial packet at the start of the buffer return None
+        # Returns whether the buffer starts with a complete packet.
+        # Note: raises NetworkError if the buffer holds invalid data.
         size = len(self._recv_buffer)
 
-        # check we have enough bytes for a minimally sized packet
+        # Check we have enough bytes for a minimally sized packet
         if size < MINIMUM_PACKET_SIZE:
             return False
 
-        # check we have correct start tag
+        # Check the start tag
         if self._recv_buffer[: len(proto.TAG)] != proto.TAG:
             raise network.NetworkError("Invalid data received; incorrect start tag")
 
-        # decode packet header
+        # Decode the packet header
         try:
             fields, _ = encoding.partial_decode(
                 proto.DataPacket, self._recv_buffer, num_fields=5
@@ -88,25 +87,25 @@ class PacketStream:
                 "Invalid data received; failed to decode header"
             ) from exc
 
-        # check we have correct version
+        # Check the protocol version
         if fields[1] < proto.PROTO_VERSION_MIN:
             raise network.NetworkError(
                 "Invalid data received; proto version not supported"
             )
 
-        # check size matches with data size
+        # Check the size field matches the data size
         expected_size = MINIMUM_PACKET_SIZE + fields[4]
         if size < expected_size:
             return False
 
-        # check end tag
+        # Check the end tag
         if (
             self._recv_buffer[expected_size - len(proto.TAG) : expected_size]
             != proto.TAG
         ):
             raise network.NetworkError("Invalid data received; incorrect end tag")
 
-        # have a complete packet, possibly with more data after
+        # A complete packet, possibly with more data after it
         return True
 
     async def send(self, packet: Packet) -> None:
@@ -128,7 +127,7 @@ class PacketStream:
             raise network.NetworkError(str(exc)) from exc
 
     def _advance_send_rr_id(self) -> None:
-        # Increment rr_id without overflowing back to zero
+        # Increment rr_id, wrapping to one before it overflows
         if self._next_send_rr_id < MAX_RR_ID:
             self._next_send_rr_id += 1
         else:
@@ -139,5 +138,5 @@ class PacketStream:
             self._writer.close()
             await self._writer.wait_closed()
         except ssl.SSLError:  # pragma: no cover
-            # ignore ssl errors when closing connection
+            # Ignore ssl errors while closing the connection
             pass

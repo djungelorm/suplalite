@@ -170,10 +170,10 @@ def _decode_ctype(
 def _encode_string(value: Any, metadata: dict[str, Any]) -> Any:
     assert isinstance(value, str)
     if "size" in metadata:
-        # fixed length string
+        # Fixed length string
         return value.encode(encoding="utf-8").ljust(metadata["size"], b"\x00")
     if "max_size" in metadata:
-        # variable length string, with size field
+        # Variable length string, with a size field
         value = value.encode(encoding="utf-8")
         if metadata["null_terminated"]:
             value += b"\x00"
@@ -211,11 +211,11 @@ def _decode_string(
 def _encode_bytes(value: Any, metadata: dict[str, Any]) -> Any:
     assert isinstance(value, bytes)
     if "size" in metadata:
-        # fixed length bytes
+        # Fixed length bytes
         assert len(value) == metadata["size"]
         return value
     if "max_size" in metadata:
-        # variable length bytes, with size field
+        # Variable length bytes, with a size field
         size = len(value)
         assert size <= metadata["max_size"]
         return value
@@ -231,16 +231,16 @@ def _decode_bytes(
     metadata: dict[str, Any],
 ) -> tuple[Any, int]:
     if "value" in metadata:
-        # constant value
+        # Constant value
         value = metadata["value"]
         assert isinstance(value, bytes)
         assert data[offset : offset + len(value)] == value
         return value, len(value)
     if "size" in metadata:
-        # fixed sized bytes
+        # Fixed size bytes
         return data[offset : offset + metadata["size"]], metadata["size"]
     if "max_size" in metadata:
-        # variable sized bytes
+        # Variable size bytes
         assert name is not None
         size = sizes[name]
         assert size <= metadata["max_size"]
@@ -249,7 +249,7 @@ def _decode_bytes(
 
 
 def _encode_packed_array(value: Any, metadata: dict[str, Any]) -> Any:
-    # list of messages -> packed array
+    # Pack a list of messages into a single array
     max_size = metadata["max_size"]
     assert isinstance(value, list)
     items = cast("list[Any]", value)
@@ -297,15 +297,15 @@ def fields(cls: type[T]) -> Fields:
     """Expand the dataclass fields into full field specifications."""
     result: Fields = []
 
-    # Note: we import the module that cls is defined in, so that when resolving
-    # type hints, other classes defined in that module are found
+    # Note: we import the module cls is defined in, so its other classes
+    # resolve as type hints
     module_name = getattr(cls, "__module__", "")
     module = importlib.import_module(module_name)
     types = typing.get_type_hints(cls, localns=module.__dict__)
 
     for field in dataclasses.fields(cls):
-        # Note: don't use field.type as it is an unresolved string
-        # Use typing.get_type_hints instead
+        # Note: field.type is an unresolved string, so we use the hints
+        # resolved above
         typ = types[field.name]
 
         if (
@@ -323,10 +323,10 @@ def fields(cls: type[T]) -> Fields:
             result.append((field.name, typ, field.init, metadata))
 
         elif "packed_array" in field.metadata:
-            # packed array has two constituent fiels: size and data
-            # size field can be offset (does not need to occur right next to data)
+            # A packed array has a size field and a data field, which the
+            # offset allows to sit apart
             offset = field.metadata["size_field_offset"]
-            assert offset <= 0  # size must be before data
+            assert offset <= 0  # the size comes before the data
             metadata = {
                 "size_for": field.name,
                 "ctype": field.metadata["size_ctype"],

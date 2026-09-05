@@ -95,31 +95,31 @@ async def main() -> None:
         location_name="Test",
         email="email@email.com",
         password="1",
-        # Note: both default to False, which accepts any configured device and
-        # any client at all
+        # Note: both default to False, which accepts any configured device
+        # and any client
         device_auth=True,
         client_auth=True,
     )
 
-    # With device_auth, devices authenticate with their guid and authkey; see
-    # examples/device.py, which registers with these
+    # Devices authenticate with a guid and authkey. examples/device.py
+    # registers with these.
     device_id = server.state.add_device(
         "test",
         bytes.fromhex("eeeeeeeee534d1a706ac5f416719899e"),
         authkey=bytes.fromhex("ffffffff4ad3b8aa3666216f2a864223"),
     )
 
-    # Clients using the SUPLA app's "email" sign-in generate their own guid and
-    # authkey, so let one register, then copy them out of the warning the server
-    # logs when it rejects it. This one is examples/client.py.
+    # A client using the SUPLA app's "email" sign-in generates its own guid and
+    # authkey, which the server logs when it rejects the first attempt. These
+    # are the ones examples/client.py sends.
     server.state.add_client_credentials(
         "email@email.com",
         bytes.fromhex("dddddddd4ad3b8aa3666216f2a864223"),
         bytes.fromhex("cccccccce534d1a706ac5f416719899e"),
     )
 
-    # Clients using the app's "access identifier" sign-in instead present an
-    # access id and password, which can be chosen here
+    # A client using the app's "access identifier" sign-in presents an access
+    # id and password, both chosen here
     server.state.add_access_id(1, "access-id-password")
 
     server.state.add_channel(

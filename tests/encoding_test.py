@@ -85,7 +85,7 @@ class PackedArrayMessage:
 
 @dataclass
 class PackedArrayWithFieldOffsetMessage:
-    # size for y is before x
+    # Size for y is before x
     x: int = field(metadata=c_int32())
     y: list[Int32Message] = field(
         metadata=c_packed_array(

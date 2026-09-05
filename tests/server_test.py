@@ -382,25 +382,25 @@ async def register_client(
     )
     await stream.send(Packet(proto.Call.CS_REGISTER_CLIENT_D, encoding.encode(call)))
 
-    # register response
+    # Register response
     packet = await stream.recv()
     assert packet.call_id == proto.Call.SC_REGISTER_CLIENT_RESULT_D
     result, _ = encoding.decode(proto.TSC_RegisterClientResult_D, packet.data)
     assert result.result_code == proto.ResultCode.TRUE
     client_id = result.client_id
 
-    # location update
+    # Location update
     packet = await stream.recv()
     assert packet.call_id == proto.Call.SC_LOCATIONPACK_UPDATE
     location_pack, _ = encoding.decode(proto.TSC_LocationPack, packet.data)
 
-    # get channels
+    # Get channels
     channel_packs: list[proto.TSC_ChannelPack_E] = []
     while True:
-        # send get next
+        # Send get next
         await stream.send(Packet(proto.Call.CS_GET_NEXT))
 
-        # channel update
+        # Channel update
         packet = await stream.recv()
         assert packet.call_id == proto.Call.SC_CHANNELPACK_UPDATE_E
         channel_pack, _ = encoding.decode(proto.TSC_ChannelPack_E, packet.data)
@@ -408,17 +408,17 @@ async def register_client(
         if channel_pack.total_left == 0:
             break
 
-    # send get next
+    # Send get next
     await stream.send(Packet(proto.Call.CS_GET_NEXT))
 
-    # channel relations update
+    # Channel relations update
     packet = await stream.recv()
     assert packet.call_id == proto.Call.SC_CHANNEL_RELATION_PACK_UPDATE
 
-    # send get next
+    # Send get next
     await stream.send(Packet(proto.Call.CS_GET_NEXT))
 
-    # scene update
+    # Scene update
     packet = await stream.recv()
     assert packet.call_id == proto.Call.SC_SCENE_PACK_UPDATE
     scene_pack, _ = encoding.decode(proto.TSC_ScenePack, packet.data)
@@ -437,8 +437,7 @@ async def ping(stream: PacketStream) -> None:
 
 
 def test_state_guid_lookup() -> None:
-    # devices and clients are keyed by guid; check the lookups round-trip
-    # and that distinct guids stay distinct
+    # Devices and clients are keyed by guid
     server_state = state.ServerState()
 
     device_id = server_state.add_device("device-1", device_guid[1])
@@ -451,7 +450,7 @@ def test_state_guid_lookup() -> None:
     client_guid = b"\x01" + b"\x00" * 15
     other_client_guid = b"\x02" + b"\x00" * 15
     client_id = server_state.add_client(client_guid)
-    # re-registering with the same guid returns the existing client
+    # Re-registering with the same guid returns the existing client
     assert server_state.add_client(client_guid) == client_id
     assert server_state.add_client(other_client_guid) != client_id
 
@@ -465,19 +464,19 @@ def test_state_client_credentials() -> None:
         "Client@Example.com ", guid, authkey
     )
 
-    # a configured client keeps its id when it registers
+    # A configured client keeps its id when it registers
     assert server_state.add_client(guid) == client_id
-    # and a dynamically created one gets a distinct id
+    # A client created at registration gets a distinct id
     assert server_state.add_client(b"\x03" + b"\x00" * 15) != client_id
 
     assert server_state.check_client_credentials(guid, "client@example.com", authkey)
-    # the email is matched case insensitively, ignoring surrounding whitespace
+    # The email is matched case insensitively, ignoring surrounding whitespace
     assert server_state.check_client_credentials(guid, " Client@Example.COM", authkey)
     assert not server_state.check_client_credentials(guid, "other@example.com", authkey)
     assert not server_state.check_client_credentials(
         guid, "client@example.com", b"\xff" * 16
     )
-    # a guid that was never configured is not in the allowlist at all
+    # An unconfigured guid is absent from the allowlist
     with pytest.raises(KeyError):
         server_state.check_client_credentials(
             b"\x03" + b"\x00" * 15, "client@example.com", authkey
@@ -501,8 +500,7 @@ def test_state_device_authkey() -> None:
 
 
 def test_auth_is_off_by_default() -> None:
-    # Note: authentication is opt-in, so a configuration written for an earlier
-    # version keeps working unchanged
+    # Note: authentication is opt-in
     server = Server(
         listen_host="127.0.0.1",
         host="127.0.0.1",
@@ -521,7 +519,7 @@ def test_auth_is_off_by_default() -> None:
 
 @pytest.mark.asyncio
 async def test_start_rejects_device_without_authkey() -> None:
-    # a device with no authkey could never register, so starting must fail
+    # A device with no authkey can never register, so start() must fail
     server = make_server(device_auth=True, with_authkeys=False)
     with pytest.raises(ValueError, match="device 'device-1' has no authkey"):
         await server.start()
@@ -530,7 +528,7 @@ async def test_start_rejects_device_without_authkey() -> None:
 @pytest.mark.asyncio
 @pytest.mark.parametrize("with_authkeys", [True, False])
 async def test_start_without_device_auth(with_authkeys: bool) -> None:
-    # without device auth the authkeys are not needed, or checked
+    # Without device auth the authkeys are unused
     server = make_server(device_auth=False, with_authkeys=with_authkeys)
     await server.start()
     await server.stop()
@@ -656,8 +654,7 @@ async def test_register_device_wrong_authkey(
         call = register_device_message(1)
         call.authkey = b"\xff" * 16
         await do_register_device_invalid(stream, call, proto.ResultCode.BAD_CREDENTIALS)
-    # Note: unlike a client's, the authkey a device sent is not logged -- it is
-    # configured on the server, so there is nothing to learn from it
+    # Note: the device authkey is configured on the server, so it is not logged
     assert (
         "incorrect authkey for device with guid 01000000000000000000000000000000"
         in caplog.text
@@ -668,7 +665,7 @@ async def test_register_device_wrong_authkey(
 @pytest.mark.asyncio
 @pytest.mark.parametrize("authkey", [b"\x00" * 16, b"\xff" * 16])
 async def test_register_device_without_device_auth(authkey: bytes) -> None:
-    # with device auth off the authkey is ignored, empty or not
+    # With device auth off the authkey is ignored, empty or not
     server = make_server(device_auth=False)
     await server.start()
     try:
@@ -688,7 +685,7 @@ async def test_register_device_without_device_auth(authkey: bytes) -> None:
 
 @pytest.mark.asyncio
 async def test_register_device_without_device_auth_still_checks_guid() -> None:
-    # the guid must still be one of the configured devices
+    # The guid must still be one of the configured devices
     server = make_server(device_auth=False)
     await server.start()
     try:
@@ -704,7 +701,7 @@ async def test_register_device_without_device_auth_still_checks_guid() -> None:
 
 @pytest.mark.asyncio
 async def test_register_device_failure_delay() -> None:
-    # a failed registration is held open before the connection is closed
+    # A failed registration is held open before the connection is closed
     delay = 0.5
     server = make_server()
     server._auth_failure_delay = delay  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
@@ -718,7 +715,7 @@ async def test_register_device_failure_delay() -> None:
                 Packet(proto.Call.DS_REGISTER_DEVICE_E, encoding.encode(call))
             )
 
-            # the result is sent immediately; the wait is before the close
+            # The result is sent immediately, and the wait precedes the close
             packet = await stream.recv()
             assert packet.call_id == proto.Call.SD_REGISTER_DEVICE_RESULT
             assert time.time() - start < delay
@@ -851,14 +848,14 @@ async def test_register_device_twice_replaces_connection(
         async with open_connection(server) as second:
             await register_device(second, 1)
 
-            # the device stays online, now owned by the new connection
+            # The device stays online, owned by the new connection
             assert server.state.get_device(1).online
 
-            # the server terminates the displaced (stale) connection
+            # The displaced connection is terminated
             with pytest.raises(network.NetworkError):
                 await first.recv()
 
-            # the replacement connection is fully functional
+            # The replacement connection is fully functional
             await ping(second)
 
     assert "device[device-1] registered" in caplog.text
@@ -877,12 +874,12 @@ async def test_register_client(  # noqa: PLR0915
             client, "Test Client"
         )
 
-        # location update
+        # Location update
         assert len(location_pack.items) == 1
         assert location_pack.items[0].id == 1
         assert location_pack.items[0].caption == "Test"
 
-        # channel update
+        # Channel update
         assert len(channel_packs) == 4
         assert len(channel_packs[0].items) == 5
         assert len(channel_packs[1].items) == 5
@@ -973,7 +970,7 @@ async def test_register_client(  # noqa: PLR0915
         assert channel_packs[1].items[3].user_icon == 732673
         assert channel_packs[1].items[3].default_config_crc32 == 3093446211
 
-        # scene update
+        # Scene update
         if server.state.get_scenes():
             assert len(scene_pack.items) == 3
 
@@ -1013,8 +1010,8 @@ async def test_register_client_events(
 
 @pytest.mark.asyncio
 async def test_registration_never_enabled(server: Server) -> None:
-    # Note: suplalite has no registration window; devices and clients come from
-    # the static config, so registration is never reported as open
+    # Note: devices and clients come from the static config, so registration
+    # is never reported as open
     async with open_connection(server) as stream:
         await stream.send(Packet(proto.Call.DCS_GET_REGISTRATION_ENABLED))
         packet = await stream.recv()
@@ -1046,7 +1043,7 @@ async def do_register_client_invalid(
     assert packet.call_id == proto.Call.SC_REGISTER_CLIENT_RESULT_D
     result, _ = encoding.decode(proto.TSC_RegisterClientResult_D, packet.data)
     assert result.result_code == expected
-    # the counts are only meaningful when the registration succeeded
+    # The counts are only filled in for a successful registration
     assert result.client_id == 0
     assert result.channel_count == 0
 
@@ -1090,7 +1087,7 @@ async def test_register_client_unknown_guid(
             stream, call, proto.ResultCode.REGISTRATION_DISABLED
         )
 
-    # the rejection tells the operator how to allow the client
+    # The rejection logs how to allow the client
     assert "client not allowed to register; to allow it, configure" in caplog.text
     assert "add_client_credentials(" in caplog.text
     assert repr(client_email) in caplog.text
@@ -1138,7 +1135,7 @@ async def test_register_client_email_is_case_insensitive(server: Server) -> None
 
 @pytest.mark.asyncio
 async def test_register_client_without_client_auth() -> None:
-    # any client is accepted, and gets an id after the configured ones
+    # Any client is accepted, and gets an id after the configured ones
     server = make_server(client_auth=False)
     await server.start()
     try:
@@ -1208,16 +1205,16 @@ async def test_register_client_access_id(
             Packet(proto.Call.CS_REGISTER_CLIENT_B, encoding.encode(call))
         )
 
-        # the result comes back as the newest variant, whatever call was used
+        # The result comes back as the newest variant, whatever call was used
         packet = await stream.recv()
         assert packet.call_id == proto.Call.SC_REGISTER_CLIENT_RESULT_D
         result, _ = encoding.decode(proto.TSC_RegisterClientResult_D, packet.data)
         assert result.result_code == proto.ResultCode.TRUE
-        # this client was not configured, so it is created on registration
+        # An unconfigured client is created on registration
         assert result.client_id > len(client_names)
         assert result.channel_count == len(server.state.get_channels())
 
-        # and it is served like any other client
+        # The client is served like any other
         packet = await stream.recv()
         assert packet.call_id == proto.Call.SC_LOCATIONPACK_UPDATE
 
@@ -1261,9 +1258,8 @@ async def test_register_client_access_id_wrong_password(
         await do_register_client_access_id_invalid(
             stream, call, proto.ResultCode.BAD_CREDENTIALS
         )
-    # Note: the rejection does not log the password, though a REQUEST event
-    # handler that logs whole messages -- as tests/device_test.py registers --
-    # would see it
+    # Note: the rejection omits the password, which a REQUEST event handler
+    # logging whole messages would still see
     assert f"incorrect password for access id {access_id}" in caplog.text
     assert "error; closing connection" in caplog.text
 
@@ -1289,8 +1285,7 @@ async def test_register_client_access_id_without_client_auth() -> None:
 
 @pytest.mark.asyncio
 async def test_register_client_access_id_then_email(server: Server) -> None:
-    # a client created by registering with an access id is not thereby allowed
-    # to register in email mode
+    # Registering with an access id does not allow email mode
     name = "access-id client"
     async with open_connection(server) as stream:
         call = register_client_access_id_message(name)
@@ -1320,14 +1315,14 @@ async def test_register_client_twice_replaces_connection(
         async with open_connection(server) as second:
             await register_client(second, "test")
 
-            # the client stays online, now owned by the new connection
+            # The client stays online, now owned by the new connection
             assert server.state.get_client(client_id).online
 
-            # the server terminates the displaced (stale) connection
+            # The server terminates the displaced (stale) connection
             with pytest.raises(network.NetworkError):
                 await first.recv()
 
-            # the replacement connection is fully functional
+            # The replacement connection is fully functional
             await ping(second)
 
     assert "client[test] registered" in caplog.text
@@ -1340,8 +1335,7 @@ def fail_event_handlers_for(
     event_context: EventContext,
     event_id: EventId | None = None,
 ) -> None:
-    # Make event dispatch raise outside of the per-handler try, as it would if
-    # the dispatch code itself failed
+    # Make event dispatch raise outside the per-handler try
     original = Server.get_event_handlers
 
     def get_event_handlers(
@@ -1364,9 +1358,8 @@ async def test_connection_event_failure_closes_connection(
 
         fail_event_handlers_for(monkeypatch, EventContext.DEVICE)
 
-        # the value change is fanned back out to the device, whose event task
-        # then fails; the connection must be closed rather than left serving
-        # calls with a dead event task
+        # The value change is fanned back out to the device, failing its event
+        # task and closing the connection
         await stream.send(
             Packet(
                 proto.Call.DS_DEVICE_CHANNEL_VALUE_CHANGED,
@@ -1394,7 +1387,7 @@ async def test_server_event_loop_survives_dispatch_failure(
         await asyncio.sleep(0.5)
         assert "event dispatch failed" in caplog.text
 
-        # the event loop keeps running; later events are still dispatched
+        # The event loop keeps running, and later events are dispatched
         async with open_client(server, "test"):
             await asyncio.sleep(0.5)
             assert "[server-test] CLIENT_CONNECTED 1" in caplog.text
@@ -1402,8 +1395,7 @@ async def test_server_event_loop_survives_dispatch_failure(
 
 def time_out_first_wait_for_connections(monkeypatch: pytest.MonkeyPatch) -> None:
     # Make the first of stop()'s waits report that connections are still open.
-    # Waiting for a real timeout to expire instead would leave the test racing
-    # the connection it wants to still be there when the wait gives up.
+    # A real timeout would race the connection under test.
     original = Server._wait_for_connections  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
     waited = False
 
@@ -1433,14 +1425,11 @@ async def test_stop_closes_open_connections(
     async with open_connection(server, secure=False) as stream:
         await register_device(stream, 1)
 
-        # the device is idle but still connected, so stop() has to close it
-        # itself rather than wait for it; the second wait is the real one and
-        # has to see the connection go away
+        # The device is idle but still connected, so stop() closes it
         await server.stop(timeout=0.5)
 
-    # Note: assert out here rather than straight after stop(); on Python 3.11
-    # coverage does not trace the statements that follow it in the same
-    # coroutine, which fails the coverage gate even though the test passes
+    # Note: assert out here, as Python 3.11 coverage stops tracing the
+    # statements after stop() in the same coroutine
     assert "timed out waiting for connections to close" in caplog.text
     assert "connections still open" not in caplog.text
     assert "timed out waiting for connection handlers" not in caplog.text
@@ -1451,11 +1440,8 @@ async def test_stop_closes_open_connections(
 async def test_stop_continues_if_connections_do_not_close(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    # a connection that has not gone by the time the waits give up must not
-    # block shutdown forever. A zero timeout gives every wait no time at all,
-    # so the shutdown takes the give-up path whatever the connection does --
-    # and whether or not asyncio.Server.wait_closed() waits for the connection
-    # handlers, which it only does from Python 3.12.1 onwards.
+    # An open connection must not block shutdown forever. A zero timeout takes
+    # every wait down the give-up path on any Python version.
     server = make_server()
     await server.start()
 
@@ -1464,7 +1450,7 @@ async def test_stop_continues_if_connections_do_not_close(
 
         await server.stop(timeout=0)
 
-    # let the connection, which outlived the server, finish tearing down
+    # Let the connection, which outlived the server, finish tearing down
     await asyncio.sleep(0.1)
 
     assert "timed out waiting for connections to close" in caplog.text
@@ -1484,9 +1470,8 @@ async def test_stop_stops_accepting_connections(
     async with open_connection(server, secure=False) as stream:
         await register_device(stream, 1)
 
-        # the listening sockets are closed before the connections are waited
-        # on, so a peer reconnecting during shutdown is refused rather than
-        # accepted and left open once the existing connections are closed
+        # The listening sockets close before the connections are waited on, so
+        # a peer reconnecting during shutdown is refused
         stop = asyncio.create_task(server.stop(timeout=0.5))
         await asyncio.sleep(0.1)
         with pytest.raises(ConnectionRefusedError):
@@ -1498,8 +1483,7 @@ async def test_stop_stops_accepting_connections(
 
 @pytest.mark.asyncio
 async def test_close_connection_before_it_serves(server: Server) -> None:
-    # a connection closed before it starts serving -- e.g. one still in the
-    # TLS handshake when the server is stopped -- has no call task to cancel
+    # A connection still in the TLS handshake has no call task to cancel
     reader, writer = await asyncio.open_connection("127.0.0.1", server.port)
     try:
         connection = ServerConnection(server, reader, writer)
@@ -1519,7 +1503,7 @@ async def test_client_get_channel_state(server: Server) -> None:
         channel_id = 2
         channel_number = 1  # index in the device's channels
 
-        # client calls get_channel_state
+        # Client calls get_channel_state
         call = proto.TCS_ChannelStateRequest(
             sender_id=client.client_id, channel_id=channel_id
         )
@@ -1527,14 +1511,14 @@ async def test_client_get_channel_state(server: Server) -> None:
             Packet(proto.Call.CSD_GET_CHANNEL_STATE, encoding.encode(call))
         )
 
-        # device receives get channel state
+        # Device receives get channel state
         packet = await device.stream.recv()
         assert packet.call_id == proto.Call.CSD_GET_CHANNEL_STATE
         device_request, _ = encoding.decode(proto.TSD_ChannelStateRequest, packet.data)
         assert device_request.sender_id == client.client_id
         assert device_request.channel_number == channel_number
 
-        # device sends channel state result
+        # Device sends channel state result
         device_response = proto.TDS_ChannelState(
             receiver_id=device_request.sender_id,
             channel_number=1,
@@ -1562,7 +1546,7 @@ async def test_client_get_channel_state(server: Server) -> None:
             )
         )
 
-        # client receives channel state result
+        # Client receives channel state result
         packet = await client.stream.recv()
         assert packet.call_id == proto.Call.DSC_CHANNEL_STATE_RESULT
         client_response, _ = encoding.decode(proto.TSC_ChannelState, packet.data)
@@ -1599,7 +1583,7 @@ async def test_client_get_channel_state_invalid_channel(
 async def test_client_get_channel_state_offline_device(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
-    # device is not connected, so its channels are offline
+    # Device is not connected, so its channels are offline
     async with open_client(server, "test") as client:
         channel = server.state.get_channel(2)
         await client.stream.send(
@@ -1855,7 +1839,7 @@ async def test_device_activity_timeout_preserved_across_registration(
     server: Server,
 ) -> None:
     async with open_connection(server) as stream:
-        # negotiate the activity timeout before registering
+        # Negotiate the activity timeout before registering
         await stream.send(
             Packet(
                 proto.Call.DCS_SET_ACTIVITY_TIMEOUT,
@@ -1867,7 +1851,7 @@ async def test_device_activity_timeout_preserved_across_registration(
 
         await register_device(stream, 1)
 
-        # round-trip a ping so the server has applied the post-registration
+        # Round-trip a ping so the server has applied the post-registration
         # context swap before we inspect it
         await stream.send(Packet(proto.Call.DCS_PING_SERVER))
         packet = await stream.recv()
@@ -1882,7 +1866,7 @@ async def test_client_activity_timeout_preserved_across_registration(
     server: Server,
 ) -> None:
     async with open_connection(server) as stream:
-        # negotiate the activity timeout before registering
+        # Negotiate the activity timeout before registering
         await stream.send(
             Packet(
                 proto.Call.DCS_SET_ACTIVITY_TIMEOUT,
@@ -1953,7 +1937,7 @@ async def do_execute_action(
         Packet(proto.Call.CS_EXECUTE_ACTION, encoding.encode(action))
     )
 
-    # client receives result
+    # Client receives result
     packet = await client.stream.recv()
     assert packet.call_id == proto.Call.SC_ACTION_EXECUTION_RESULT
     result, _ = encoding.decode(proto.TSC_ActionExecutionResult, packet.data)
@@ -1964,7 +1948,7 @@ async def do_execute_action(
         subject_type=action.subject_type,
     )
 
-    # device receives set value
+    # Device receives set value
     for expected_channel_number, expected_value in expectation:
         packet = await device.stream.recv()
         assert packet.call_id == proto.Call.SD_CHANNEL_SET_VALUE
@@ -2362,7 +2346,7 @@ async def do_set_value(
 ) -> None:
     await client.stream.send(Packet(proto.Call.CS_SET_VALUE, encoding.encode(value)))
 
-    # device receives set value
+    # Device receives set value
     packet = await device.stream.recv()
     assert packet.call_id == proto.Call.SD_CHANNEL_SET_VALUE
     msg, _ = encoding.decode(proto.TSD_ChannelNewValue, packet.data)
@@ -2645,7 +2629,7 @@ async def test_client_get_channel_config_invalid_channel_id(
 @pytest.mark.asyncio
 async def test_calcfg(server: Server, caplog: pytest.LogCaptureFixture) -> None:
     async with open_device(server, 1) as device, open_client(server, "test") as client:
-        # client sends config request
+        # Client sends config request
         await client.stream.send(
             Packet(
                 proto.Call.CS_DEVICE_CALCFG_REQUEST_B,
@@ -2661,7 +2645,7 @@ async def test_calcfg(server: Server, caplog: pytest.LogCaptureFixture) -> None:
             )
         )
 
-        # device receives config request
+        # Device receives config request
         packet = await device.stream.recv()
         assert packet.call_id == proto.Call.SD_DEVICE_CALCFG_REQUEST
         msg, _ = encoding.decode(proto.TSD_DeviceCalCfgRequest, packet.data)
@@ -2674,7 +2658,7 @@ async def test_calcfg(server: Server, caplog: pytest.LogCaptureFixture) -> None:
             data=b"foobar",
         )
 
-        # device sends config response
+        # Device sends config response
         await device.stream.send(
             Packet(
                 proto.Call.DS_DEVICE_CALCFG_RESULT,
@@ -2690,7 +2674,7 @@ async def test_calcfg(server: Server, caplog: pytest.LogCaptureFixture) -> None:
             )
         )
 
-        # client receives config response
+        # Client receives config response
         packet = await client.stream.recv()
         assert packet.call_id == proto.Call.SC_DEVICE_CALCFG_RESULT
         result, _ = encoding.decode(proto.TSC_DeviceCalCfgResult, packet.data)
@@ -2714,7 +2698,7 @@ async def test_calcfg_invalid_channel(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
     async with open_device(server, 1), open_client(server, "test") as client:
-        # client sends config request
+        # Client sends config request
         await client.stream.send(
             Packet(
                 proto.Call.CS_DEVICE_CALCFG_REQUEST_B,
@@ -2743,7 +2727,7 @@ async def test_calcfg_result_invalid_client(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
     async with open_device(server, 1) as device:
-        # device sends config response
+        # Device sends config response
         await device.stream.send(
             Packet(
                 proto.Call.DS_DEVICE_CALCFG_RESULT,
@@ -2773,7 +2757,7 @@ async def test_calcfg_result_invalid_channel_number(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
     async with open_client(server, "test"), open_device(server, 1) as device:
-        # device sends config response
+        # Device sends config response
         await device.stream.send(
             Packet(
                 proto.Call.DS_DEVICE_CALCFG_RESULT,
@@ -2857,7 +2841,7 @@ async def test_dimmer_off_on_preserves_brightness(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
     async with open_device(server, 2) as device, open_client(server, "test") as client:
-        # set brightness = 50
+        # Set brightness = 50
         await do_set_value(
             client,
             device,
@@ -2869,7 +2853,7 @@ async def test_dimmer_off_on_preserves_brightness(
             0,
         )
 
-        # turn off
+        # Turn off
         await do_execute_action(
             client,
             device,
@@ -2882,7 +2866,7 @@ async def test_dimmer_off_on_preserves_brightness(
             [(0, b"\x00\x00\x00\x00\x00\x00\x00\x00")],
         )
 
-        # turn on
+        # Turn on
         await do_execute_action(
             client,
             device,
@@ -2901,7 +2885,7 @@ async def test_dimmer_initial_on_sets_full_brightness(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
     async with open_device(server, 2) as device, open_client(server, "test") as client:
-        # turn on
+        # Turn on
         await do_execute_action(
             client,
             device,
@@ -2920,7 +2904,7 @@ async def test_dimmer_already_on_preserves_brightness(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
     async with open_device(server, 2) as device, open_client(server, "test") as client:
-        # set brightness = 50
+        # Set brightness = 50
         await do_set_value(
             client,
             device,
@@ -2932,7 +2916,7 @@ async def test_dimmer_already_on_preserves_brightness(
             0,
         )
 
-        # turn on
+        # Turn on
         await do_execute_action(
             client,
             device,
@@ -2951,7 +2935,7 @@ async def test_rgb_dimmer_off_on_preserves_brightness_and_color(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
     async with open_device(server, 5) as device, open_client(server, "test") as client:
-        # set colorBrightness=50, purple (r=128, g=64, b=192), onOff=False
+        # Set colorBrightness=50, purple (r=128, g=64, b=192), onOff=False
         await do_set_value(
             client,
             device,
@@ -2963,7 +2947,7 @@ async def test_rgb_dimmer_off_on_preserves_brightness_and_color(
             6,
         )
 
-        # turn off (colorBrightness=0, color unchanged, onOff=True)
+        # Turn off (colorBrightness=0, color unchanged, onOff=True)
         await do_execute_action(
             client,
             device,
@@ -2976,7 +2960,7 @@ async def test_rgb_dimmer_off_on_preserves_brightness_and_color(
             [(6, b"\x00\x00\xc0\x40\x80\x01\x00\x00")],
         )
 
-        # turn on (colorBrightness=50, color unchanged, onOff=True)
+        # Turn on (colorBrightness=50, color unchanged, onOff=True)
         await do_execute_action(
             client,
             device,
@@ -2995,7 +2979,7 @@ async def test_rgb_dimmer_initial_on_sets_full_brightness_and_white(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
     async with open_device(server, 5) as device, open_client(server, "test") as client:
-        # turn on
+        # Turn on
         await do_execute_action(
             client,
             device,
@@ -3014,7 +2998,7 @@ async def test_rgb_dimmer_already_on_preserves_brightness_and_color(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
     async with open_device(server, 5) as device, open_client(server, "test") as client:
-        # set colorBrightness=50, purple (r=128, g=64, b=192)
+        # Set colorBrightness=50, purple (r=128, g=64, b=192)
         await do_set_value(
             client,
             device,
@@ -3026,7 +3010,7 @@ async def test_rgb_dimmer_already_on_preserves_brightness_and_color(
             6,
         )
 
-        # turn on
+        # Turn on
         await do_execute_action(
             client,
             device,
@@ -3045,7 +3029,7 @@ async def test_rgbw_dimmer_off_on_preserves_brightness_and_color(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
     async with open_device(server, 5) as device, open_client(server, "test") as client:
-        # set brightness=20, colorBrightness=50, r=128, g=64, b=192, onOff=False
+        # Set brightness=20, colorBrightness=50, r=128, g=64, b=192, onOff=False
         await do_set_value(
             client,
             device,
@@ -3057,7 +3041,7 @@ async def test_rgbw_dimmer_off_on_preserves_brightness_and_color(
             7,
         )
 
-        # turn off (brightness=0, colorBrightness=0, color unchanged, onOff=True)
+        # Turn off (brightness=0, colorBrightness=0, color unchanged, onOff=True)
         await do_execute_action(
             client,
             device,
@@ -3070,7 +3054,7 @@ async def test_rgbw_dimmer_off_on_preserves_brightness_and_color(
             [(7, b"\x00\x00\xc0\x40\x80\x01\x00\x00")],
         )
 
-        # turn on (brightness=20, colorBrightness=50, color unchanged, onOff=True)
+        # Turn on (brightness=20, colorBrightness=50, color unchanged, onOff=True)
         await do_execute_action(
             client,
             device,
@@ -3089,7 +3073,7 @@ async def test_rgbw_dimmer_initial_on_sets_full_brightness_and_white(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
     async with open_device(server, 5) as device, open_client(server, "test") as client:
-        # turn on with no previous value: brightness=100, colorBrightness=100
+        # Turn on with no previous value: brightness=100, colorBrightness=100
         await do_execute_action(
             client,
             device,
@@ -3108,7 +3092,7 @@ async def test_rgbw_dimmer_already_on_preserves_brightness_and_color(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
     async with open_device(server, 5) as device, open_client(server, "test") as client:
-        # set brightness=20, colorBrightness=50, purple (r=128, g=64, b=192)
+        # Set brightness=20, colorBrightness=50, purple (r=128, g=64, b=192)
         await do_set_value(
             client,
             device,
@@ -3120,7 +3104,7 @@ async def test_rgbw_dimmer_already_on_preserves_brightness_and_color(
             7,
         )
 
-        # turn on
+        # Turn on
         await do_execute_action(
             client,
             device,
