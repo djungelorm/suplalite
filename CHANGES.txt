@@ -1,0 +1,58 @@
+v2.0.0
+ - Add opt-in authentication for devices and clients, using
+   Server(device_auth=True, client_auth=True). Both default to off
+ - Add client sign in with an access identifier, alongside email sign in
+ - Hold a failed registration open for auth_failure_delay seconds
+ - Breaking: add_device takes the authkey as its third argument, and takes
+   manufacturer_id and product_id as keyword arguments
+ - Breaking: Server takes certfile and keyfile as Path objects
+ - Breaking: Remove support for Python 3.10
+ - Add RGBW dimmer channel
+ - Replace the existing connection when a device or client registers again,
+   instead of rejecting the new registration
+ - Server.stop() takes a timeout, and closes the connections that outlast it
+ - Devices time out registration, and shut down when a background task fails
+ - Fix a client closing its own connection by asking for an unknown channel
+ - Fix the success value reported when a device sets a channel value
+ - Fix field types in the protocol definitions
+
+v1.1.1
+ - Fix setting dimmer brightness
+
+v1.1.0
+ - Add dimmer and RGB dimmer channels
+ - Fix the value returned when setting a general purpose measurement
+ - Fix temperature and humidity readings that are unavailable
+
+v1.0.0
+ - Send channel relations to clients
+ - Send channels and scenes in batches as the client asks for them, in a
+   stable order
+ - Increase the default activity timeout
+ - Make info level logging less verbose
+
+v0.5.0
+ - Fix channel value changed events firing twice
+
+v0.4.0
+ - Add scenes, including setting dimmer brightness from a scene
+ - Fix empty batches
+
+v0.3.1
+ - Set the proto version of a device to the minimum its channels require
+
+v0.3.0
+ - Add REQUEST and RESPONSE server events
+ - Encode and decode channel values through the channel classes
+ - Make device on_change handlers async
+
+v0.2.0
+ - Add support for custom icons
+ - Add ServerState.get_channel_by_name
+ - Allow passing extra arguments to events
+ - Persist dimmer brightness when a channel is toggled off then on
+ - Fix channel flags and enum types in the protocol definitions
+ - Fix the server not removing a device when its call handler raises
+
+v0.1.0
+ - Initial version
