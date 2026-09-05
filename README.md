@@ -42,6 +42,9 @@ Everything allowed to connect is listed in the static configuration. An unconfig
 peer is rejected with `REGISTRATION_DISABLED`, and a wrong credential with
 `BAD_CREDENTIALS`.
 
+Registration is accepted on both device ports. A device registering on the plain port
+sends its AuthKey in the clear, so use the TLS port on an untrusted network.
+
 #### Devices
 
 A device authenticates with the GUID and AuthKey you give to `state.add_device()`:
