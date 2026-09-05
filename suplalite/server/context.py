@@ -45,11 +45,15 @@ class ConnectionContext(BaseContext):
         events: EventQueue,
         name: str,
         conn: Connection,
-        activity_timeout: int = proto.ACTIVITY_TIMEOUT_DEFAULT,
+        activity_timeout: int | None = None,
         error: bool = False,
     ) -> None:
         super().__init__(server, events, name)
         self.conn = conn
+        # Note: read the default here rather than as a parameter default, which
+        # would bind proto.ACTIVITY_TIMEOUT_DEFAULT at import time
+        if activity_timeout is None:
+            activity_timeout = proto.ACTIVITY_TIMEOUT_DEFAULT
         self.activity_timeout = activity_timeout
         self.error = error
 
