@@ -26,12 +26,12 @@ dev = [
     "hatch-vcs",
     "hatchling",
     "pre-commit",
-    "pyright==1.1.410",
+    "pyright==1.1.411",
     "pytest",
     "pytest-asyncio",
     "pytest-cov",
     "pytest-xdist",
-    "ruff==0.15.15",
+    "ruff==0.16.6",
 ]
 
 [tool.hatch.version]
@@ -69,6 +69,7 @@ ignore = [
     "ARG001", # Unused function argument
     "ARG002", # Unused method argument
     "COM812", # trailing comma (conflicts with formatter)
+    "CPY001", # copyright notice in every file
     "D100", # module docstrings
     "D101", # class docstrings
     "D102", # method docstrings
@@ -84,6 +85,7 @@ ignore = [
     "FIX001", # FIXMEs
     "FIX002", # TODOs
     "PLR0913", # too many arguments
+    "PLR0917", # too many positional arguments
     "PLR2004", # magic constants
     "S101", # use of assert
     "TC001", # place typing imports in type-check block
