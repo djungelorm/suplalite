@@ -849,6 +849,97 @@ async def test_client_get_channel_state(server: Server) -> None:
 
 
 @pytest.mark.asyncio
+async def test_client_get_channel_state_invalid_channel(
+    server: Server, caplog: pytest.LogCaptureFixture
+) -> None:
+    async with open_device(server, 1), open_client(server, "test") as client:
+        await client.stream.send(
+            Packet(
+                proto.Call.CSD_GET_CHANNEL_STATE,
+                encoding.encode(
+                    proto.TCS_ChannelStateRequest(
+                        sender_id=client.client_id, channel_id=42
+                    )
+                ),
+            )
+        )
+        await asyncio.sleep(0.5)
+
+    assert "client[test] handle call Call.CSD_GET_CHANNEL_STATE" in caplog.text
+    assert (
+        "client[test] failed to get channel state; channel id 42 does not exist"
+        in caplog.text
+    )
+
+
+@pytest.mark.asyncio
+async def test_client_get_channel_state_offline_device(
+    server: Server, caplog: pytest.LogCaptureFixture
+) -> None:
+    # device is not connected, so its channels are offline
+    async with open_client(server, "test") as client:
+        channel = server.state.get_channel(2)
+        await client.stream.send(
+            Packet(
+                proto.Call.CSD_GET_CHANNEL_STATE,
+                encoding.encode(
+                    proto.TCS_ChannelStateRequest(
+                        sender_id=client.client_id, channel_id=2
+                    )
+                ),
+            )
+        )
+        await asyncio.sleep(0.5)
+
+    assert "client[test] handle call Call.CSD_GET_CHANNEL_STATE" in caplog.text
+    assert (
+        f"client[test] failed to get channel state; device {channel.device_id}"
+        " is offline" in caplog.text
+    )
+
+
+@pytest.mark.asyncio
+async def test_channel_state_result_invalid_channel_number(
+    server: Server, caplog: pytest.LogCaptureFixture
+) -> None:
+    async with open_client(server, "test") as client, open_device(server, 1) as device:
+        await device.stream.send(
+            Packet(
+                proto.Call.DSC_CHANNEL_STATE_RESULT,
+                encoding.encode(
+                    proto.TDS_ChannelState(
+                        receiver_id=client.client_id,
+                        channel_number=42,
+                        fields=proto.ChannelStateField.MAC,
+                        default_icon_field=0,
+                        ipv4=0,
+                        mac=b"\x01\x02\x03\x04\x05\x06",
+                        battery_level=0,
+                        battery_powered=False,
+                        wifi_rssi=0,
+                        wifi_signal_strength=0,
+                        bridge_node_online=False,
+                        bridge_node_signal_strength=0,
+                        uptime=0,
+                        connected_uptime=0,
+                        battery_health=0,
+                        last_connection_reset_cause=0,
+                        light_source_lifespan=0,
+                        light_source_operating_time=0,
+                    )
+                ),
+            )
+        )
+        await asyncio.sleep(0.5)
+
+    assert "device[device-1] handle call Call.DSC_CHANNEL_STATE_RESULT" in caplog.text
+    assert (
+        "device[device-1] failed channel state result; channel number 42"
+        " does not exist" in caplog.text
+    )
+
+
+@pytest.mark.asyncio
 async def test_client_get_all_icons(server: Server) -> None:
     url = f"https://{server.host}:{server.api_port}/api/2.2.0/user-icons"
     async with (

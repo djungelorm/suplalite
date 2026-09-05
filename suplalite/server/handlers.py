@@ -833,8 +833,22 @@ async def client_get_channel_config(
 async def client_get_channel_state(
     context: ClientContext, msg: proto.TCS_ChannelStateRequest
 ) -> None:
-    channel = context.server.state.get_channel(msg.channel_id)
-    events = context.server.state.get_device_events(channel.device_id)
+    try:
+        channel = context.server.state.get_channel(msg.channel_id)
+    except KeyError:
+        context.log(
+            f"failed to get channel state; channel id {msg.channel_id} does not exist",
+            level=logging.ERROR,
+        )
+        return
+    try:
+        events = context.server.state.get_device_events(channel.device_id)
+    except KeyError:
+        context.log(
+            f"failed to get channel state; device {channel.device_id} is offline",
+            level=logging.ERROR,
+        )
+        return
     # Note: sender id appears to always be set to 0. It's not the client id,
     # so instead we use the client id from the context
     await events.add(EventId.GET_CHANNEL_STATE, (context.client_id, msg.channel_id))
@@ -863,6 +877,13 @@ async def device_channel_state_result(
         context.log(f"client id {msg.receiver_id} not found")
         return
     device = context.server.state.get_device(context.device_id)
+    if msg.channel_number >= len(device.channel_ids):
+        context.log(
+            f"failed channel state result; channel number {msg.channel_number}"
+            " does not exist",
+            level=logging.ERROR,
+        )
+        return
     channel_id = device.channel_ids[msg.channel_number]
     await events.add(EventId.CHANNEL_STATE_RESULT, (msg, channel_id))
 
