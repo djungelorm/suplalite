@@ -276,6 +276,23 @@ def test_channel_state() -> None:
     )
 
 
+def test_rgb_dimmer_channel_value_command_defaults_to_not_set() -> None:
+    msg = proto.TRGBDimmerChannel_Value(
+        brightness=100,
+        color_brightness=50,
+        r=1,
+        g=2,
+        b=3,
+        on_off=True,
+    )
+    assert msg.command == proto.RGBW_COMMAND_NOT_SET
+    data = encoding.encode(msg)
+    assert data == b"\x64\x32\x03\x02\x01\x01\x00\x00"
+    decoded, size = encoding.decode(proto.TRGBDimmerChannel_Value, data)
+    assert size == 8
+    assert str(decoded) == str(msg)
+
+
 def test_data_packet() -> None:
     msg = proto.DataPacket(
         19,

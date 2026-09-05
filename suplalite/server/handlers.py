@@ -639,7 +639,6 @@ def execute_rgbw_action(
                 g=0,
                 b=0,
                 on_off=True,
-                command=0,
             )
         )
         message, _ = encoding.decode(proto.TRGBDimmerChannel_Value, value)
@@ -655,7 +654,6 @@ def execute_rgbw_action(
                 g=0,
                 b=0,
                 on_off=True,
-                command=0,
             )
         )
         message, _ = encoding.decode(proto.TRGBDimmerChannel_Value, value)
@@ -675,7 +673,6 @@ def execute_rgbw_action(
                 g=(rgbw_params.color >> 8) & 0xFF,
                 b=rgbw_params.color & 0xFF,
                 on_off=rgbw_params.on_off,
-                command=0,
             )
         )
 

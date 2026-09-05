@@ -461,7 +461,6 @@ class RGBDimmer(Channel):
                 g=value[2],
                 b=value[3],
                 on_off=False,
-                command=0,
             )
         )
 
@@ -528,7 +527,6 @@ class RGBWDimmer(Channel):
                 g=value[3],
                 b=value[4],
                 on_off=False,
-                command=0,
             )
         )
 

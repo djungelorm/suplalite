@@ -1017,6 +1017,10 @@ class TDimmerChannel_Value:
     padding: bytes = field(repr=False, init=False, metadata=c_bytes(size=7))
 
 
+# Commands apply only to a channel with ChannelFlag.RGBW_COMMANDS_SUPPORTED
+RGBW_COMMAND_NOT_SET = 0
+
+
 @dataclass
 class TRGBDimmerChannel_Value:
     brightness: int = field(metadata=c_uint8())
@@ -1025,7 +1029,7 @@ class TRGBDimmerChannel_Value:
     g: int = field(metadata=c_uint8())
     r: int = field(metadata=c_uint8())
     on_off: bool = field(metadata=c_uint8())
-    command: int = field(metadata=c_uint8())
+    command: int = field(default=RGBW_COMMAND_NOT_SET, metadata=c_uint8())
     padding: bytes = field(repr=False, init=False, metadata=c_bytes(size=1))
 
 

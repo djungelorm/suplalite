@@ -8,6 +8,7 @@ v2.0.0
  - Breaking: Server takes certfile and keyfile as Path objects
  - Breaking: Remove support for Python 3.10
  - Add RGBW dimmer channel
+ - Default the command field of TRGBDimmerChannel_Value to RGBW_COMMAND_NOT_SET
  - Replace the existing connection when a device or client registers again,
    instead of rejecting the new registration
  - Server.stop() takes a timeout, and closes the connections that outlast it
