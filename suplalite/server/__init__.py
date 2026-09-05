@@ -32,6 +32,10 @@ logger = logging.getLogger("suplalite.server")
 # closing them itself
 STOP_TIMEOUT = 10.0
 
+# How long a connection is held open after a failed registration, before being
+# closed. Matches supla-server's hold_time_on_failure.
+AUTH_FAILURE_DELAY = 2.0
+
 
 class Connection:
     def __init__(
@@ -142,6 +146,13 @@ class Connection:
                         self._context = self._context.replacement
                 if self._context.error:
                     self._context.log("error; closing connection", logging.WARNING)
+                    # Note: supla-server holds a failed registration for
+                    # hold_time_on_failure before dropping the peer. Wait after
+                    # the reply rather than before it (as supla-server does for
+                    # devices, though not for clients) because the handler and
+                    # its reply run under the global state lock -- waiting
+                    # there would stall every other connection.
+                    await asyncio.sleep(self._context.close_delay)
                     break
         except network.NetworkError as exc:
             self._context.log(f"network error: {exc}", logging.ERROR)
@@ -241,6 +252,9 @@ class Server:
         location_name: str,
         email: str,
         password: str,
+        device_auth: bool = True,
+        client_auth: bool = True,
+        auth_failure_delay: float = AUTH_FAILURE_DELAY,
     ) -> None:
 
         self._listen_host = listen_host
@@ -253,6 +267,9 @@ class Server:
         self._location_name = location_name
         self._email = email
         self._password = password
+        self._device_auth = device_auth
+        self._client_auth = client_auth
+        self._auth_failure_delay = auth_failure_delay
 
         # Import here to break cyclic dependency
         from suplalite.server.handlers import (  # noqa: PLC0415
@@ -346,7 +363,20 @@ class Server:
     def events(self) -> EventQueue:
         return self._events
 
+    def _check_config(self) -> None:
+        # A device with no authkey could never register, so say so at start up
+        # rather than silently rejecting it when it first connects
+        if not self._device_auth:
+            return
+        for device in self._state.get_devices().values():
+            if not self._state.has_device_authkey(device.id):
+                raise ValueError(
+                    f"device {device.name!r} has no authkey; set one or "
+                    "construct the server with device_auth=False"
+                )
+
     async def start(self) -> None:
+        self._check_config()
         self._state.server_started()
 
         self._server = await asyncio.start_server(

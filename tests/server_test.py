@@ -490,6 +490,30 @@ def test_state_device_authkey() -> None:
         server_state.check_device_authkey(without_key, authkey)
 
 
+@pytest.mark.asyncio
+async def test_start_rejects_device_without_authkey() -> None:
+    # a device with no authkey could never register, so starting must fail
+    server = make_server(device_auth=True, with_authkeys=False)
+    with pytest.raises(ValueError, match="device 'device-1' has no authkey"):
+        await server.start()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("with_authkeys", [True, False])
+async def test_start_without_device_auth(with_authkeys: bool) -> None:
+    # without device auth the authkeys are not needed, or checked
+    server = make_server(device_auth=False, with_authkeys=with_authkeys)
+    await server.start()
+    await server.stop()
+
+
+@pytest.mark.asyncio
+async def test_start_with_device_auth() -> None:
+    server = make_server(device_auth=True, with_authkeys=True)
+    await server.start()
+    await server.stop()
+
+
 def test_state_access_id() -> None:
     server_state = state.ServerState()
     server_state.add_access_id(42, "access-id-password")

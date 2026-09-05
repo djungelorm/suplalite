@@ -38,6 +38,8 @@ class ConnectionContext(BaseContext):
     activity_timeout: int
     # indicates whether an error occured in a handler
     error: bool
+    # how long to hold the connection open before closing it on error
+    close_delay: float
 
     def __init__(
         self,
@@ -47,6 +49,7 @@ class ConnectionContext(BaseContext):
         conn: Connection,
         activity_timeout: int | None = None,
         error: bool = False,
+        close_delay: float = 0.0,
     ) -> None:
         super().__init__(server, events, name)
         self.conn = conn
@@ -56,6 +59,7 @@ class ConnectionContext(BaseContext):
             activity_timeout = proto.ACTIVITY_TIMEOUT_DEFAULT
         self.activity_timeout = activity_timeout
         self.error = error
+        self.close_delay = close_delay
 
         self._replacement: ClientContext | DeviceContext | None = None
 
@@ -85,6 +89,7 @@ class ClientContext(ConnectionContext):
             context.conn,
             context.activity_timeout,
             context.error,
+            context.close_delay,
         )
         self.guid = guid
         self.client_id = client_id
@@ -103,6 +108,7 @@ class DeviceContext(ConnectionContext):
             context.conn,
             context.activity_timeout,
             context.error,
+            context.close_delay,
         )
         self.guid = guid
         self.device_id = device_id
