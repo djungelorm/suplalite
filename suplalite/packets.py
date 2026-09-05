@@ -129,10 +129,10 @@ class PacketStream:
 
     def _advance_send_rr_id(self) -> None:
         # Increment rr_id without overflowing back to zero
-        if self._next_send_rr_id < MAX_RR_ID:  # pragma: no branch
+        if self._next_send_rr_id < MAX_RR_ID:
             self._next_send_rr_id += 1
         else:
-            self._next_send_rr_id = 1  # pragma: no cover
+            self._next_send_rr_id = 1
 
     async def close(self) -> None:
         try:

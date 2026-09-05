@@ -5,7 +5,7 @@ import pytest
 import pytest_asyncio
 
 from suplalite import encoding, network, proto
-from suplalite.packets import Packet, PacketStream
+from suplalite.packets import MAX_RR_ID, Packet, PacketStream
 
 
 async def echo_server(
@@ -42,6 +42,24 @@ async def test_send_then_recv(stream: PacketStream) -> None:
     packet = await stream.recv()
     assert packet.call_id == proto.Call.DCS_PING_SERVER
     assert packet.data == b"\x01\x02\x03\x04"
+
+
+@pytest.mark.asyncio
+async def test_send_rr_id_wraps_around(stream: PacketStream) -> None:
+    # rr_id is a c_int32; it must wrap back to 1 rather than overflow to zero
+    stream._next_send_rr_id = MAX_RR_ID  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
+
+    await stream.send(Packet(proto.Call.DCS_PING_SERVER, b"\x01\x02\x03\x04"))
+    assert stream._next_send_rr_id == 1  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
+
+    await stream.send(Packet(proto.Call.DCS_PING_SERVER, b"\x05\x06\x07\x08"))
+    assert stream._next_send_rr_id == 2  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
+
+    # both packets are still well formed either side of the wrap
+    packet = await stream.recv()
+    assert packet.data == b"\x01\x02\x03\x04"
+    packet = await stream.recv()
+    assert packet.data == b"\x05\x06\x07\x08"
 
 
 @pytest.mark.asyncio
