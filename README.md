@@ -24,7 +24,17 @@ Configuration of the server is static, i.e. devices must be configured before st
 server. The server listens on three ports: a plain port for devices, a TLS-secured port for
 devices and clients, and an HTTPS REST API port. TLS requires a certificate and key file.
 
-Client authentication is supported via email and password.
+Devices are taken from the static configuration and cannot be added at runtime: a
+device is accepted only if its GUID and channels match that configuration. Client
+registration, in contrast, always succeeds -- any client that can reach the port is
+registered and served, and the email and password it registers with are not checked.
+This is a deliberate divergence from supla-server, which gates registration on a
+window enabled through supla-cloud; suplalite has no such state and always reports
+registration as disabled. Because of this the server should only be exposed on a
+trusted network.
+
+Email and password are checked for superuser authorization, which a client needs in
+order to change device configuration.
 
 See `examples/server.py` for an example.
 

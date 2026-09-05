@@ -783,6 +783,40 @@ async def test_register_client_events(
 
 
 @pytest.mark.asyncio
+async def test_register_client_does_not_check_credentials(server: Server) -> None:
+    # Note: registration always succeeds, whatever credentials are given, and
+    # whatever get_registration_enabled reports. This diverges from
+    # supla-server deliberately -- see the note on the register_client handler
+    async with open_connection(server) as stream:
+        await stream.send(Packet(proto.Call.DCS_GET_REGISTRATION_ENABLED))
+        packet = await stream.recv()
+        assert packet.call_id == proto.Call.SDC_GET_REGISTRATION_ENABLED_RESULT
+        response, _ = encoding.decode(proto.TSDC_RegistrationEnabled, packet.data)
+        assert response.client_timestamp == 0
+        assert response.iodevice_timestamp == 0
+
+        call = proto.TCS_RegisterClient_D(
+            email="wrong@example.com",
+            password="wrong-password",
+            guid=hashlib.sha256(b"test").digest()[:16],
+            authkey=hashlib.sha256(b"test").digest()[16:32],
+            name="test",
+            soft_ver="1.2.3",
+            server_name="localhost",
+        )
+        await stream.send(
+            Packet(proto.Call.CS_REGISTER_CLIENT_D, encoding.encode(call))
+        )
+        packet = await stream.recv()
+        assert packet.call_id == proto.Call.SC_REGISTER_CLIENT_RESULT_D
+        result, _ = encoding.decode(proto.TSC_RegisterClientResult_D, packet.data)
+        assert result.result_code == proto.ResultCode.TRUE
+
+        # but the client is not authorized to change device configuration
+        assert not server.state.get_client(result.client_id).authorized
+
+
+@pytest.mark.asyncio
 async def test_register_client_twice_replaces_connection(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:

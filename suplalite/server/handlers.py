@@ -107,9 +107,13 @@ async def ping(context: ConnectionContext) -> proto.TSDC_PingServerResult:
 async def get_registration_enabled(
     context: ConnectionContext,
 ) -> proto.TSDC_RegistrationEnabled:
-    # Note: registration is never enabled
-    # Devices are registered by the server config
-    # Clients are always allowed
+    # Note: registration is never reported as enabled.
+    #
+    # supla-server returns the timestamps until which device and client
+    # registration are open, which the user sets through supla-cloud. suplalite
+    # has no equivalent state: devices come from the static server config and
+    # cannot be added at runtime, and clients are always accepted (see
+    # register_client), so there is no window to report either way.
     return proto.TSDC_RegistrationEnabled(0, 0)
 
 
@@ -290,6 +294,15 @@ async def register_client(
     context: ClientContext,
     msg: proto.TCS_RegisterClient_D,
 ) -> proto.TSC_RegisterClientResult_D:
+    # Note: client registration always succeeds.
+    #
+    # supla-server authenticates the client, refuses one it does not know while
+    # the registration window is closed (REGISTRATION_DISABLED) and enforces a
+    # per-user client limit. suplalite deliberately does none of that: it is
+    # meant for a private network, so any client that can reach the port is
+    # registered and served, and the email and password in this message are not
+    # checked. Credentials are only used for superuser authorization (see
+    # client_superuser_authorization_request), which gates device config.
     client_id = context.server.state.add_client(msg.guid)
 
     old_conn = context.server.state.client_connected(
