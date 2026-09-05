@@ -337,17 +337,89 @@ async def register_client(
     context: ClientContext,
     msg: proto.TCS_RegisterClient_D,
 ) -> proto.TSC_RegisterClientResult_D:
-    # Note: client registration always succeeds.
-    #
-    # supla-server authenticates the client, refuses one it does not know while
-    # the registration window is closed (REGISTRATION_DISABLED) and enforces a
-    # per-user client limit. suplalite deliberately does none of that: it is
-    # meant for a private network, so any client that can reach the port is
-    # registered and served, and the email and password in this message are not
-    # checked. Credentials are only used for superuser authorization (see
-    # client_superuser_authorization_request), which gates device config.
-    client_id = context.server.state.get_or_add_client(msg.guid)
+    # Note: this is the SUPLA app's "email" sign-in mode. The app generates its
+    # own guid and authkey, so unlike a device they cannot be chosen in advance
+    # -- read them from the warning logged when an unknown client is rejected.
+    # The password is not used: supla-server treats a non-empty one as superuser
+    # authorization bypassing its registration window, which suplalite does not
+    # have. Superuser authorization is a separate call, and still supported.
+    result_code = _authenticate_client(context, msg)
+    if result_code is not None:
+        return _register_client_failure(context, result_code)
 
+    client_id = context.server.state.get_or_add_client(msg.guid)
+    return await _complete_client_registration(context, client_id, msg.guid, msg.name)
+
+
+def _authenticate_client(
+    context: ClientContext, msg: proto.TCS_RegisterClient_D
+) -> proto.ResultCode | None:
+    # Returns the code to reject the registration with, or None to allow it
+    if msg.guid == _ZERO_GUID:
+        context.log("client sent an empty guid", level=logging.WARNING)
+        return proto.ResultCode.GUID_ERROR
+
+    if not context.server.client_auth:
+        return None
+
+    if msg.authkey == _ZERO_AUTHKEY:
+        context.log("client sent an empty authkey", level=logging.WARNING)
+        return proto.ResultCode.AUTHKEY_ERROR
+
+    try:
+        allowed = context.server.state.check_client_credentials(
+            msg.guid, msg.email, msg.authkey
+        )
+    except KeyError:
+        # Note: as for devices, an unconfigured client is refused the way
+        # supla-server refuses one while registration is disabled
+        _log_client_rejected(context, msg)
+        return proto.ResultCode.REGISTRATION_DISABLED
+
+    if not allowed:
+        _log_client_rejected(context, msg)
+        return proto.ResultCode.BAD_CREDENTIALS
+
+    return None
+
+
+def _log_client_rejected(
+    context: ClientContext, msg: proto.TCS_RegisterClient_D
+) -> None:
+    # Log what the client sent, so it can be copied into the server config.
+    # Note: this means the log holds client authkeys.
+    context.log(
+        "client not allowed to register; to allow it, configure "
+        f"add_client({msg.email!r}, "
+        f'bytes.fromhex("{to_hex(msg.guid)}"), '
+        f'bytes.fromhex("{to_hex(msg.authkey)}"))',
+        level=logging.WARNING,
+    )
+
+
+def _register_client_failure(
+    context: ClientContext, result_code: proto.ResultCode
+) -> proto.TSC_RegisterClientResult_D:
+    context.error = True
+    context.close_delay = context.server.auth_failure_delay
+    # Note: supla-server only fills in the counts when the result is TRUE
+    return proto.TSC_RegisterClientResult_D(
+        result_code=result_code,
+        client_id=0,
+        location_count=0,
+        channel_count=0,
+        channel_group_count=0,
+        scene_count=0,
+        activity_timeout=context.activity_timeout,
+        version=proto.PROTO_VERSION,
+        version_min=proto.PROTO_VERSION_MIN,
+        server_unix_timestamp=int(time.time()),
+    )
+
+
+async def _complete_client_registration(
+    context: ClientContext, client_id: int, guid: bytes, name: str
+) -> proto.TSC_RegisterClientResult_D:
     old_conn = context.server.state.client_connected(
         client_id, context.events, context.conn
     )
@@ -358,8 +430,8 @@ async def register_client(
         )
         old_conn.supersede()
 
-    context.name = f"client[{msg.name}]"
-    context.replace(ClientContext(context, guid=msg.guid, client_id=client_id))
+    context.name = f"client[{name}]"
+    context.replace(ClientContext(context, guid=guid, client_id=client_id))
 
     context.log(f"registered; proto={context.conn.proto_version}")
     await context.server.events.add(EventId.CLIENT_CONNECTED, (client_id,))

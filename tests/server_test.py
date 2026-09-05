@@ -1,6 +1,5 @@
 import asyncio
 import base64
-import hashlib
 import logging
 import re
 import ssl
@@ -26,6 +25,7 @@ from .conftest import (
     client_authkey,
     client_email,
     client_guid,
+    client_names,
     device_authkey,
     device_guid,
     make_server,
@@ -988,31 +988,9 @@ async def test_register_client_events(
 
 
 @pytest.mark.asyncio
-async def test_register_device_does_not_check_authkey(server: Server) -> None:
-    # Note: a device is identified by its guid; the authkey it registers with
-    # is not checked. This diverges from supla-server deliberately -- see the
-    # note on the register_device handler
-    call = replace(
-        register_device_message(1),
-        email="wrong@example.com",
-        authkey=b"\xff" * 16,
-    )
-    async with open_connection(server) as stream:
-        await stream.send(
-            Packet(proto.Call.DS_REGISTER_DEVICE_E, encoding.encode(call))
-        )
-        packet = await stream.recv()
-        assert packet.call_id == proto.Call.SD_REGISTER_DEVICE_RESULT
-        result, _ = encoding.decode(proto.TSD_RegisterDeviceResult, packet.data)
-        assert result.result_code == proto.ResultCode.TRUE
-        assert server.state.get_device(1).online
-
-
-@pytest.mark.asyncio
-async def test_register_client_does_not_check_credentials(server: Server) -> None:
-    # Note: registration always succeeds, whatever credentials are given, and
-    # whatever get_registration_enabled reports. This diverges from
-    # supla-server deliberately -- see the note on the register_client handler
+async def test_registration_never_enabled(server: Server) -> None:
+    # Note: suplalite has no registration window; devices and clients come from
+    # the static config, so registration is never reported as open
     async with open_connection(server) as stream:
         await stream.send(Packet(proto.Call.DCS_GET_REGISTRATION_ENABLED))
         packet = await stream.recv()
@@ -1021,25 +999,151 @@ async def test_register_client_does_not_check_credentials(server: Server) -> Non
         assert response.client_timestamp == 0
         assert response.iodevice_timestamp == 0
 
-        call = proto.TCS_RegisterClient_D(
-            email="wrong@example.com",
-            password="wrong-password",
-            guid=hashlib.sha256(b"test").digest()[:16],
-            authkey=hashlib.sha256(b"test").digest()[16:32],
-            name="test",
-            soft_ver="1.2.3",
-            server_name="localhost",
+
+def register_client_message(name: str) -> proto.TCS_RegisterClient_D:
+    return proto.TCS_RegisterClient_D(
+        email=client_email,
+        password="password123",
+        guid=client_guid(name),
+        authkey=client_authkey(name),
+        name=name,
+        soft_ver="1.2.3",
+        server_name="localhost",
+    )
+
+
+async def do_register_client_invalid(
+    stream: PacketStream,
+    call: proto.TCS_RegisterClient_D,
+    expected: proto.ResultCode,
+) -> None:
+    await stream.send(Packet(proto.Call.CS_REGISTER_CLIENT_D, encoding.encode(call)))
+    packet = await stream.recv()
+    assert packet.call_id == proto.Call.SC_REGISTER_CLIENT_RESULT_D
+    result, _ = encoding.decode(proto.TSC_RegisterClientResult_D, packet.data)
+    assert result.result_code == expected
+    # the counts are only meaningful when the registration succeeded
+    assert result.client_id == 0
+    assert result.channel_count == 0
+
+    # Check server closes the connection
+    with pytest.raises(network.NetworkError):
+        await stream.recv()
+
+
+@pytest.mark.asyncio
+async def test_register_client_zero_guid(
+    server: Server, caplog: pytest.LogCaptureFixture
+) -> None:
+    async with open_connection(server) as stream:
+        call = register_client_message("test")
+        call.guid = b"\x00" * 16
+        await do_register_client_invalid(stream, call, proto.ResultCode.GUID_ERROR)
+    assert "client sent an empty guid" in caplog.text
+    assert "error; closing connection" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_register_client_zero_authkey(
+    server: Server, caplog: pytest.LogCaptureFixture
+) -> None:
+    async with open_connection(server) as stream:
+        call = register_client_message("test")
+        call.authkey = b"\x00" * 16
+        await do_register_client_invalid(stream, call, proto.ResultCode.AUTHKEY_ERROR)
+    assert "client sent an empty authkey" in caplog.text
+    assert "error; closing connection" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_register_client_unknown_guid(
+    server: Server, caplog: pytest.LogCaptureFixture
+) -> None:
+    async with open_connection(server) as stream:
+        call = register_client_message("test")
+        call.guid = b"\xab" * 16
+        await do_register_client_invalid(
+            stream, call, proto.ResultCode.REGISTRATION_DISABLED
         )
+
+    # the rejection tells the operator how to allow the client
+    assert "client not allowed to register; to allow it, configure" in caplog.text
+    assert repr(client_email) in caplog.text
+    assert to_hex(b"\xab" * 16) in caplog.text
+    assert to_hex(client_authkey("test")) in caplog.text
+    assert "error; closing connection" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_register_client_wrong_email(
+    server: Server, caplog: pytest.LogCaptureFixture
+) -> None:
+    async with open_connection(server) as stream:
+        call = register_client_message("test")
+        call.email = "wrong@example.com"
+        await do_register_client_invalid(stream, call, proto.ResultCode.BAD_CREDENTIALS)
+    assert "client not allowed to register" in caplog.text
+    assert "error; closing connection" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_register_client_wrong_authkey(
+    server: Server, caplog: pytest.LogCaptureFixture
+) -> None:
+    async with open_connection(server) as stream:
+        call = register_client_message("test")
+        call.authkey = b"\xff" * 16
+        await do_register_client_invalid(stream, call, proto.ResultCode.BAD_CREDENTIALS)
+    assert "client not allowed to register" in caplog.text
+    assert "error; closing connection" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_register_client_email_is_case_insensitive(server: Server) -> None:
+    async with open_connection(server) as stream:
+        call = register_client_message("test")
+        call.email = client_email.upper()
         await stream.send(
             Packet(proto.Call.CS_REGISTER_CLIENT_D, encoding.encode(call))
         )
         packet = await stream.recv()
-        assert packet.call_id == proto.Call.SC_REGISTER_CLIENT_RESULT_D
         result, _ = encoding.decode(proto.TSC_RegisterClientResult_D, packet.data)
         assert result.result_code == proto.ResultCode.TRUE
 
-        # but the client is not authorized to change device configuration
-        assert not server.state.get_client(result.client_id).authorized
+
+@pytest.mark.asyncio
+async def test_register_client_without_client_auth() -> None:
+    # any client is accepted, and gets an id after the configured ones
+    server = make_server(client_auth=False)
+    await server.start()
+    try:
+        async with open_connection(server) as stream:
+            call = register_client_message("test")
+            call.email = "wrong@example.com"
+            call.guid = b"\xab" * 16
+            call.authkey = b"\x00" * 16
+            await stream.send(
+                Packet(proto.Call.CS_REGISTER_CLIENT_D, encoding.encode(call))
+            )
+            packet = await stream.recv()
+            result, _ = encoding.decode(proto.TSC_RegisterClientResult_D, packet.data)
+            assert result.result_code == proto.ResultCode.TRUE
+            assert result.client_id > len(client_names)
+    finally:
+        await server.stop()
+
+
+@pytest.mark.asyncio
+async def test_register_client_without_client_auth_still_checks_guid() -> None:
+    server = make_server(client_auth=False)
+    await server.start()
+    try:
+        async with open_connection(server) as stream:
+            call = register_client_message("test")
+            call.guid = b"\x00" * 16
+            await do_register_client_invalid(stream, call, proto.ResultCode.GUID_ERROR)
+    finally:
+        await server.stop()
 
 
 @pytest.mark.asyncio

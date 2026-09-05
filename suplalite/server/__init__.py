@@ -360,6 +360,10 @@ class Server:
         return self._device_auth
 
     @property
+    def client_auth(self) -> bool:
+        return self._client_auth
+
+    @property
     def auth_failure_delay(self) -> float:
         return self._auth_failure_delay
 
