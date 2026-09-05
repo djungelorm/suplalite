@@ -351,6 +351,63 @@ async def register_client(
     return await _complete_client_registration(context, client_id, msg.guid, msg.name)
 
 
+@call_handler(proto.Call.CS_REGISTER_CLIENT_B, proto.Call.SC_REGISTER_CLIENT_RESULT_D)
+async def register_client_access_id(
+    context: ClientContext,
+    msg: proto.TCS_RegisterClient_B,
+) -> proto.TSC_RegisterClientResult_D:
+    # Note: this is the SUPLA app's "access identifier" sign-in mode. Unlike
+    # the email mode there is no authkey, so the access id and its password are
+    # the whole credential and can be configured up front.
+    #
+    # supla-server picks the result message by negotiated protocol version
+    # rather than by the call it is answering, so this old call is answered
+    # with the newest result. A client older than version 19 would not be able
+    # to parse it, but every current SUPLA app negotiates well above that.
+    result_code = _authenticate_client_access_id(context, msg)
+    if result_code is not None:
+        return _register_client_failure(context, result_code)
+
+    # Note: the app generates its own guid, so unlike an email-mode client this
+    # one cannot have been configured in advance
+    client_id = context.server.state.get_or_add_client(msg.guid)
+    return await _complete_client_registration(context, client_id, msg.guid, msg.name)
+
+
+def _authenticate_client_access_id(
+    context: ClientContext, msg: proto.TCS_RegisterClient_B
+) -> proto.ResultCode | None:
+    # Returns the code to reject the registration with, or None to allow it
+    if msg.guid == _ZERO_GUID:
+        context.log("client sent an empty guid", level=logging.WARNING)
+        return proto.ResultCode.GUID_ERROR
+
+    if not context.server.client_auth:
+        return None
+
+    try:
+        # Note: never log the password
+        allowed = context.server.state.check_access_id_password(
+            msg.access_id, msg.access_id_pwd
+        )
+    except KeyError:
+        # Note: supla-server answers BAD_CREDENTIALS for an unknown access id
+        # too. Distinguishing the two is more use when diagnosing a config, and
+        # the difference only tells an attacker which access ids exist.
+        context.log(
+            f"access id {msg.access_id} is not configured", level=logging.WARNING
+        )
+        return proto.ResultCode.REGISTRATION_DISABLED
+
+    if not allowed:
+        context.log(
+            f"incorrect password for access id {msg.access_id}", level=logging.WARNING
+        )
+        return proto.ResultCode.BAD_CREDENTIALS
+
+    return None
+
+
 def _authenticate_client(
     context: ClientContext, msg: proto.TCS_RegisterClient_D
 ) -> proto.ResultCode | None:
