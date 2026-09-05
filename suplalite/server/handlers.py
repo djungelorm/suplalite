@@ -115,9 +115,10 @@ async def get_registration_enabled(
     #
     # supla-server returns the timestamps until which device and client
     # registration are open, which the user sets through supla-cloud. suplalite
-    # has no equivalent state: devices come from the static server config and
-    # cannot be added at runtime, and clients are always accepted (see
-    # register_client), so there is no window to report either way.
+    # has no equivalent state: devices and clients both come from the static
+    # server config and cannot be added at runtime, so there is no window to
+    # report. Registration behaves as it does in supla-server with the window
+    # permanently closed -- an unconfigured peer gets REGISTRATION_DISABLED.
     return proto.TSDC_RegistrationEnabled(0, 0)
 
 

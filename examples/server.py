@@ -97,10 +97,26 @@ async def main() -> None:
         password="1",
     )
 
+    # Devices authenticate with their guid and authkey; see examples/device.py,
+    # which registers with these. Pass device_auth=False above to skip this.
     device_id = server.state.add_device(
         "test",
         bytes.fromhex("eeeeeeeee534d1a706ac5f416719899e"),
+        authkey=bytes.fromhex("ffffffff4ad3b8aa3666216f2a864223"),
     )
+
+    # Clients using the SUPLA app's "email" sign-in generate their own guid and
+    # authkey, so let one register, then copy them out of the warning the server
+    # logs when it rejects it. This one is examples/client.py.
+    server.state.add_client(
+        "email@email.com",
+        bytes.fromhex("dddddddd4ad3b8aa3666216f2a864223"),
+        bytes.fromhex("cccccccce534d1a706ac5f416719899e"),
+    )
+
+    # Clients using the app's "access identifier" sign-in instead present an
+    # access id and password, which can be chosen here
+    server.state.add_access_id(1, "access-id-password")
 
     server.state.add_channel(
         device_id,
@@ -215,6 +231,7 @@ async def main() -> None:
     device_id = server.state.add_device(
         "lounge-lights",
         bytes.fromhex("7c59477b7b3cdf7887fdd9387f1c9e77"),
+        authkey=bytes.fromhex("6ccb3f0e0e6d4a5d95a5bd0f5e2b8f31"),
         manufacturer_id=7,
         product_id=1,
     )
