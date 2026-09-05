@@ -380,6 +380,16 @@ class Server:
     # Note: ASYNC109 suggests the caller wraps the call in asyncio.timeout
     # instead, but the timeout is what paces the shutdown steps below
     async def stop(self, timeout: float | None = STOP_TIMEOUT) -> None:  # noqa: ASYNC109
+        assert self._server is not None
+        assert self._secure_server is not None
+        assert self._api_server is not None
+
+        # Stop accepting first, so that a peer reconnecting while we shut down
+        # cannot join the set of connections we are waiting on -- one accepted
+        # after the connections have been closed below would be left open
+        self._server.close()
+        self._secure_server.close()
+
         # Give connections a chance to close themselves, then close whatever is
         # left; a single wedged connection must not block shutdown forever
         if not await self._wait_for_connections(timeout):
@@ -387,11 +397,7 @@ class Server:
             await self._close_connections()
             if not await self._wait_for_connections(timeout):
                 logger.error("connections still open; shutting down anyway")
-        assert self._server is not None
-        assert self._secure_server is not None
-        assert self._api_server is not None
-        self._server.close()
-        self._secure_server.close()
+
         closed = await self._wait_closed(self._server, timeout)
         secure_closed = await self._wait_closed(self._secure_server, timeout)
         if not (closed and secure_closed):

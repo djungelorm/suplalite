@@ -952,6 +952,30 @@ async def test_stop_continues_if_connections_do_not_close(
 
 
 @pytest.mark.asyncio
+async def test_stop_stops_accepting_connections(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    # Note: uses its own server as the test stops it itself
+    server = make_server()
+    await server.start()
+    port = server.port
+
+    async with open_connection(server, secure=False) as stream:
+        await register_device(stream, 1)
+
+        # the listening sockets are closed before the connections are waited
+        # on, so a peer reconnecting during shutdown is refused rather than
+        # accepted and left open once the existing connections are closed
+        stop = asyncio.create_task(server.stop(timeout=0.5))
+        await asyncio.sleep(0.1)
+        with pytest.raises(ConnectionRefusedError):
+            await asyncio.open_connection("127.0.0.1", port)
+        await stop
+
+        assert "connections still open" not in caplog.text
+
+
+@pytest.mark.asyncio
 async def test_close_connection_before_it_serves(server: Server) -> None:
     # a connection closed before it starts serving -- e.g. one still in the
     # TLS handshake when the server is stopped -- has no call task to cancel
