@@ -111,3 +111,39 @@ Currently supports the following kinds of channel:
  - RGBW dimmer
 
 See `examples/device.py` for an example.
+
+Examples
+--------
+
+`examples/` holds a server, a device and a client that talk to each other. Set up the
+environment once, which also generates the certificate the server uses:
+
+```
+hatch env create
+```
+
+Run each example in its own terminal, from the root of the repository:
+
+```
+hatch run python examples/server.py
+hatch run python examples/device.py
+hatch run python examples/client.py
+```
+
+The device registers with the server and pushes channel values, and the client
+receives them.
+
+The server listens on port 2015 for devices, port 2016 for devices and clients over
+TLS, and port 5000 for the REST API:
+
+```
+curl -sk https://127.0.0.1:5000/api/3/user-icons
+```
+
+The device and client connect to 127.0.0.1:2016 without verifying the certificate, so
+the self-signed one works. Their guids and authkeys are the ones `examples/server.py`
+configures. Superuser authorization uses `email@email.com` with password `1`, and
+access id 1 has the password `access-id-password`.
+
+To connect the SUPLA app, set `host` in `examples/server.py` to the address of your
+machine. Clients fetch icons from the REST API at that address.
