@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import functools
+import hmac
 import logging
 from collections.abc import AsyncGenerator
 from pathlib import Path
@@ -477,7 +478,10 @@ class Server:
         return self._event_handlers[key]
 
     def check_authorized(self, email: str, password: str) -> bool:
-        return self._email == email and self._password == password
+        return hmac.compare_digest(
+            state.normalize_email(self._email).encode(),
+            state.normalize_email(email).encode(),
+        ) and hmac.compare_digest(self._password.encode(), password.encode())
 
     async def serve_forever(self) -> None:
         for task in self._tasks:  # pragma: no branch

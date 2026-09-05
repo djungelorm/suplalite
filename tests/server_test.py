@@ -2483,6 +2483,48 @@ async def test_client_auth_request(
 
 
 @pytest.mark.asyncio
+async def test_client_auth_request_email_is_case_insensitive(server: Server) -> None:
+    async with open_client(server, "test") as client:
+        await client.stream.send(
+            Packet(
+                proto.Call.CS_SUPERUSER_AUTHORIZATION_REQUEST,
+                encoding.encode(
+                    proto.TCS_SuperUserAuthorizationRequest(
+                        email=" Email@Email.COM", password="password123"
+                    )
+                ),
+            )
+        )
+
+        packet = await client.stream.recv()
+        msg, _ = encoding.decode(proto.TSC_SuperUserAuthorizationResult, packet.data)
+        assert msg == proto.TSC_SuperUserAuthorizationResult(
+            result=proto.ResultCode.AUTHORIZED
+        )
+
+
+@pytest.mark.asyncio
+async def test_client_auth_request_wrong_email(server: Server) -> None:
+    async with open_client(server, "test") as client:
+        await client.stream.send(
+            Packet(
+                proto.Call.CS_SUPERUSER_AUTHORIZATION_REQUEST,
+                encoding.encode(
+                    proto.TCS_SuperUserAuthorizationRequest(
+                        email="wrong@email.com", password="password123"
+                    )
+                ),
+            )
+        )
+
+        packet = await client.stream.recv()
+        msg, _ = encoding.decode(proto.TSC_SuperUserAuthorizationResult, packet.data)
+        assert msg == proto.TSC_SuperUserAuthorizationResult(
+            result=proto.ResultCode.UNAUTHORIZED
+        )
+
+
+@pytest.mark.asyncio
 async def test_client_auth_request_fail(
     server: Server, caplog: pytest.LogCaptureFixture
 ) -> None:
