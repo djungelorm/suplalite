@@ -19,6 +19,8 @@ from suplalite.server.context import (
 )
 from suplalite.server.events import EventContext, EventId
 from suplalite.server.state import (
+    ZERO_AUTHKEY,
+    ZERO_GUID,
     ChannelState,
     GeneralPurposeMeasurementChannelConfig,
     SceneState,
@@ -56,10 +58,6 @@ _handlers: list[Handler] = []
 
 def get_handlers() -> list[Handler]:
     return _handlers
-
-
-_ZERO_GUID = b"\x00" * proto.GUID_SIZE
-_ZERO_AUTHKEY = b"\x00" * proto.AUTHKEY_SIZE
 
 
 CallHandlerFunc = TypeVar("CallHandlerFunc", bound=Callable[..., Awaitable[Any]])
@@ -177,11 +175,11 @@ def _authenticate_device(
     # Returns the code to reject the registration with, or None to allow it.
     # Note: the checks are ordered as in supla-server, which validates the guid
     # and the authkey first.
-    if msg.guid == _ZERO_GUID:
+    if msg.guid == ZERO_GUID:
         context.log("device sent an empty guid", level=logging.WARNING)
         return proto.ResultCode.GUID_ERROR
 
-    if context.server.device_auth and msg.authkey == _ZERO_AUTHKEY:
+    if context.server.device_auth and msg.authkey == ZERO_AUTHKEY:
         context.log("device sent an empty authkey", level=logging.WARNING)
         return proto.ResultCode.AUTHKEY_ERROR
 
@@ -364,7 +362,7 @@ def _authenticate_client_access_id(
     context: ClientContext, msg: proto.TCS_RegisterClient_B
 ) -> proto.ResultCode | None:
     # Returns the code to reject the registration with, or None to allow it
-    if msg.guid == _ZERO_GUID:
+    if msg.guid == ZERO_GUID:
         context.log("client sent an empty guid", level=logging.WARNING)
         return proto.ResultCode.GUID_ERROR
 
@@ -397,14 +395,14 @@ def _authenticate_client(
     context: ClientContext, msg: proto.TCS_RegisterClient_D
 ) -> proto.ResultCode | None:
     # Returns the code to reject the registration with, or None to allow it
-    if msg.guid == _ZERO_GUID:
+    if msg.guid == ZERO_GUID:
         context.log("client sent an empty guid", level=logging.WARNING)
         return proto.ResultCode.GUID_ERROR
 
     if not context.server.client_auth:
         return None
 
-    if msg.authkey == _ZERO_AUTHKEY:
+    if msg.authkey == ZERO_AUTHKEY:
         context.log("client sent an empty authkey", level=logging.WARNING)
         return proto.ResultCode.AUTHKEY_ERROR
 

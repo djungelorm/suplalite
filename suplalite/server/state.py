@@ -15,6 +15,10 @@ if TYPE_CHECKING:  # pragma: no cover
     from suplalite.server import Connection
 
 
+ZERO_GUID = b"\x00" * proto.GUID_SIZE
+ZERO_AUTHKEY = b"\x00" * proto.AUTHKEY_SIZE
+
+
 def normalize_email(email: str) -> str:
     # Note: supla-server matches the email with a case insensitive SQL
     # collation, which we match here
@@ -60,6 +64,11 @@ class ServerState:
         # Configure a client allowed to register in email mode. The SUPLA app
         # generates its guid and authkey, which the rejection warning logs.
         assert self._started is False
+        # Note: registration refuses an all-zero guid or authkey
+        if guid == ZERO_GUID:
+            raise ValueError(f"client {email!r} has an all-zero guid")
+        if authkey == ZERO_AUTHKEY:
+            raise ValueError(f"client {email!r} has an all-zero authkey")
         client_id = self.add_client(guid)
         self._client_credentials[guid.hex()] = (normalize_email(email), authkey)
         return client_id
@@ -159,6 +168,11 @@ class ServerState:
         product_id: int = 0,
     ) -> int:
         assert self._started is False
+        # Note: registration refuses an all-zero guid or authkey
+        if guid == ZERO_GUID:
+            raise ValueError(f"device {name!r} has an all-zero guid")
+        if authkey == ZERO_AUTHKEY:
+            raise ValueError(f"device {name!r} has an all-zero authkey")
         device_id = len(self._devices) + 1
         device = DeviceState(
             name,

@@ -499,6 +499,29 @@ def test_state_device_authkey() -> None:
         server_state.check_device_authkey(without_key, authkey)
 
 
+def test_state_rejects_zero_device_credentials() -> None:
+    # Registration refuses an all-zero guid or authkey, so configuring one fails
+    server_state = state.ServerState()
+    with pytest.raises(ValueError, match="device 'device-1' has an all-zero guid"):
+        server_state.add_device("device-1", state.ZERO_GUID)
+    with pytest.raises(ValueError, match="device 'device-1' has an all-zero authkey"):
+        server_state.add_device("device-1", device_guid[1], state.ZERO_AUTHKEY)
+
+
+def test_state_rejects_zero_client_credentials() -> None:
+    server_state = state.ServerState()
+    guid = b"\x01" + b"\x00" * 15
+    authkey = b"\x02" + b"\x00" * 15
+    with pytest.raises(
+        ValueError, match=r"client 'a@example\.com' has an all-zero guid"
+    ):
+        server_state.add_client_credentials("a@example.com", state.ZERO_GUID, authkey)
+    with pytest.raises(
+        ValueError, match=r"client 'a@example\.com' has an all-zero authkey"
+    ):
+        server_state.add_client_credentials("a@example.com", guid, state.ZERO_AUTHKEY)
+
+
 def test_auth_is_off_by_default() -> None:
     # Note: authentication is opt-in
     server = Server(
