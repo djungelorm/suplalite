@@ -539,6 +539,16 @@ class TDS_DeviceChannelValue_C:
 
 
 @dataclass
+class TCS_RegisterClient_B:
+    access_id: int = field(metadata=c_int32())
+    access_id_pwd: str = field(metadata=c_string(ACCESSID_PWD_MAXSIZE))
+    guid: bytes = field(metadata=c_bytes(GUID_SIZE))
+    name: str = field(metadata=c_string(CLIENT_NAME_MAXSIZE))
+    soft_ver: str = field(metadata=c_string(SOFTVER_MAXSIZE))
+    server_name: str = field(metadata=c_string(SERVER_NAME_MAXSIZE))
+
+
+@dataclass
 class TCS_RegisterClient_D:
     email: str = field(metadata=c_string(EMAIL_MAXSIZE))
     password: str = field(metadata=c_string(PASSWORD_MAXSIZE))

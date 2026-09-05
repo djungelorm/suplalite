@@ -353,6 +353,18 @@ def test_partial_decode() -> None:
         (proto.TDCS_PingServer, (proto.TimeVal(1, 2),), 16),
         (proto.TSDC_PingServerResult, (proto.TimeVal(1, 2),), 16),
         (
+            proto.TCS_RegisterClient_B,
+            (
+                42,
+                "access-id-password",
+                b"\xcc\xcc\xcc\xcc\xe5\x34\xd1\xa7\x06\xac\x5f\x41\x67\x19\x89\x9e",
+                "Test Client",
+                "1.2.3",
+                "localhost",
+            ),
+            340,
+        ),
+        (
             proto.TCS_RegisterClient_D,
             (
                 "example@email.com",
