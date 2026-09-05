@@ -19,7 +19,7 @@ from suplalite.packets import Packet, PacketStream
 from suplalite.server import Server, state
 from suplalite.server.context import ServerContext
 from suplalite.server.events import EventContext, EventId
-from suplalite.server.handlers import event_handler
+from suplalite.server.handlers import EventHandler, event_handler
 from suplalite.utils import to_hex
 
 from .conftest import device_guid
@@ -805,6 +805,71 @@ async def test_register_client_twice_replaces_connection(
     assert "client[test] registered" in caplog.text
     assert "client already connected; replacing existing connection" in caplog.text
     assert "error; closing connection" not in caplog.text
+
+
+def fail_event_handlers_for(
+    monkeypatch: pytest.MonkeyPatch,
+    event_context: EventContext,
+    event_id: EventId | None = None,
+) -> None:
+    # Make event dispatch raise outside of the per-handler try, as it would if
+    # the dispatch code itself failed
+    original = Server.get_event_handlers
+
+    def get_event_handlers(
+        self: Server, context: EventContext, id_: EventId
+    ) -> list[EventHandler]:
+        if context is event_context and event_id in (None, id_):
+            raise RuntimeError("event dispatch failed")
+        return original(self, context, id_)
+
+    monkeypatch.setattr(Server, "get_event_handlers", get_event_handlers)
+
+
+@pytest.mark.asyncio
+async def test_connection_event_failure_closes_connection(
+    server: Server, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with open_connection(server) as stream:
+        await register_device(stream, 1)
+        assert server.state.get_device(1).online
+
+        fail_event_handlers_for(monkeypatch, EventContext.DEVICE)
+
+        # the value change is fanned back out to the device, whose event task
+        # then fails; the connection must be closed rather than left serving
+        # calls with a dead event task
+        await stream.send(
+            Packet(
+                proto.Call.DS_DEVICE_CHANNEL_VALUE_CHANGED,
+                encoding.encode(
+                    proto.TDS_DeviceChannelValue(channel_number=0, value=b"12345678")
+                ),
+            )
+        )
+        with pytest.raises(network.NetworkError):
+            await stream.recv()
+
+    await asyncio.sleep(0.5)
+    assert "event task failed; closing connection" in caplog.text
+    assert not server.state.get_device(1).online
+    assert "[server-test] DEVICE_DISCONNECTED 1" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_server_event_loop_survives_dispatch_failure(
+    server: Server, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fail_event_handlers_for(monkeypatch, EventContext.SERVER, EventId.DEVICE_CONNECTED)
+
+    async with open_device(server, 1):
+        await asyncio.sleep(0.5)
+        assert "event dispatch failed" in caplog.text
+
+        # the event loop keeps running; later events are still dispatched
+        async with open_client(server, "test"):
+            await asyncio.sleep(0.5)
+            assert "[server-test] CLIENT_CONNECTED 1" in caplog.text
 
 
 @pytest.mark.asyncio

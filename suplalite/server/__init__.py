@@ -66,7 +66,7 @@ class Connection:
             await self._call_task
         except network.NetworkError:  # pragma: no cover
             pass
-        except asyncio.exceptions.CancelledError:  # pragma: no cover
+        except asyncio.exceptions.CancelledError:
             pass
 
         finally:
@@ -153,11 +153,21 @@ class Connection:
             while True:
                 event = await self._context.events.get()
                 await self._handle_event(*event)
-        except Exception:  # pragma no cover
+        except Exception:
+            # An exception escaping the per-handler try in _handle_event kills
+            # the event task. Close the connection rather than leaving the call
+            # task running against a connection that can no longer send events.
             logger.exception("unexpected error")
-            raise
+            self._context.log("event task failed; closing connection", logging.ERROR)
+            self.close()
         finally:
             self._context.log("event task stopped", logging.DEBUG)
+
+    def close(self) -> None:
+        # Terminate this connection by stopping the call task; the teardown in
+        # __call__ then cleans up the server state as for any disconnect.
+        if self._call_task is not None:  # pragma: no branch
+            self._call_task.cancel()
 
     async def _handle_call(self, context: BaseContext, packet: Packet) -> None:
         handler = self._context.server.get_call_handler(packet.call_id)
@@ -408,40 +418,48 @@ class Server:
             logger.debug("event loop started")
             while True:
                 event_id, payload = await self._events.get()
-
-                handlers = self.get_event_handlers(EventContext.SERVER, event_id)
-                for handler in handlers:
-                    self._context.log(
-                        f"handle event {event_id} {handler.func.__name__}",
-                        logging.DEBUG,
-                    )
-                    try:
-                        async with self._context.server.state.lock:
-                            await handler.handle_event(self._context, payload)
-                    except Exception:  # pragma: no cover
-                        logger.exception("event handler failed")
-                async with self._state.lock:
-                    clients = self._state.get_clients()
-                    for client in clients.values():
-                        try:
-                            events = self._state.get_client_events(client.id)
-                        except KeyError:
-                            continue
-                        await events.add(event_id, payload)
-
-                    devices = self._state.get_devices()
-                    for device in devices.values():
-                        try:
-                            events = self._state.get_device_events(device.id)
-                        except KeyError:
-                            continue
-                        await events.add(event_id, payload)
+                # Note: an exception escaping the per-handler try below would
+                # otherwise kill the event loop, silently stopping event
+                # dispatch for the whole server. Log it and carry on.
+                try:
+                    await self._dispatch_event(event_id, payload)
+                except Exception:
+                    logger.exception("event dispatch failed")
 
         except Exception:  # pragma: no cover
             logger.exception("unexpected error")
             raise
         finally:
             logger.debug("event loop stopped")
+
+    async def _dispatch_event(self, event_id: EventId, payload: Any) -> None:
+        handlers = self.get_event_handlers(EventContext.SERVER, event_id)
+        for handler in handlers:
+            self._context.log(
+                f"handle event {event_id} {handler.func.__name__}",
+                logging.DEBUG,
+            )
+            try:
+                async with self._context.server.state.lock:
+                    await handler.handle_event(self._context, payload)
+            except Exception:  # pragma: no cover
+                logger.exception("event handler failed")
+        async with self._state.lock:
+            clients = self._state.get_clients()
+            for client in clients.values():
+                try:
+                    events = self._state.get_client_events(client.id)
+                except KeyError:
+                    continue
+                await events.add(event_id, payload)
+
+            devices = self._state.get_devices()
+            for device in devices.values():
+                try:
+                    events = self._state.get_device_events(device.id)
+                except KeyError:
+                    continue
+                await events.add(event_id, payload)
 
     async def _server_loop(self) -> None:
         try:
