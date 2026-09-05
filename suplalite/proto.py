@@ -844,10 +844,14 @@ class TCS_Action:
     )
 
 
+# A brightness of -1, or a color of 0, asks to leave that field as it is
+RGBW_PARAMETER_IGNORE = -1
+
+
 @dataclass
 class TAction_RGBW_Parameters:
-    brightness: int = field(metadata=c_uint8())
-    color_brightness: int = field(metadata=c_uint8())
+    brightness: int = field(metadata=c_int8())
+    color_brightness: int = field(metadata=c_int8())
     color: int = field(metadata=c_int32())
     color_random: bool = field(metadata=c_uint8())
     on_off: bool = field(metadata=c_uint8())

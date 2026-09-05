@@ -610,9 +610,10 @@ def execute_dimmer_action(
     if action == proto.ActionType.SET_RGBW_PARAMETERS:
         assert params is not None
         rgbw_params, _ = encoding.decode(proto.TAction_RGBW_Parameters, params)
-        return encoding.encode(
-            proto.TDimmerChannel_Value(brightness=rgbw_params.brightness)
-        )
+        message, _ = encoding.decode(proto.TDimmerChannel_Value, channel.value)
+        if rgbw_params.brightness != proto.RGBW_PARAMETER_IGNORE:
+            message.brightness = rgbw_params.brightness
+        return encoding.encode(message)
 
     context.log(
         f"failed to execute action; dimmer action {action} not supported",
@@ -665,16 +666,17 @@ def execute_rgbw_action(
     if action == proto.ActionType.SET_RGBW_PARAMETERS:
         assert params is not None
         rgbw_params, _ = encoding.decode(proto.TAction_RGBW_Parameters, params)
-        return encoding.encode(
-            proto.TRGBDimmerChannel_Value(
-                brightness=rgbw_params.brightness,
-                color_brightness=rgbw_params.color_brightness,
-                r=(rgbw_params.color >> 16) & 0xFF,
-                g=(rgbw_params.color >> 8) & 0xFF,
-                b=rgbw_params.color & 0xFF,
-                on_off=rgbw_params.on_off,
-            )
-        )
+        message, _ = encoding.decode(proto.TRGBDimmerChannel_Value, channel.value)
+        if rgbw_params.brightness != proto.RGBW_PARAMETER_IGNORE:
+            message.brightness = rgbw_params.brightness
+        if rgbw_params.color_brightness != proto.RGBW_PARAMETER_IGNORE:
+            message.color_brightness = rgbw_params.color_brightness
+        if rgbw_params.color != 0:
+            message.r = (rgbw_params.color >> 16) & 0xFF
+            message.g = (rgbw_params.color >> 8) & 0xFF
+            message.b = rgbw_params.color & 0xFF
+        message.on_off = rgbw_params.on_off
+        return encoding.encode(message)
 
     context.log(
         f"failed to execute action; {channel_label} action {action} not supported",

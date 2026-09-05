@@ -2060,8 +2060,8 @@ async def test_client_execute_action_toggle(
     "device_and_channel",
     [
         (2, 4, 0, b"\x0a\x00\x00\x00\x00\x00\x00\x00"),
-        (5, 16, 6, b"\n\xff\x00\x00\x00\x00\x00\x00"),
-        (5, 17, 7, b"\x0a\xff\x00\x00\x00\x00\x00\x00"),
+        (5, 16, 6, b"\x0a\x00\x00\x00\x00\x00\x00\x00"),
+        (5, 17, 7, b"\x0a\x00\x00\x00\x00\x00\x00\x00"),
     ],
 )
 @pytest.mark.asyncio
@@ -2106,6 +2106,82 @@ async def test_client_execute_action_set_rgbw_parameters(
         "[server-test] CHANNEL_SET_VALUE "
         f"{device_and_channel[1]} {device_and_channel[3].hex()}"
     ) in caplog.text
+
+
+def set_rgbw_parameters(
+    channel_id: int, brightness: int, color_brightness: int, color: int
+) -> proto.TCS_Action:
+    return proto.TCS_Action(
+        action_id=proto.ActionType.SET_RGBW_PARAMETERS,
+        subject_id=channel_id,
+        subject_type=proto.ActionSubjectType.CHANNEL,
+        param=encoding.encode(
+            proto.TAction_RGBW_Parameters(
+                brightness=brightness,
+                color_brightness=color_brightness,
+                color=color,
+                color_random=False,
+                on_off=False,
+            )
+        ),
+    )
+
+
+@pytest.mark.asyncio
+async def test_client_execute_action_set_rgbw_parameters_ignored(
+    server: Server,
+) -> None:
+    async with (
+        open_device(server, 5) as device,
+        open_client(server, "test") as client,
+    ):
+        # Set every field, giving the channel a value to keep
+        await do_execute_action(
+            client,
+            device,
+            set_rgbw_parameters(17, 10, 20, 0x304050),
+            [(7, b"\x0a\x14\x50\x40\x30\x00\x00\x00")],
+        )
+
+        # A brightness of -1, and a color of 0, leave those fields alone
+        await do_execute_action(
+            client,
+            device,
+            set_rgbw_parameters(17, -1, 30, 0),
+            [(7, b"\x0a\x1e\x50\x40\x30\x00\x00\x00")],
+        )
+
+        # A color brightness of -1 leaves that field alone
+        await do_execute_action(
+            client,
+            device,
+            set_rgbw_parameters(17, 40, -1, 0x010203),
+            [(7, b"\x28\x1e\x03\x02\x01\x00\x00\x00")],
+        )
+
+
+@pytest.mark.asyncio
+async def test_client_execute_action_set_dimmer_brightness_ignored(
+    server: Server,
+) -> None:
+    async with (
+        open_device(server, 2) as device,
+        open_client(server, "test") as client,
+    ):
+        await do_execute_action(
+            client,
+            device,
+            set_rgbw_parameters(4, 10, -1, 0),
+            [(0, b"\x0a\x00\x00\x00\x00\x00\x00\x00")],
+        )
+
+        # A brightness of -1 leaves the dimmer where it is
+        await do_execute_action(
+            client,
+            device,
+            set_rgbw_parameters(4, -1, -1, 0),
+            [(0, b"\x0a\x00\x00\x00\x00\x00\x00\x00")],
+        )
 
 
 async def do_execute_action_with_error(
