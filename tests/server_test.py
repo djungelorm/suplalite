@@ -427,6 +427,26 @@ async def ping(stream: PacketStream) -> None:
     assert packet.call_id == proto.Call.SDC_PING_SERVER_RESULT
 
 
+def test_state_guid_lookup() -> None:
+    # devices and clients are keyed by guid; check the lookups round-trip
+    # and that distinct guids stay distinct
+    server_state = state.ServerState()
+
+    device_id = server_state.add_device("device-1", device_guid[1], 0, 0)
+    assert server_state.get_device_id(device_guid[1]) == device_id
+    assert server_state.add_device("device-2", device_guid[2], 0, 0) != device_id
+    assert server_state.get_device_id(device_guid[2]) != device_id
+    with pytest.raises(KeyError):
+        server_state.get_device_id(device_guid[3])
+
+    client_guid = b"\x01" + b"\x00" * 15
+    other_client_guid = b"\x02" + b"\x00" * 15
+    client_id = server_state.add_client(client_guid)
+    # re-registering with the same guid returns the existing client
+    assert server_state.add_client(client_guid) == client_id
+    assert server_state.add_client(other_client_guid) != client_id
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize("device_id", [1, 2, 3])
 @pytest.mark.parametrize("secure", [True, False])

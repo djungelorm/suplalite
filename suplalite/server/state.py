@@ -44,12 +44,13 @@ class ServerState:
         return self._lock
 
     def add_client(self, guid: bytes) -> int:
-        if str(guid) in self._client_guid_to_id:
-            return self._client_guid_to_id[str(guid)]
+        key = guid.hex()
+        if key in self._client_guid_to_id:
+            return self._client_guid_to_id[key]
         client_id = self._next_client_id
         self._next_client_id += 1
         self._clients[client_id] = ClientState(client_id, guid)
-        self._client_guid_to_id[str(guid)] = client_id
+        self._client_guid_to_id[key] = client_id
         return client_id
 
     def client_connected(
@@ -104,7 +105,7 @@ class ServerState:
         return self._client_events[client_id]
 
     def get_device_id(self, guid: bytes) -> int:
-        return self._device_guid_to_id[str(guid)]
+        return self._device_guid_to_id[guid.hex()]
 
     def add_device(
         self,
@@ -125,7 +126,7 @@ class ServerState:
             proto_version=proto.PROTO_VERSION,
         )
         self._devices[device_id] = device
-        self._device_guid_to_id[str(guid)] = device_id
+        self._device_guid_to_id[guid.hex()] = device_id
         return device_id
 
     def add_channel(
