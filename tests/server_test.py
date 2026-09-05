@@ -928,48 +928,76 @@ async def test_server_event_loop_survives_dispatch_failure(
             assert "[server-test] CLIENT_CONNECTED 1" in caplog.text
 
 
+def time_out_first_wait_for_connections(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Make the first of stop()'s waits report that connections are still open.
+    # Waiting for a real timeout to expire instead would leave the test racing
+    # the connection it wants to still be there when the wait gives up.
+    original = Server._wait_for_connections  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
+    waited = False
+
+    async def wait_for_connections(
+        self: Server,
+        timeout: float | None,  # noqa: ASYNC109
+    ) -> bool:
+        nonlocal waited
+        if not waited:
+            waited = True
+            return False
+        return await original(self, timeout)
+
+    monkeypatch.setattr(Server, "_wait_for_connections", wait_for_connections)
+
+
 @pytest.mark.asyncio
-async def test_stop_closes_open_connections(caplog: pytest.LogCaptureFixture) -> None:
+async def test_stop_closes_open_connections(
+    caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
     # Note: uses its own server as the test stops it itself
     server = make_server()
     await server.start()
+
+    time_out_first_wait_for_connections(monkeypatch)
 
     async with open_connection(server, secure=False) as stream:
         await register_device(stream, 1)
 
         # the device is idle but still connected, so stop() has to close it
-        # itself rather than wait for it
+        # itself rather than wait for it; the second wait is the real one and
+        # has to see the connection go away
         await server.stop(timeout=0.5)
 
-        assert "timed out waiting for connections to close" in caplog.text
-        assert "connections still open" not in caplog.text
-        assert "timed out waiting for connection handlers" not in caplog.text
-        assert not server.state.get_device(1).online
+    # Note: assert out here rather than straight after stop(); on Python 3.11
+    # coverage does not trace the statements that follow it in the same
+    # coroutine, which fails the coverage gate even though the test passes
+    assert "timed out waiting for connections to close" in caplog.text
+    assert "connections still open" not in caplog.text
+    assert "timed out waiting for connection handlers" not in caplog.text
+    assert not server.state.get_device(1).online
 
 
 @pytest.mark.asyncio
 async def test_stop_continues_if_connections_do_not_close(
-    caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
-    # a connection that ignores being closed must not block shutdown forever
-    def ignore_close(self: ServerConnection) -> None:
-        pass
-
-    monkeypatch.setattr(ServerConnection, "close", ignore_close)
-
+    # a connection that has not gone by the time the waits give up must not
+    # block shutdown forever. A zero timeout gives every wait no time at all,
+    # so the shutdown takes the give-up path whatever the connection does --
+    # and whether or not asyncio.Server.wait_closed() waits for the connection
+    # handlers, which it only does from Python 3.12.1 onwards.
     server = make_server()
     await server.start()
 
     async with open_connection(server, secure=False) as stream:
         await register_device(stream, 1)
 
-        await server.stop(timeout=0.5)
-
-        assert "connections still open; shutting down anyway" in caplog.text
-        assert "timed out waiting for connection handlers to finish" in caplog.text
+        await server.stop(timeout=0)
 
     # let the connection, which outlived the server, finish tearing down
     await asyncio.sleep(0.1)
+
+    assert "timed out waiting for connections to close" in caplog.text
+    assert "connections still open; shutting down anyway" in caplog.text
+    assert "timed out waiting for connection handlers to finish" in caplog.text
 
 
 @pytest.mark.asyncio
