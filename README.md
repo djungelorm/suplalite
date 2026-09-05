@@ -25,13 +25,18 @@ server. The server listens on three ports: a plain port for devices, a TLS-secur
 devices and clients, and an HTTPS REST API port. TLS requires a certificate and key file.
 
 Devices are taken from the static configuration and cannot be added at runtime: a
-device is accepted only if its GUID and channels match that configuration. Client
-registration, in contrast, always succeeds -- any client that can reach the port is
-registered and served, and the email and password it registers with are not checked.
-This is a deliberate divergence from supla-server, which gates registration on a
-window enabled through supla-cloud; suplalite has no such state and always reports
-registration as disabled. Because of this the server should only be exposed on a
-trusted network.
+device is accepted only if its GUID is configured and its manufacturer id, product
+id and channels match that configuration. The email and authentication key it
+registers with are *not* checked, so anything that knows a configured GUID can
+register as that device -- devices are identified, not authenticated. Client registration, in
+contrast, always succeeds -- any client that can reach the port is registered and
+served, and the email and password it registers with are not checked.
+
+Both are deliberate divergences from supla-server, which validates the device
+authentication key and gates client registration on a window enabled through
+supla-cloud; suplalite has neither a stored key to compare against nor any such
+registration state, and always reports registration as disabled. Because of this
+the server should only be exposed on a trusted network.
 
 Email and password are checked for superuser authorization, which a client needs in
 order to change device configuration.

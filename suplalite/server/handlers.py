@@ -140,6 +140,16 @@ async def register_device(
     context: DeviceContext,
     msg: proto.TDS_RegisterDevice_E,
 ) -> proto.TSD_RegisterDeviceResult:
+    # Note: devices are identified, not authenticated.
+    #
+    # The device must already be in the static server config -- its guid must be
+    # known and its manufacturer id, product id and channels must match -- but
+    # the email and authkey in this message are not checked. supla-server
+    # validates the authkey it was given against the one stored for the device
+    # and rejects a mismatch with AUTHKEY_ERROR; suplalite stores no authkey to
+    # compare against, so anything that knows a configured guid can register as
+    # that device. See register_client for the same divergence on the client
+    # side.
     try:
         device_id = context.server.state.get_device_id(msg.guid)
     except KeyError:

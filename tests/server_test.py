@@ -8,7 +8,7 @@ import ssl
 import time
 from collections.abc import AsyncGenerator, Callable
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 import aiohttp
@@ -780,6 +780,27 @@ async def test_register_client_events(
     await asyncio.sleep(0.5)
     assert "[server-test] CLIENT_CONNECTED 1" in caplog.text
     assert "[server-test] CLIENT_DISCONNECTED 1" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_register_device_does_not_check_authkey(server: Server) -> None:
+    # Note: a device is identified by its guid; the authkey it registers with
+    # is not checked. This diverges from supla-server deliberately -- see the
+    # note on the register_device handler
+    call = replace(
+        register_device_message(1),
+        email="wrong@example.com",
+        authkey=b"\xff" * 16,
+    )
+    async with open_connection(server) as stream:
+        await stream.send(
+            Packet(proto.Call.DS_REGISTER_DEVICE_E, encoding.encode(call))
+        )
+        packet = await stream.recv()
+        assert packet.call_id == proto.Call.SD_REGISTER_DEVICE_RESULT
+        result, _ = encoding.decode(proto.TSD_RegisterDeviceResult, packet.data)
+        assert result.result_code == proto.ResultCode.TRUE
+        assert server.state.get_device(1).online
 
 
 @pytest.mark.asyncio
