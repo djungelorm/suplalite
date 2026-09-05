@@ -28,6 +28,10 @@ from suplalite.server.handlers import CallHandler, EventHandler
 
 logger = logging.getLogger("suplalite.server")
 
+# How long stop() waits for connections to close of their own accord, before
+# closing them itself
+STOP_TIMEOUT = 10.0
+
 
 class Connection:
     def __init__(
@@ -164,10 +168,15 @@ class Connection:
             self._context.log("event task stopped", logging.DEBUG)
 
     def close(self) -> None:
-        # Terminate this connection by stopping the call task; the teardown in
-        # __call__ then cleans up the server state as for any disconnect.
-        if self._call_task is not None:  # pragma: no branch
+        # Terminate this connection. If it is serving, cancel the call task and
+        # let the teardown in __call__ clean up the server state as for any
+        # other disconnect (unlike supersede(), which deliberately skips it).
+        # If it has not started serving yet -- e.g. it is still in the TLS
+        # handshake -- there is no task to cancel, so close the socket instead.
+        if self._call_task is not None:
             self._call_task.cancel()
+        else:
+            self._writer.close()
 
     async def _handle_call(self, context: BaseContext, packet: Packet) -> None:
         handler = self._context.server.get_call_handler(packet.call_id)
@@ -289,7 +298,7 @@ class Server:
         self._context = ServerContext(self, self._events, "server")
 
         self._connection_lock = asyncio.Lock()
-        self._connection_count = 0
+        self._connections: set[Connection] = set()
         self._no_connections = asyncio.Event()
         self._no_connections.set()
 
@@ -368,15 +377,25 @@ class Server:
 
         logger.info("started")
 
-    async def stop(self) -> None:
-        await self._no_connections.wait()
+    # Note: ASYNC109 suggests the caller wraps the call in asyncio.timeout
+    # instead, but the timeout is what paces the shutdown steps below
+    async def stop(self, timeout: float | None = STOP_TIMEOUT) -> None:  # noqa: ASYNC109
+        # Give connections a chance to close themselves, then close whatever is
+        # left; a single wedged connection must not block shutdown forever
+        if not await self._wait_for_connections(timeout):
+            logger.warning("timed out waiting for connections to close; closing them")
+            await self._close_connections()
+            if not await self._wait_for_connections(timeout):
+                logger.error("connections still open; shutting down anyway")
         assert self._server is not None
         assert self._secure_server is not None
         assert self._api_server is not None
         self._server.close()
         self._secure_server.close()
-        await self._server.wait_closed()
-        await self._secure_server.wait_closed()
+        closed = await self._wait_closed(self._server, timeout)
+        secure_closed = await self._wait_closed(self._secure_server, timeout)
+        if not (closed and secure_closed):
+            logger.error("timed out waiting for connection handlers to finish")
         await self._api_server.shutdown()
         for task in self._tasks:
             task.cancel()
@@ -384,6 +403,34 @@ class Server:
             with contextlib.suppress(asyncio.exceptions.CancelledError):
                 await task
         logger.info("stopped")
+
+    async def _wait_for_connections(self, timeout: float | None) -> bool:  # noqa: ASYNC109
+        # Wait for all connections to close, returning False if timed out
+        try:
+            await asyncio.wait_for(self._no_connections.wait(), timeout)
+        except asyncio.exceptions.TimeoutError:
+            return False
+        return True
+
+    async def _wait_closed(
+        self,
+        server: asyncio.Server,
+        timeout: float | None,  # noqa: ASYNC109
+    ) -> bool:
+        # Note: since Python 3.12.1 wait_closed() also waits for the connection
+        # handlers to finish, so it has to be bounded too -- otherwise a
+        # connection that refused to close would block shutdown here instead
+        try:
+            await asyncio.wait_for(server.wait_closed(), timeout)
+        except asyncio.exceptions.TimeoutError:
+            return False
+        return True
+
+    async def _close_connections(self) -> None:
+        async with self._connection_lock:
+            connections = list(self._connections)
+        for connection in connections:
+            connection.close()
 
     def get_call_handler(self, call_id: proto.Call) -> CallHandler | None:
         return self._call_handlers.get(call_id, None)
@@ -486,19 +533,20 @@ class Server:
     async def _client_connected(
         self, secure: bool, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
     ) -> None:
+        connection = Connection(self, reader, writer)
         async with self._connection_lock:
-            self._connection_count += 1
+            self._connections.add(connection)
             self._no_connections.clear()
         try:
             if secure:
                 await cast("Any", writer.transport)._sock.do_handshake()  # noqa: SLF001
-            await Connection(self, reader, writer)()
+            await connection()
         except Exception:  # pragma: no cover
             logger.exception("unexpected error")
             raise
         finally:
             # Note: coverage bug means it thinks this is not covered?!?
             async with self._connection_lock:  # pragma: no cover
-                self._connection_count -= 1
-                if self._connection_count == 0:
+                self._connections.discard(connection)
+                if len(self._connections) == 0:
                     self._no_connections.set()

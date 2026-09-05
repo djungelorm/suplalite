@@ -16,13 +16,14 @@ import pytest
 
 from suplalite import encoding, network, proto
 from suplalite.packets import Packet, PacketStream
+from suplalite.server import Connection as ServerConnection
 from suplalite.server import Server, state
 from suplalite.server.context import ServerContext
 from suplalite.server.events import EventContext, EventId
 from suplalite.server.handlers import EventHandler, event_handler
 from suplalite.utils import to_hex
 
-from .conftest import device_guid
+from .conftest import device_guid, make_server
 
 proto.CHANNELPACK_MAXCOUNT = 5
 proto.ACTIVITY_TIMEOUT_DEFAULT = 30
@@ -870,6 +871,64 @@ async def test_server_event_loop_survives_dispatch_failure(
         async with open_client(server, "test"):
             await asyncio.sleep(0.5)
             assert "[server-test] CLIENT_CONNECTED 1" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_stop_closes_open_connections(caplog: pytest.LogCaptureFixture) -> None:
+    # Note: uses its own server as the test stops it itself
+    server = make_server()
+    await server.start()
+
+    async with open_connection(server, secure=False) as stream:
+        await register_device(stream, 1)
+
+        # the device is idle but still connected, so stop() has to close it
+        # itself rather than wait for it
+        await server.stop(timeout=0.5)
+
+        assert "timed out waiting for connections to close" in caplog.text
+        assert "connections still open" not in caplog.text
+        assert "timed out waiting for connection handlers" not in caplog.text
+        assert not server.state.get_device(1).online
+
+
+@pytest.mark.asyncio
+async def test_stop_continues_if_connections_do_not_close(
+    caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # a connection that ignores being closed must not block shutdown forever
+    def ignore_close(self: ServerConnection) -> None:
+        pass
+
+    monkeypatch.setattr(ServerConnection, "close", ignore_close)
+
+    server = make_server()
+    await server.start()
+
+    async with open_connection(server, secure=False) as stream:
+        await register_device(stream, 1)
+
+        await server.stop(timeout=0.5)
+
+        assert "connections still open; shutting down anyway" in caplog.text
+        assert "timed out waiting for connection handlers to finish" in caplog.text
+
+    # let the connection, which outlived the server, finish tearing down
+    await asyncio.sleep(0.1)
+
+
+@pytest.mark.asyncio
+async def test_close_connection_before_it_serves(server: Server) -> None:
+    # a connection closed before it starts serving -- e.g. one still in the
+    # TLS handshake when the server is stopped -- has no call task to cancel
+    reader, writer = await asyncio.open_connection("127.0.0.1", server.port)
+    try:
+        connection = ServerConnection(server, reader, writer)
+        connection.close()
+        assert writer.is_closing()
+    finally:
+        writer.close()
+        await writer.wait_closed()
 
 
 @pytest.mark.asyncio

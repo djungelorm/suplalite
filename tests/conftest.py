@@ -8,8 +8,7 @@ from suplalite import encoding, proto
 from suplalite.server import Server, state
 
 
-@pytest_asyncio.fixture(scope="function")
-async def server(request: pytest.FixtureRequest) -> AsyncIterator[Server]:
+def make_server(with_scenes: bool = True) -> Server:
     server = Server(
         listen_host="127.0.0.1",
         host="127.0.0.1",
@@ -22,9 +21,14 @@ async def server(request: pytest.FixtureRequest) -> AsyncIterator[Server]:
         email="email@email.com",
         password="password123",
     )
-
-    with_scenes = not hasattr(request, "param") or "without-scenes" not in request.param
     setup_server(server, with_scenes=with_scenes)
+    return server
+
+
+@pytest_asyncio.fixture(scope="function")
+async def server(request: pytest.FixtureRequest) -> AsyncIterator[Server]:
+    with_scenes = not hasattr(request, "param") or "without-scenes" not in request.param
+    server = make_server(with_scenes=with_scenes)
     await server.start()
     yield server
     await server.stop()
