@@ -348,7 +348,7 @@ async def register_client(
     if result_code is not None:
         return _register_client_failure(context, result_code)
 
-    client_id = context.server.state.get_or_add_client(msg.guid)
+    client_id = context.server.state.add_client(msg.guid)
     return await _complete_client_registration(context, client_id, msg.guid, msg.name)
 
 
@@ -371,7 +371,7 @@ async def register_client_access_id(
 
     # Note: the app generates its own guid, so unlike an email-mode client this
     # one cannot have been configured in advance
-    client_id = context.server.state.get_or_add_client(msg.guid)
+    client_id = context.server.state.add_client(msg.guid)
     return await _complete_client_registration(context, client_id, msg.guid, msg.name)
 
 
@@ -448,7 +448,7 @@ def _log_client_rejected(
     # Note: this means the log holds client authkeys.
     context.log(
         "client not allowed to register; to allow it, configure "
-        f"add_client({msg.email!r}, "
+        f"add_client_credentials({msg.email!r}, "
         f'bytes.fromhex("{to_hex(msg.guid)}"), '
         f'bytes.fromhex("{to_hex(msg.authkey)}"))',
         level=logging.WARNING,

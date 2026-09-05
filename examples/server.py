@@ -95,10 +95,14 @@ async def main() -> None:
         location_name="Test",
         email="email@email.com",
         password="1",
+        # Note: both default to False, which accepts any configured device and
+        # any client at all
+        device_auth=True,
+        client_auth=True,
     )
 
-    # Devices authenticate with their guid and authkey; see examples/device.py,
-    # which registers with these. Pass device_auth=False above to skip this.
+    # With device_auth, devices authenticate with their guid and authkey; see
+    # examples/device.py, which registers with these
     device_id = server.state.add_device(
         "test",
         bytes.fromhex("eeeeeeeee534d1a706ac5f416719899e"),
@@ -108,7 +112,7 @@ async def main() -> None:
     # Clients using the SUPLA app's "email" sign-in generate their own guid and
     # authkey, so let one register, then copy them out of the warning the server
     # logs when it rejects it. This one is examples/client.py.
-    server.state.add_client(
+    server.state.add_client_credentials(
         "email@email.com",
         bytes.fromhex("dddddddd4ad3b8aa3666216f2a864223"),
         bytes.fromhex("cccccccce534d1a706ac5f416719899e"),

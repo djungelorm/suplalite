@@ -6,7 +6,8 @@ import ssl
 import time
 from collections.abc import AsyncGenerator, Callable
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import aiohttp
@@ -449,10 +450,10 @@ def test_state_guid_lookup() -> None:
 
     client_guid = b"\x01" + b"\x00" * 15
     other_client_guid = b"\x02" + b"\x00" * 15
-    client_id = server_state.get_or_add_client(client_guid)
+    client_id = server_state.add_client(client_guid)
     # re-registering with the same guid returns the existing client
-    assert server_state.get_or_add_client(client_guid) == client_id
-    assert server_state.get_or_add_client(other_client_guid) != client_id
+    assert server_state.add_client(client_guid) == client_id
+    assert server_state.add_client(other_client_guid) != client_id
 
 
 def test_state_client_credentials() -> None:
@@ -460,12 +461,14 @@ def test_state_client_credentials() -> None:
 
     guid = b"\x01" + b"\x00" * 15
     authkey = b"\x02" + b"\x00" * 15
-    client_id = server_state.add_client("Client@Example.com ", guid, authkey)
+    client_id = server_state.add_client_credentials(
+        "Client@Example.com ", guid, authkey
+    )
 
     # a configured client keeps its id when it registers
-    assert server_state.get_or_add_client(guid) == client_id
+    assert server_state.add_client(guid) == client_id
     # and a dynamically created one gets a distinct id
-    assert server_state.get_or_add_client(b"\x03" + b"\x00" * 15) != client_id
+    assert server_state.add_client(b"\x03" + b"\x00" * 15) != client_id
 
     assert server_state.check_client_credentials(guid, "client@example.com", authkey)
     # the email is matched case insensitively, ignoring surrounding whitespace
@@ -495,6 +498,25 @@ def test_state_device_authkey() -> None:
     assert not server_state.has_device_authkey(without_key)
     with pytest.raises(KeyError):
         server_state.check_device_authkey(without_key, authkey)
+
+
+def test_auth_is_off_by_default() -> None:
+    # Note: authentication is opt-in, so a configuration written for an earlier
+    # version keeps working unchanged
+    server = Server(
+        listen_host="127.0.0.1",
+        host="127.0.0.1",
+        port=0,
+        secure_port=0,
+        api_port=0,
+        certfile=Path("ssl/server.cert"),
+        keyfile=Path("ssl/server.key"),
+        location_name="Test",
+        email="email@email.com",
+        password="password123",
+    )
+    assert not server.device_auth
+    assert not server.client_auth
 
 
 @pytest.mark.asyncio
@@ -1070,6 +1092,7 @@ async def test_register_client_unknown_guid(
 
     # the rejection tells the operator how to allow the client
     assert "client not allowed to register; to allow it, configure" in caplog.text
+    assert "add_client_credentials(" in caplog.text
     assert repr(client_email) in caplog.text
     assert to_hex(b"\xab" * 16) in caplog.text
     assert to_hex(client_authkey("test")) in caplog.text

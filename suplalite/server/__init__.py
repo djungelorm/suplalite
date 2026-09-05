@@ -252,8 +252,10 @@ class Server:
         location_name: str,
         email: str,
         password: str,
-        device_auth: bool = True,
-        client_auth: bool = True,
+        # Note: authentication is opt-in, so that a configuration written for
+        # an earlier version keeps working
+        device_auth: bool = False,
+        client_auth: bool = False,
         auth_failure_delay: float = AUTH_FAILURE_DELAY,
     ) -> None:
 

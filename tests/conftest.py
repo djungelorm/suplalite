@@ -85,7 +85,9 @@ def setup_server(
         return device_authkey[device_id] if with_authkeys else None
 
     for name in client_names:
-        server.state.add_client(client_email, client_guid(name), client_authkey(name))
+        server.state.add_client_credentials(
+            client_email, client_guid(name), client_authkey(name)
+        )
     server.state.add_access_id(access_id, access_id_password)
 
     device_id = server.state.add_device("device-1", device_guid[1], authkey(1))

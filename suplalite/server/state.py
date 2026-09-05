@@ -57,19 +57,19 @@ class ServerState:
     def lock(self) -> asyncio.Lock:
         return self._lock
 
-    def add_client(self, email: str, guid: bytes, authkey: bytes) -> int:
+    def add_client_credentials(self, email: str, guid: bytes, authkey: bytes) -> int:
         # Configure a client that is allowed to register in email mode.
         # The SUPLA app generates its own guid and authkey, so read them from
         # the warning the server logs when it rejects an unknown client.
         assert self._started is False
-        client_id = self.get_or_add_client(guid)
+        client_id = self.add_client(guid)
         self._client_credentials[guid.hex()] = (normalize_email(email), authkey)
         return client_id
 
-    def get_or_add_client(self, guid: bytes) -> int:
-        # Note: clients are also created here at runtime, either because client
-        # auth is disabled or because they registered with an access id, whose
-        # guid cannot be known in advance
+    def add_client(self, guid: bytes) -> int:
+        # Note: clients are added here at registration time too, either because
+        # client auth is disabled or because they registered with an access id,
+        # whose guid cannot be known in advance
         key = guid.hex()
         if key in self._client_guid_to_id:
             return self._client_guid_to_id[key]
