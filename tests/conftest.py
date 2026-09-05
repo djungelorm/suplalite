@@ -44,7 +44,7 @@ device_guid = {
 
 
 def setup_server(server: Server, with_scenes: bool = True) -> None:
-    device_id = server.state.add_device("device-1", device_guid[1], 0, 0)
+    device_id = server.state.add_device("device-1", device_guid[1])
     assert device_id == 1
     server.state.add_channel(
         device_id,
@@ -71,7 +71,9 @@ def setup_server(server: Server, with_scenes: bool = True) -> None:
         proto.ChannelFlag.CHANNELSTATE,
     )
 
-    device_id = server.state.add_device("device-2", device_guid[2], 7, 1)
+    device_id = server.state.add_device(
+        "device-2", device_guid[2], manufacturer_id=7, product_id=1
+    )
     assert device_id == 2
     server.state.add_channel(
         device_id,
@@ -83,7 +85,7 @@ def setup_server(server: Server, with_scenes: bool = True) -> None:
         alt_icon=1,
     )
 
-    device_id = server.state.add_device("device-3", device_guid[3], 0, 0)
+    device_id = server.state.add_device("device-3", device_guid[3])
     assert device_id == 3
     server.state.add_channel(
         device_id,
@@ -109,7 +111,7 @@ def setup_server(server: Server, with_scenes: bool = True) -> None:
         ),
     )
 
-    device_id = server.state.add_device("device-4", device_guid[4], 0, 0)
+    device_id = server.state.add_device("device-4", device_guid[4])
     assert device_id == 4
     server.state.add_channel(
         device_id,
@@ -141,7 +143,7 @@ def setup_server(server: Server, with_scenes: bool = True) -> None:
         icons=[b"icon3"],
     )
 
-    device_id = server.state.add_device("device-5", device_guid[5], 0, 0)
+    device_id = server.state.add_device("device-5", device_guid[5])
     assert device_id == 5
     server.state.add_channel(
         device_id,

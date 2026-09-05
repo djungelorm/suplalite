@@ -313,7 +313,7 @@ async def register_client(
     # registered and served, and the email and password in this message are not
     # checked. Credentials are only used for superuser authorization (see
     # client_superuser_authorization_request), which gates device config.
-    client_id = context.server.state.add_client(msg.guid)
+    client_id = context.server.state.get_or_add_client(msg.guid)
 
     old_conn = context.server.state.client_connected(
         client_id, context.events, context.conn

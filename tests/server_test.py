@@ -433,19 +433,71 @@ def test_state_guid_lookup() -> None:
     # and that distinct guids stay distinct
     server_state = state.ServerState()
 
-    device_id = server_state.add_device("device-1", device_guid[1], 0, 0)
+    device_id = server_state.add_device("device-1", device_guid[1])
     assert server_state.get_device_id(device_guid[1]) == device_id
-    assert server_state.add_device("device-2", device_guid[2], 0, 0) != device_id
+    assert server_state.add_device("device-2", device_guid[2]) != device_id
     assert server_state.get_device_id(device_guid[2]) != device_id
     with pytest.raises(KeyError):
         server_state.get_device_id(device_guid[3])
 
     client_guid = b"\x01" + b"\x00" * 15
     other_client_guid = b"\x02" + b"\x00" * 15
-    client_id = server_state.add_client(client_guid)
+    client_id = server_state.get_or_add_client(client_guid)
     # re-registering with the same guid returns the existing client
-    assert server_state.add_client(client_guid) == client_id
-    assert server_state.add_client(other_client_guid) != client_id
+    assert server_state.get_or_add_client(client_guid) == client_id
+    assert server_state.get_or_add_client(other_client_guid) != client_id
+
+
+def test_state_client_credentials() -> None:
+    server_state = state.ServerState()
+
+    guid = b"\x01" + b"\x00" * 15
+    authkey = b"\x02" + b"\x00" * 15
+    client_id = server_state.add_client("Client@Example.com ", guid, authkey)
+
+    # a configured client keeps its id when it registers
+    assert server_state.get_or_add_client(guid) == client_id
+    # and a dynamically created one gets a distinct id
+    assert server_state.get_or_add_client(b"\x03" + b"\x00" * 15) != client_id
+
+    assert server_state.check_client_credentials(guid, "client@example.com", authkey)
+    # the email is matched case insensitively, ignoring surrounding whitespace
+    assert server_state.check_client_credentials(guid, " Client@Example.COM", authkey)
+    assert not server_state.check_client_credentials(guid, "other@example.com", authkey)
+    assert not server_state.check_client_credentials(
+        guid, "client@example.com", b"\xff" * 16
+    )
+    # a guid that was never configured is not in the allowlist at all
+    with pytest.raises(KeyError):
+        server_state.check_client_credentials(
+            b"\x03" + b"\x00" * 15, "client@example.com", authkey
+        )
+
+
+def test_state_device_authkey() -> None:
+    server_state = state.ServerState()
+
+    authkey = b"\x01" * 16
+    with_key = server_state.add_device("device-1", device_guid[1], authkey)
+    without_key = server_state.add_device("device-2", device_guid[2])
+
+    assert server_state.has_device_authkey(with_key)
+    assert server_state.check_device_authkey(with_key, authkey)
+    assert not server_state.check_device_authkey(with_key, b"\xff" * 16)
+
+    assert not server_state.has_device_authkey(without_key)
+    with pytest.raises(KeyError):
+        server_state.check_device_authkey(without_key, authkey)
+
+
+def test_state_access_id() -> None:
+    server_state = state.ServerState()
+    server_state.add_access_id(42, "access-id-password")
+
+    assert server_state.check_access_id_password(42, "access-id-password")
+    assert not server_state.check_access_id_password(42, "wrong-password")
+    with pytest.raises(KeyError):
+        server_state.check_access_id_password(7, "access-id-password")
 
 
 @pytest.mark.asyncio

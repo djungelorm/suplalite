@@ -100,8 +100,6 @@ async def main() -> None:
     device_id = server.state.add_device(
         "test",
         bytes.fromhex("eeeeeeeee534d1a706ac5f416719899e"),
-        0,
-        0,
     )
 
     server.state.add_channel(

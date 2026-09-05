@@ -4,6 +4,7 @@ import asyncio
 import base64
 import copy
 import hashlib
+import hmac
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -12,6 +13,13 @@ from suplalite.server.events import EventQueue
 
 if TYPE_CHECKING:  # pragma: no cover
     from suplalite.server import Connection
+
+
+def normalize_email(email: str) -> str:
+    # Note: supla-server matches the email in SQL, where the collation makes it
+    # case insensitive. Match that, so a configured address that differs only in
+    # case from what the peer sends is not a baffling authentication failure.
+    return email.strip().lower()
 
 
 class ServerState:
@@ -31,6 +39,12 @@ class ServerState:
         self._device_connections: dict[int, Connection] = {}
         self._device_events: dict[int, EventQueue] = {}
 
+        # Note: credentials are kept here rather than on DeviceState/ClientState,
+        # which are handed out by get_device()/get_client() and end up in logs
+        self._device_authkeys: dict[int, bytes] = {}
+        self._client_credentials: dict[str, tuple[str, bytes]] = {}
+        self._access_ids: dict[int, str] = {}
+
         self._icons: dict[str, Icon] = {}
         self._icons_by_id: dict[int, Icon] = {}
 
@@ -43,7 +57,19 @@ class ServerState:
     def lock(self) -> asyncio.Lock:
         return self._lock
 
-    def add_client(self, guid: bytes) -> int:
+    def add_client(self, email: str, guid: bytes, authkey: bytes) -> int:
+        # Configure a client that is allowed to register in email mode.
+        # The SUPLA app generates its own guid and authkey, so read them from
+        # the warning the server logs when it rejects an unknown client.
+        assert self._started is False
+        client_id = self.get_or_add_client(guid)
+        self._client_credentials[guid.hex()] = (normalize_email(email), authkey)
+        return client_id
+
+    def get_or_add_client(self, guid: bytes) -> int:
+        # Note: clients are also created here at runtime, either because client
+        # auth is disabled or because they registered with an access id, whose
+        # guid cannot be known in advance
         key = guid.hex()
         if key in self._client_guid_to_id:
             return self._client_guid_to_id[key]
@@ -52,6 +78,25 @@ class ServerState:
         self._clients[client_id] = ClientState(client_id, guid)
         self._client_guid_to_id[key] = client_id
         return client_id
+
+    def add_access_id(self, access_id: int, password: str) -> None:
+        # Configure an access id that is allowed to register, for clients using
+        # the SUPLA app's "access identifier" sign-in mode
+        assert self._started is False
+        self._access_ids[access_id] = password
+
+    def check_client_credentials(self, guid: bytes, email: str, authkey: bytes) -> bool:
+        # Note: raises KeyError if the guid is not in the configured allowlist
+        expected_email, expected_authkey = self._client_credentials[guid.hex()]
+        return hmac.compare_digest(
+            expected_email.encode(), normalize_email(email).encode()
+        ) and hmac.compare_digest(expected_authkey, authkey)
+
+    def check_access_id_password(self, access_id: int, password: str) -> bool:
+        # Note: raises KeyError if the access id is not configured
+        return hmac.compare_digest(
+            self._access_ids[access_id].encode(), password.encode()
+        )
 
     def client_connected(
         self, client_id: int, events: EventQueue, conn: Connection
@@ -111,8 +156,10 @@ class ServerState:
         self,
         name: str,
         guid: bytes,
-        manufacturer_id: int,
-        product_id: int,
+        authkey: bytes | None = None,
+        *,
+        manufacturer_id: int = 0,
+        product_id: int = 0,
     ) -> int:
         assert self._started is False
         device_id = len(self._devices) + 1
@@ -127,7 +174,16 @@ class ServerState:
         )
         self._devices[device_id] = device
         self._device_guid_to_id[guid.hex()] = device_id
+        if authkey is not None:
+            self._device_authkeys[device_id] = authkey
         return device_id
+
+    def has_device_authkey(self, device_id: int) -> bool:
+        return device_id in self._device_authkeys
+
+    def check_device_authkey(self, device_id: int, authkey: bytes) -> bool:
+        # Note: raises KeyError if no authkey is configured for the device
+        return hmac.compare_digest(self._device_authkeys[device_id], authkey)
 
     def add_channel(
         self,
