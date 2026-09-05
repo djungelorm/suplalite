@@ -14,7 +14,7 @@ from suplalite.server.context import BaseContext
 from suplalite.server.events import EventContext, EventId
 from suplalite.server.handlers import event_handler
 
-from .conftest import device_guid
+from .conftest import device_authkey, device_guid
 
 
 def make_device(port: int, *, secure: bool = False) -> Device:
@@ -25,7 +25,7 @@ def make_device(port: int, *, secure: bool = False) -> Device:
         email="email@email.com",
         name="device",
         version="1.0.0",
-        authkey=b"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x00\x0a\x0b\x0c\x0d\x0e\x0f",
+        authkey=device_authkey[1],
         guid=device_guid[1],
     )
 
@@ -71,7 +71,7 @@ async def test_device(server: Server, caplog: pytest.LogCaptureFixture) -> None:
             email="email@email.com",
             name="device",
             version="1.0.0",
-            authkey=b"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x00\x0a\x0b\x0c\x0d\x0e\x0f",
+            authkey=device_authkey[1],
             guid=device_guid[1],
         )
         channel_a = channels.Relay()
@@ -154,7 +154,7 @@ async def test_device_ping(server: Server, caplog: pytest.LogCaptureFixture) -> 
             email="email@email.com",
             name="device",
             version="1.0.0",
-            authkey=b"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x00\x0a\x0b\x0c\x0d\x0e\x0f",
+            authkey=device_authkey[1],
             guid=device_guid[1],
         )
         device.add(channels.Relay())
@@ -184,7 +184,7 @@ async def test_no_channels(server: Server) -> None:
             email="email@email.com",
             name="device",
             version="1.0.0",
-            authkey=b"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x00\x0a\x0b\x0c\x0d\x0e\x0f",
+            authkey=device_authkey[1],
             guid=device_guid[1],
         )
 
@@ -204,7 +204,7 @@ async def test_wrong_channels(server: Server, caplog: pytest.LogCaptureFixture) 
             email="email@email.com",
             name="device",
             version="1.0.0",
-            authkey=b"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x00\x0a\x0b\x0c\x0d\x0e\x0f",
+            authkey=device_authkey[1],
             guid=device_guid[1],
         )
         device.add(channels.Relay())
@@ -220,7 +220,7 @@ async def test_wrong_channels(server: Server, caplog: pytest.LogCaptureFixture) 
             "incorrect type for channel number 1; "
             "expected ChannelType.THERMOMETER got ChannelType.RELAY" in caplog.text
         )
-        assert "Register failed: ResultCode.FALSE" in caplog.text
+        assert "Register failed: ResultCode.CHANNEL_CONFLICT" in caplog.text
 
 
 @pytest.mark.asyncio
@@ -235,7 +235,7 @@ async def test_register_timeout(
             email="email@email.com",
             name="device",
             version="1.0.0",
-            authkey=b"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x00\x0a\x0b\x0c\x0d\x0e\x0f",
+            authkey=device_authkey[1],
             guid=device_guid[1],
         )
         device.add(channels.Relay())
@@ -263,7 +263,7 @@ async def test_stop_before_start() -> None:
         email="email@email.com",
         name="device",
         version="1.0.0",
-        authkey=b"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x00\x0a\x0b\x0c\x0d\x0e\x0f",
+        authkey=device_authkey[1],
         guid=device_guid[1],
     )
     # Stopping a device that never started should be a safe no-op
@@ -280,7 +280,7 @@ async def test_add_channel_after_start(server: Server) -> None:
             email="email@email.com",
             name="device",
             version="1.0.0",
-            authkey=b"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x00\x0a\x0b\x0c\x0d\x0e\x0f",
+            authkey=device_authkey[1],
             guid=device_guid[1],
         )
         device.add(channels.Relay())
@@ -304,7 +304,7 @@ async def test_channel_state(server: Server, caplog: pytest.LogCaptureFixture) -
             email="email@email.com",
             name="device",
             version="1.0.0",
-            authkey=b"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x00\x0a\x0b\x0c\x0d\x0e\x0f",
+            authkey=device_authkey[1],
             guid=device_guid[1],
         )
         device.add(channels.Relay())
@@ -347,7 +347,7 @@ async def test_channel_set_value(
             email="email@email.com",
             name="device",
             version="1.0.0",
-            authkey=b"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x00\x0a\x0b\x0c\x0d\x0e\x0f",
+            authkey=device_authkey[1],
             guid=device_guid[1],
         )
         channel = channels.Temperature()
@@ -389,7 +389,7 @@ async def test_server_set_value(
             email="email@email.com",
             name="device",
             version="1.0.0",
-            authkey=b"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x00\x0a\x0b\x0c\x0d\x0e\x0f",
+            authkey=device_authkey[1],
             guid=device_guid[1],
         )
         channel = channels.Relay()
@@ -435,7 +435,7 @@ async def test_channels(  # noqa: C901,PLR0915,PLR0912
             email="email@email.com",
             name="device",
             version="1.0.0",
-            authkey=b"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x00\x0a\x0b\x0c\x0d\x0e\x0f",
+            authkey=device_authkey[5],
             guid=device_guid[5],
         )
 
@@ -752,7 +752,7 @@ async def test_task(server: Server) -> None:
             email="email@email.com",
             name="device",
             version="1.0.0",
-            authkey=b"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x00\x0a\x0b\x0c\x0d\x0e\x0f",
+            authkey=device_authkey[1],
             guid=device_guid[1],
         )
         device.add(channels.Relay())

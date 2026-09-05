@@ -58,6 +58,10 @@ def get_handlers() -> list[Handler]:
     return _handlers
 
 
+_ZERO_GUID = b"\x00" * proto.GUID_SIZE
+_ZERO_AUTHKEY = b"\x00" * proto.AUTHKEY_SIZE
+
+
 CallHandlerFunc = TypeVar("CallHandlerFunc", bound=Callable[..., Awaitable[Any]])
 
 
@@ -140,36 +144,23 @@ async def register_device(
     context: DeviceContext,
     msg: proto.TDS_RegisterDevice_E,
 ) -> proto.TSD_RegisterDeviceResult:
-    # Note: devices are identified, not authenticated.
-    #
-    # The device must already be in the static server config -- its guid must be
-    # known and its manufacturer id, product id and channels must match -- but
-    # the email and authkey in this message are not checked. supla-server
-    # validates the authkey it was given against the one stored for the device
-    # and rejects a mismatch with AUTHKEY_ERROR; suplalite stores no authkey to
-    # compare against, so anything that knows a configured guid can register as
-    # that device. See register_client for the same divergence on the client
-    # side.
-    try:
-        device_id = context.server.state.get_device_id(msg.guid)
-    except KeyError:
-        context.log(
-            f"device not found with guid {to_hex(msg.guid)}", level=logging.WARNING
-        )
-        return _register_device_failure(context)
+    result_code = _authenticate_device(context, msg)
+    if result_code is not None:
+        return _register_device_failure(context, result_code)
 
+    device_id = context.server.state.get_device_id(msg.guid)
     device = context.server.state.get_device(device_id)
 
     error = _check_device_identity(device, msg)
     if error is not None:
         context.log(error, level=logging.WARNING)
-        return _register_device_failure(context)
+        return _register_device_failure(context, proto.ResultCode.CHANNEL_CONFLICT)
 
     channels = context.server.state.get_device_channels(device_id)
     error = _check_channels(channels, msg.channels, context.server.state.get_channel)
     if error is not None:
         context.log(error, level=logging.WARNING)
-        return _register_device_failure(context)
+        return _register_device_failure(context, proto.ResultCode.CHANNEL_CONFLICT)
 
     proto_version = context.conn.proto_version
     old_conn = context.server.state.device_connected(
@@ -185,10 +176,52 @@ async def register_device(
     return await _complete_registration(context, device_id, device, msg, proto_version)
 
 
-def _register_device_failure(context: DeviceContext) -> proto.TSD_RegisterDeviceResult:
+def _authenticate_device(
+    context: DeviceContext, msg: proto.TDS_RegisterDevice_E
+) -> proto.ResultCode | None:
+    # Returns the code to reject the registration with, or None to allow it.
+    # Note: the checks are ordered as in supla-server, which validates the guid
+    # and the authkey before looking anything up.
+    if msg.guid == _ZERO_GUID:
+        context.log("device sent an empty guid", level=logging.WARNING)
+        return proto.ResultCode.GUID_ERROR
+
+    if context.server.device_auth and msg.authkey == _ZERO_AUTHKEY:
+        context.log("device sent an empty authkey", level=logging.WARNING)
+        return proto.ResultCode.AUTHKEY_ERROR
+
+    try:
+        device_id = context.server.state.get_device_id(msg.guid)
+    except KeyError:
+        context.log(
+            f"device not found with guid {to_hex(msg.guid)}", level=logging.WARNING
+        )
+        # Note: there is no registration window to open here, so an unknown
+        # device is refused the way supla-server refuses one while registration
+        # is disabled
+        return proto.ResultCode.REGISTRATION_DISABLED
+
+    if context.server.device_auth and not context.server.state.check_device_authkey(
+        device_id, msg.authkey
+    ):
+        # Note: the authkey is chosen by whoever runs the server, so unlike a
+        # client's there is nothing to be gained from logging what was sent
+        context.log(
+            f"incorrect authkey for device with guid {to_hex(msg.guid)}",
+            level=logging.WARNING,
+        )
+        return proto.ResultCode.BAD_CREDENTIALS
+
+    return None
+
+
+def _register_device_failure(
+    context: DeviceContext, result_code: proto.ResultCode
+) -> proto.TSD_RegisterDeviceResult:
     context.error = True
+    context.close_delay = context.server.auth_failure_delay
     return proto.TSD_RegisterDeviceResult(
-        proto.ResultCode.FALSE,
+        result_code,
         proto.ACTIVITY_TIMEOUT_DEFAULT,
         proto.PROTO_VERSION,
         proto.PROTO_VERSION_MIN,

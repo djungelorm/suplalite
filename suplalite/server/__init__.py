@@ -356,6 +356,14 @@ class Server:
         return self._location_name
 
     @property
+    def device_auth(self) -> bool:
+        return self._device_auth
+
+    @property
+    def auth_failure_delay(self) -> float:
+        return self._auth_failure_delay
+
+    @property
     def state(self) -> state.ServerState:
         return self._state
 

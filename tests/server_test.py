@@ -566,7 +566,9 @@ async def test_event_with_extra(
 
 
 async def do_register_device_invalid(
-    stream: PacketStream, call: proto.TDS_RegisterDevice_E
+    stream: PacketStream,
+    call: proto.TDS_RegisterDevice_E,
+    expected: proto.ResultCode,
 ) -> None:
     await stream.send(
         Packet(
@@ -577,7 +579,7 @@ async def do_register_device_invalid(
     packet = await stream.recv()
     assert packet.call_id == proto.Call.SD_REGISTER_DEVICE_RESULT
     result, _ = encoding.decode(proto.TSD_RegisterDeviceResult, packet.data)
-    assert result.result_code == proto.ResultCode.FALSE
+    assert result.result_code == expected
 
     # Check server closes the connection
     with pytest.raises(network.NetworkError):
@@ -591,9 +593,117 @@ async def test_register_device_invalid_guid(
     async with open_connection(server) as stream:
         call = register_device_message(1)
         call.guid = b"\xff" * 16
-        await do_register_device_invalid(stream, call)
+        await do_register_device_invalid(
+            stream, call, proto.ResultCode.REGISTRATION_DISABLED
+        )
     assert "device not found with guid ffffffffffffffffffffffffffffffff" in caplog.text
     assert "error; closing connection" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_register_device_zero_guid(
+    server: Server, caplog: pytest.LogCaptureFixture
+) -> None:
+    async with open_connection(server) as stream:
+        call = register_device_message(1)
+        call.guid = b"\x00" * 16
+        await do_register_device_invalid(stream, call, proto.ResultCode.GUID_ERROR)
+    assert "device sent an empty guid" in caplog.text
+    assert "error; closing connection" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_register_device_zero_authkey(
+    server: Server, caplog: pytest.LogCaptureFixture
+) -> None:
+    async with open_connection(server) as stream:
+        call = register_device_message(1)
+        call.authkey = b"\x00" * 16
+        await do_register_device_invalid(stream, call, proto.ResultCode.AUTHKEY_ERROR)
+    assert "device sent an empty authkey" in caplog.text
+    assert "error; closing connection" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_register_device_wrong_authkey(
+    server: Server, caplog: pytest.LogCaptureFixture
+) -> None:
+    async with open_connection(server) as stream:
+        call = register_device_message(1)
+        call.authkey = b"\xff" * 16
+        await do_register_device_invalid(stream, call, proto.ResultCode.BAD_CREDENTIALS)
+    assert (
+        "incorrect authkey for device with guid 01000000000000000000000000000000"
+        in caplog.text
+    )
+    # the authkey the device sent must not be logged
+    assert "ffffffffffffffffffffffffffffffff" not in caplog.text
+    assert "error; closing connection" in caplog.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("authkey", [b"\x00" * 16, b"\xff" * 16])
+async def test_register_device_without_device_auth(authkey: bytes) -> None:
+    # with device auth off the authkey is ignored, empty or not
+    server = make_server(device_auth=False)
+    await server.start()
+    try:
+        async with open_connection(server) as stream:
+            call = register_device_message(1)
+            call.authkey = authkey
+            await stream.send(
+                Packet(proto.Call.DS_REGISTER_DEVICE_E, encoding.encode(call))
+            )
+            packet = await stream.recv()
+            assert packet.call_id == proto.Call.SD_REGISTER_DEVICE_RESULT
+            result, _ = encoding.decode(proto.TSD_RegisterDeviceResult, packet.data)
+            assert result.result_code == proto.ResultCode.TRUE
+    finally:
+        await server.stop()
+
+
+@pytest.mark.asyncio
+async def test_register_device_without_device_auth_still_checks_guid() -> None:
+    # the guid must still be one of the configured devices
+    server = make_server(device_auth=False)
+    await server.start()
+    try:
+        async with open_connection(server) as stream:
+            call = register_device_message(1)
+            call.guid = b"\xff" * 16
+            await do_register_device_invalid(
+                stream, call, proto.ResultCode.REGISTRATION_DISABLED
+            )
+    finally:
+        await server.stop()
+
+
+@pytest.mark.asyncio
+async def test_register_device_failure_delay() -> None:
+    # a failed registration is held open before the connection is closed
+    delay = 0.5
+    server = make_server()
+    server._auth_failure_delay = delay  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
+    await server.start()
+    try:
+        async with open_connection(server) as stream:
+            call = register_device_message(1)
+            call.authkey = b"\xff" * 16
+            start = time.time()
+            await stream.send(
+                Packet(proto.Call.DS_REGISTER_DEVICE_E, encoding.encode(call))
+            )
+
+            # the result is sent immediately; the wait is before the close
+            packet = await stream.recv()
+            assert packet.call_id == proto.Call.SD_REGISTER_DEVICE_RESULT
+            assert time.time() - start < delay
+
+            with pytest.raises(network.NetworkError):
+                await stream.recv()
+            assert time.time() - start >= delay
+    finally:
+        await server.stop()
 
 
 @pytest.mark.asyncio
@@ -603,7 +713,9 @@ async def test_register_device_invalid_manufacturer_id(
     async with open_connection(server) as stream:
         call = register_device_message(1)
         call.manufacturer_id = 16
-        await do_register_device_invalid(stream, call)
+        await do_register_device_invalid(
+            stream, call, proto.ResultCode.CHANNEL_CONFLICT
+        )
     assert "manufacturer id mismatch; expected 0 got 16" in caplog.text
     assert "error; closing connection" in caplog.text
 
@@ -615,7 +727,9 @@ async def test_register_device_invalid_product_id(
     async with open_connection(server) as stream:
         call = register_device_message(1)
         call.product_id = 42
-        await do_register_device_invalid(stream, call)
+        await do_register_device_invalid(
+            stream, call, proto.ResultCode.CHANNEL_CONFLICT
+        )
     assert "product id mismatch; expected 0 got 42" in caplog.text
     assert "error; closing connection" in caplog.text
 
@@ -627,7 +741,9 @@ async def test_register_device_wrong_number_of_channels(
     async with open_connection(server) as stream:
         call = register_device_message(1)
         call.channels = call.channels[:1]
-        await do_register_device_invalid(stream, call)
+        await do_register_device_invalid(
+            stream, call, proto.ResultCode.CHANNEL_CONFLICT
+        )
     assert "incorrect number of channels; expected 3 got 1" in caplog.text
     assert "error; closing connection" in caplog.text
 
@@ -639,7 +755,9 @@ async def test_register_device_invalid_channel_number(
     async with open_connection(server) as stream:
         call = register_device_message(1)
         call.channels[0].number = 10
-        await do_register_device_invalid(stream, call)
+        await do_register_device_invalid(
+            stream, call, proto.ResultCode.CHANNEL_CONFLICT
+        )
     assert "incorrect channel number" in caplog.text
     assert "error; closing connection" in caplog.text
 
@@ -651,7 +769,9 @@ async def test_register_device_invalid_channel_type(
     async with open_connection(server) as stream:
         call = register_device_message(1)
         call.channels[1].type = proto.ChannelType.RELAY
-        await do_register_device_invalid(stream, call)
+        await do_register_device_invalid(
+            stream, call, proto.ResultCode.CHANNEL_CONFLICT
+        )
     assert (
         "incorrect type for channel number 1; "
         "expected ChannelType.THERMOMETER got ChannelType.RELAY" in caplog.text
@@ -666,7 +786,9 @@ async def test_register_device_invalid_channel_func(
     async with open_connection(server) as stream:
         call = register_device_message(1)
         call.channels[0].default_func = proto.ChannelFunc.THERMOMETER
-        await do_register_device_invalid(stream, call)
+        await do_register_device_invalid(
+            stream, call, proto.ResultCode.CHANNEL_CONFLICT
+        )
     assert (
         "incorrect function for channel number 0; "
         "expected ChannelFunc.POWERSWITCH got ChannelFunc.THERMOMETER" in caplog.text
@@ -683,7 +805,9 @@ async def test_register_device_invalid_channel_flags(
         call.channels[0].flags = (
             proto.ChannelFlag.RS_AUTO_CALIBRATION | proto.ChannelFlag.ZWAVE_BRIDGE
         )
-        await do_register_device_invalid(stream, call)
+        await do_register_device_invalid(
+            stream, call, proto.ResultCode.CHANNEL_CONFLICT
+        )
     assert (
         "incorrect flags for channel number 0; "
         "expected ChannelFlag.CHANNELSTATE"
