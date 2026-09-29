@@ -11,6 +11,8 @@ v2.0.0
  - Default the command field of TRGBDimmerChannel_Value to RGBW_COMMAND_NOT_SET
  - Replace the existing connection when a device or client registers again,
    instead of rejecting the new registration
+ - Reject a device whose manufacturer or product id does not match with
+   UNKNOWN_ERROR, instead of CHANNEL_CONFLICT
  - Server.stop() takes a timeout, and closes the connections that outlast it
  - Devices time out registration, and shut down when a background task fails
  - Fix a client closing its own connection by asking for an unknown channel

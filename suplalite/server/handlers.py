@@ -147,7 +147,8 @@ async def register_device(
     error = _check_device_identity(device, msg)
     if error is not None:
         context.log(error, level=logging.WARNING)
-        return _register_device_failure(context, proto.ResultCode.CHANNEL_CONFLICT)
+        # Note: supla-server does not check these ids, so no result code names this case
+        return _register_device_failure(context, proto.ResultCode.UNKNOWN_ERROR)
 
     channels = context.server.state.get_device_channels(device_id)
     error = _check_channels(channels, msg.channels, context.server.state.get_channel)

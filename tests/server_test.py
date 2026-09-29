@@ -757,9 +757,7 @@ async def test_register_device_invalid_manufacturer_id(
     async with open_connection(server) as stream:
         call = register_device_message(1)
         call.manufacturer_id = 16
-        await do_register_device_invalid(
-            stream, call, proto.ResultCode.CHANNEL_CONFLICT
-        )
+        await do_register_device_invalid(stream, call, proto.ResultCode.UNKNOWN_ERROR)
     assert "manufacturer id mismatch; expected 0 got 16" in caplog.text
     assert "error; closing connection" in caplog.text
 
@@ -771,9 +769,7 @@ async def test_register_device_invalid_product_id(
     async with open_connection(server) as stream:
         call = register_device_message(1)
         call.product_id = 42
-        await do_register_device_invalid(
-            stream, call, proto.ResultCode.CHANNEL_CONFLICT
-        )
+        await do_register_device_invalid(stream, call, proto.ResultCode.UNKNOWN_ERROR)
     assert "product id mismatch; expected 0 got 42" in caplog.text
     assert "error; closing connection" in caplog.text
 
