@@ -8,6 +8,7 @@ v2.0.0
  - Breaking: Server takes certfile and keyfile as Path objects
  - Breaking: Remove support for Python 3.10
  - Add RGBW dimmer channel
+ - Add turn on, turn off and set RGBW actions for RGB dimmer channels
  - Default the command field of TRGBDimmerChannel_Value to RGBW_COMMAND_NOT_SET
  - Replace the existing connection when a device or client registers again,
    instead of rejecting the new registration
@@ -15,10 +16,17 @@ v2.0.0
    UNKNOWN_ERROR, instead of CHANNEL_CONFLICT
  - Server.stop() takes a timeout, and closes the connections that outlast it
  - Devices time out registration, and shut down when a background task fails
+ - Device.add() raises once the device has started, and Device.stop() before
+   start() does nothing
+ - Devices only ping when they have sent nothing else for the ping interval
+ - Close a connection whose event handling fails, and keep dispatching events
+   to the other connections
  - Fix a client closing its own connection by asking for an unknown channel
  - Fix the success value reported when a device sets a channel value
  - Fix RGBW and dimmer actions overwriting the fields a client asked to
    leave alone, which it marks with a brightness of -1 or a color of 0
+ - Fix the activity timeout resetting to the default when a connection registers
+ - Fix events sometimes reaching a client before the response to its call
  - Fix field types in the protocol definitions
 
 v1.1.1
