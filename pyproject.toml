@@ -109,6 +109,5 @@ typeCheckingMode = "strict"
 [tool.coverage.run]
 branch = true
 omit = [
-    "suplalite/logging.py", # FIXME: enable this
     "tests/conftest.py",
 ]
