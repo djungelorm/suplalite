@@ -86,7 +86,8 @@ rejected for an unknown GUID or the wrong channels.
 
 Rejecting a client logs the AuthKey it sent, so you can copy it into the configuration.
 An `EventId.REQUEST` event handler also receives whole decoded registration messages.
-Both put client credentials in your logs.
+Both put client credentials in your logs. Registration needs no credentials to send, so
+any peer that can reach the port controls how much of this is logged.
 
 #### Superuser Authorization
 
