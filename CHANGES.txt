@@ -1,3 +1,6 @@
+v2.0.1
+ - Ship a py.typed marker so type checkers use the package annotations
+
 v2.0.0
  - Add opt-in authentication for devices and clients, using
    Server(device_auth=True, client_auth=True). Both default to off
