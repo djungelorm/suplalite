@@ -14,6 +14,8 @@ def make_server(
     device_auth: bool = True,
     client_auth: bool = True,
     with_authkeys: bool = True,
+    # Note: no delay by default, so failed registrations do not slow the tests
+    auth_failure_delay: float = 0,
 ) -> Server:
     server = Server(
         listen_host="127.0.0.1",
@@ -28,8 +30,7 @@ def make_server(
         password="password123",
         device_auth=device_auth,
         client_auth=client_auth,
-        # Note: no delay, so failed registrations do not slow the tests
-        auth_failure_delay=0,
+        auth_failure_delay=auth_failure_delay,
     )
     setup_server(server, with_scenes=with_scenes, with_authkeys=with_authkeys)
     return server

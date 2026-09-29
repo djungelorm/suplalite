@@ -726,8 +726,7 @@ async def test_register_device_without_device_auth_still_checks_guid() -> None:
 async def test_register_device_failure_delay() -> None:
     # A failed registration is held open before the connection is closed
     delay = 0.5
-    server = make_server()
-    server._auth_failure_delay = delay  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
+    server = make_server(auth_failure_delay=delay)
     await server.start()
     try:
         async with open_connection(server) as stream:
