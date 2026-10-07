@@ -1,6 +1,8 @@
 import asyncio
 import contextlib
 import socket
+import subprocess
+import sys
 from typing import Any
 
 import pytest
@@ -834,3 +836,8 @@ async def test_handle_new_value_unknown_channel(
     )
     await device._handle_channel_new_value(msg)  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
     assert "no channel 99 for set value request" in caplog.text
+
+
+def test_import_without_tlslite() -> None:
+    code = "import sys, suplalite.device; assert 'tlslite' not in sys.modules"
+    subprocess.run([sys.executable, "-c", code], check=True)

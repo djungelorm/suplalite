@@ -2,8 +2,6 @@ import asyncio
 import ssl
 from dataclasses import dataclass
 
-import tlslite
-
 from suplalite import encoding, network, proto
 
 MINIMUM_PACKET_SIZE = len(
@@ -48,8 +46,6 @@ class PacketStream:
             try:
                 data = await self._reader.read(proto.MAX_DATA_SIZE)
             except ConnectionResetError as exc:  # pragma: no cover
-                raise network.NetworkError(str(exc)) from exc
-            except tlslite.errors.TLSAbruptCloseError as exc:  # pragma: no cover
                 raise network.NetworkError(str(exc)) from exc
             if len(data) == 0:
                 raise network.NetworkError("eof")
@@ -122,8 +118,6 @@ class PacketStream:
             self._writer.write(data)
             await self._writer.drain()
         except ConnectionResetError as exc:  # pragma: no cover
-            raise network.NetworkError(str(exc)) from exc
-        except tlslite.errors.TLSAbruptCloseError as exc:  # pragma: no cover
             raise network.NetworkError(str(exc)) from exc
 
     def _advance_send_rr_id(self) -> None:

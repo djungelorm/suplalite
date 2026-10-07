@@ -16,7 +16,7 @@ import uvicorn
 
 from suplalite import encoding, network, proto
 from suplalite.packets import Packet, PacketStream
-from suplalite.server import api, state
+from suplalite.server import api, state, tls
 from suplalite.server.context import (
     BaseContext,
     ClientContext,
@@ -385,7 +385,7 @@ class Server:
             self._listen_host,
             self._port,
         )
-        self._secure_server = await network.start_secure_server(
+        self._secure_server = await tls.start_secure_server(
             functools.partial(self._client_connected, True),  # noqa: FBT003
             self._listen_host,
             self._secure_port,
