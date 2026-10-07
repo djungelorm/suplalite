@@ -1,5 +1,6 @@
 Unreleased
  - Load tlslite only for the server, which lowers device memory use
+ - Add project links, classifiers and badges to the PyPI page
 
 v2.0.1
  - Ship a py.typed marker so type checkers use the package annotations

@@ -1,9 +1,16 @@
 suplalite
 =========
 
+[![PyPI](https://img.shields.io/pypi/v/suplalite)](https://pypi.org/project/suplalite/)
+[![Python versions](https://img.shields.io/pypi/pyversions/suplalite)](https://pypi.org/project/suplalite/)
+[![CI](https://github.com/djungelorm/suplalite/actions/workflows/ci.yml/badge.svg)](https://github.com/djungelorm/suplalite/actions/workflows/ci.yml)
+[![License](https://img.shields.io/pypi/l/suplalite)](https://github.com/djungelorm/suplalite/blob/main/LICENSE)
+
 A lightweight implementation of SUPLA server and devices in Python.
 
 Install using `pip install suplalite`
+
+Source code, examples and issues are on [GitHub](https://github.com/djungelorm/suplalite).
 
 Note: this project is not affiliated with SUPLA or Zamel. It is not an "official" library.
 
@@ -24,7 +31,7 @@ Configuration of the server is static, i.e. devices must be configured before st
 server. The server listens on three ports: a plain port for devices, a TLS-secured port for
 devices and clients, and an HTTPS REST API port. TLS requires a certificate and key file.
 
-See `examples/server.py` for an example.
+See [`examples/server.py`](https://github.com/djungelorm/suplalite/blob/main/examples/server.py) for an example.
 
 ### Authentication
 
@@ -111,12 +118,12 @@ Currently supports the following kinds of channel:
  - RGB dimmer
  - RGBW dimmer
 
-See `examples/device.py` for an example.
+See [`examples/device.py`](https://github.com/djungelorm/suplalite/blob/main/examples/device.py) for an example.
 
 Examples
 --------
 
-`examples/` holds a server, a device and a client that talk to each other. Set up the
+[`examples/`](https://github.com/djungelorm/suplalite/tree/main/examples) holds a server, a device and a client that talk to each other. Set up the
 environment once, which also generates the certificate the server uses:
 
 ```

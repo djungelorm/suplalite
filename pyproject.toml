@@ -8,9 +8,22 @@ dynamic = ['version']
 description = "A lightweight implementation of SUPLA server and devices"
 readme = "README.md"
 requires-python = ">=3.11"
+authors = [{ name = "djungelorm" }]
+keywords = ["supla", "home automation", "iot", "smart home", "asyncio"]
 classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Framework :: AsyncIO",
+    "Topic :: Home Automation",
+    "Topic :: System :: Networking",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Operating System :: OS Independent",
+    "Typing :: Typed",
 ]
 license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]
@@ -19,6 +32,12 @@ dependencies = [
     "fastapi",
     "uvicorn",
 ]
+
+[project.urls]
+Homepage = "https://github.com/djungelorm/suplalite"
+Source = "https://github.com/djungelorm/suplalite"
+Issues = "https://github.com/djungelorm/suplalite/issues"
+Changelog = "https://github.com/djungelorm/suplalite/blob/main/CHANGES.txt"
 
 [project.optional-dependencies]
 dev = [
