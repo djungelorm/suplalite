@@ -56,6 +56,9 @@ dev = [
 [tool.hatch.version]
 source = "vcs"
 
+[tool.hatch.build.targets.sdist]
+include = ["/suplalite", "/tests", "/examples", "/CHANGES.txt", "/README.md", "/LICENSE"]
+
 [tool.hatch.envs.default]
 features = ["dev"]
 post-install-commands = [
